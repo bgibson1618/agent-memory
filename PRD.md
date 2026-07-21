@@ -56,8 +56,10 @@ session is effectively lost to every other agent and project.
 - Topic tags and a per-memory sensitivity field.
 - The `mem` CLI: save / search / extract / list (exact surface fixed at architecture).
 - The extract-knowledge document pipeline (extract → dedup → save new → report).
-- **Agent integration:** a global instruction block/skill teaching Claude Code when to save and
-  search unprompted — the invisibility mechanism.
+- **Agent integration:** an instruction block/skill teaching agents when to save and search
+  unprompted — the invisibility mechanism — delivered both for Claude Code (global
+  `CLAUDE.md`/skill) and as a provider-neutral `AGENTS.md` block so codex/agy delegates get the
+  same ambient awareness (same content, two files).
 - Degraded-but-working writes when the Ollama daemon is down (save lands; embedding catches up).
 
 ## 6. Non-Goals
@@ -66,7 +68,9 @@ session is effectively lost to every other agent and project.
 - Classifier routing — **never**; retired by capstone evidence (D021/D023/D045).
 - MCP server — **later, explicitly planned** (the cross-agent port).
 - Session hooks / auto-injection of memories — **later**.
-- Native codex/agy integration — **later**; the CLI is already agent-agnostic if pointed at it.
+- Codex/agy integration beyond the CLI + `AGENTS.md` instruction block — **later**; the MCP
+  server is the richer cross-agent seam. (CLI *access* was never gated — any agent on this
+  machine can run `mem`.)
 - Benchmark/eval harness — **never** for this project.
 - Multi-user support, cloud sync anywhere on the storage path — **never**.
 
@@ -102,5 +106,4 @@ session is effectively lost to every other agent and project.
 - Dedup similarity thresholds for extract-knowledge (capstone D024 showed lexical similarity
   can't separate near-dups; a real local embedder changes the calculus — calibrate empirically).
 - Sensitivity-tag recall semantics: what the filter does by default at search time.
-- When codex/agy get CLI access ahead of the MCP port.
 - Exact `mem` subcommand surface and flags (architecture decides).
