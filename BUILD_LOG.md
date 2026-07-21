@@ -43,3 +43,44 @@ dead-writer temp sweep under the lock.
 **Proof:** parent applied the patch and ran `uv run pytest` → **27 passed** (14 F2 + 11 F1 +
 2 preflight); pyyaml re-lock folded into the wave commit. All six criteria test-mapped; the
 F1 holdover (write warns on late remote) is proven by `test_save_warns_while_a_remote_is_configured`.
+
+## Wave 2 checkpoint  (CLEAN · 2026-07-21)
+Wave committed as `4b52573`. Deterministic half green (ledger + state validators, scheduler
+coherent: F1+F2 proved; F3/F4/F5 ready). Fresh-eyes review: **deferred — 2nd consecutive
+deferral** (single-feature wave); **mandatory at wave 3**. Walkthrough (F36): save/get/list
+exists but no retrieval path yet — no-op.
+
+## Wave 3 dispatch  (2026-07-21)
+Executor: roster (auto, backend claude role-default). First parallel fan-out: **F3 (lexical) +
+F4 (vector) + F5 (graph)**, one builder each, concurrent — dependency-independent by
+construction.
+
+## F3 — Keyword search  (proved · test · 2026-07-21)
+**Route:** FTS5 table (slug UNINDEXED / title / desc / body / topics) in `.index/mem.db` with
+WAL+busy_timeout; self-healing mtime+size sync on every search; in-lock upsert on save; quoted
+OR-joined terms; BM25 weights 4/2/1/2; `mem search` text/`--json`.
+**Decisions:** index self-heals (no manual rebuild path needed); save-path index failure warns,
+never fails a committed save; empty `--json` prints `[]` on stdout, quiet line on stderr.
+**Proof:** parent applied cleanly, `uv run pytest` → 36 passed; real-daemon smoke: literal
+search returns the BM25-ranked hit with snippet.
+
+## F4 — Semantic recall  (proved · test · 2026-07-21)
+**Route:** vector leg in `mem.db` (namespaced vectors/embed_queue/vector_meta); strict-timeout
+embed-or-enqueue save hook; CLI-central bounded drain (~3); doctor/reindex full drain; numpy
+cosine top-k; nomic `search_document:`/`search_query:` prefixes with explicit `num_ctx` 8192.
+Store/cli hunks conflicted with F3's (parallel siblings) — parent hand-merged at reconcile.
+**Decisions:** enqueue-first-then-embed-then-dequeue (crash leaves a queued item, never a lost
+save); mixed model-tag refused like mixed dims; `mem reindex` added vector-scoped (F8 extends).
+**Proof:** parent merged + `uv run pytest` → 45 passed; **live degradation proof**: cold model
+→ both saves enqueued (timeout honored), model warmed → two ordinary invocations drained
+queue 2→0, vectors=2, meta stamped (model+digest+768).
+
+## F5 — Concept graph  (proved · test · 2026-07-21)
+**Route:** clean-room `graph.py` over the OKF markdown: wikilink/`related` direct edges +
+topic-node memberships; mtime_ns/size-keyed JSON cache at `.index/graph.json`; `mem get
+--related` (neighbors key) in text/`--json`. Import hunk hand-merged.
+**Decisions:** networkx deferred to F6 (1-hop needs no traversal lib); no inline edge-cache
+update in the save path (mtime sweep guarantees freshness, avoids sibling collisions); node
+identity = file stem (Obsidian's link target), existing files only.
+**Proof:** parent applied + `uv run pytest` → **54 passed** (full suite); real-daemon smoke:
+`get --related` returns the wikilink neighbor + topic co-member.

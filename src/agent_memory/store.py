@@ -3,7 +3,8 @@
 Markdown is the database: one OKF file per concept under concepts/, written
 atomically (temp file + rename) under the single inter-process write lock,
 then committed to the local git - exactly one commit per successful save,
-message naming the slug. Saving onto an existing slug errors unless --update.
+message naming the slug - and reflected in the lexical index in-line. Saving
+onto an existing slug errors unless --update.
 """
 
 import fcntl
@@ -13,7 +14,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from agent_memory import config, gitkb, okf
+from agent_memory import config, gitkb, graph, lexical, okf, vector
 
 
 class StoreError(Exception):
@@ -158,6 +159,10 @@ def _save(args) -> int:
         atomic_write(path, text)
         verb = "update" if args.update else "save"
         gitkb.commit_path(root, f"concepts/{slug}.md", f"mem {verb}: {slug}")
+        lexical.record_save(root, concept, path)
+
+    # Outside the lock: embed within the strict budget or enqueue - never blocks.
+    vector.index_saved(root, concept)
 
     print(f"{'updated' if args.update else 'saved'}: {slug} ({path})")
     return 0
@@ -172,9 +177,15 @@ def cmd_get(args) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
+    # graph neighborhood (F5); "related" already names the frontmatter field,
+    # so the neighborhood travels under "neighbors"
+    neighbors = graph.load(root).neighbors(args.slug) if args.related else None
+
     if args.json:
         data = concept.to_dict()
         data["path"] = str(concept_path(root, concept.slug or args.slug))
+        if neighbors is not None:
+            data["neighbors"] = neighbors
         print(json.dumps(data, indent=2, ensure_ascii=False))
     else:
         print(f"slug: {args.slug}")
@@ -188,6 +199,16 @@ def cmd_get(args) -> int:
         print(f"description: {concept.description}")
         print()
         print(concept.body.rstrip())
+        if neighbors is not None:
+            print()
+            print("neighbors:")
+            if not neighbors["links"] and not neighbors["topics"]:
+                print("  (none)")
+            for link in neighbors["links"]:
+                print(f"  link: {link['slug']} ({', '.join(link['via'])})  {link['title']}")
+            for entry in neighbors["topics"]:
+                members = ", ".join(m["slug"] for m in entry["neighbors"])
+                print(f"  topic {entry['topic']}: {members}")
     return 0
 
 

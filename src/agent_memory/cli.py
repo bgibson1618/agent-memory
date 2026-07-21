@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from agent_memory import __version__, doctor, initcmd, store
+from agent_memory import __version__, config, doctor, initcmd, search, store, vector
 
 
 def main(argv=None) -> int:
@@ -42,18 +42,35 @@ def main(argv=None) -> int:
     )
     p_save.set_defaults(func=store.cmd_save)
 
+    p_search = sub.add_parser(
+        "search", help="find concepts by keyword (BM25-ranked; works with Ollama down)"
+    )
+    p_search.add_argument("query", help="literal search terms")
+    p_search.add_argument("--json", action="store_true", help="machine-readable output")
+    p_search.add_argument("--limit", type=int, default=10, help="max hits (default: 10)")
+    p_search.set_defaults(func=search.cmd_search)
+
     p_get = sub.add_parser("get", help="print one concept by slug")
     p_get.add_argument("slug")
     p_get.add_argument("--json", action="store_true", help="machine-readable output")
+    p_get.add_argument(
+        "--related", action="store_true",
+        help="include the concept's graph neighborhood (link- and topic-neighbors)",
+    )
     p_get.set_defaults(func=store.cmd_get)
 
     p_list = sub.add_parser("list", help="list saved concepts with their topics")
     p_list.add_argument("--json", action="store_true", help="machine-readable output")
     p_list.set_defaults(func=store.cmd_list)
 
+    p_reindex = sub.add_parser(
+        "reindex", help="rebuild the derived vector index; drain all queued embeddings"
+    )
+    p_reindex.set_defaults(func=vector.cmd_reindex)
+
     args = parser.parse_args(argv)
     try:
-        return args.func(args)
+        rc = args.func(args)
     except FileNotFoundError as e:
         print(f"error: required tool missing: {e}", file=sys.stderr)
         return 1
@@ -66,6 +83,15 @@ def main(argv=None) -> int:
     except OSError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+
+    # Bounded opportunistic drain: any ordinary invocation moves the embed
+    # queue along a little; doctor/reindex drain fully themselves.
+    if args.command not in ("init", "doctor", "reindex"):
+        try:
+            vector.opportunistic_drain(config.kb_root())
+        except Exception:
+            pass
+    return rc
 
 
 def run() -> None:

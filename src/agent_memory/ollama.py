@@ -6,11 +6,13 @@ timeout so a hung daemon can never stall a caller.
 """
 
 import json
+import os
 import urllib.error
 import urllib.request
 
 VERSION_TIMEOUT = 2.0
 EMBED_TIMEOUT = 10.0
+TAGS_TIMEOUT = 2.0
 
 
 class OllamaError(Exception):
@@ -40,11 +42,17 @@ def check_version(base_url: str, timeout: float = VERSION_TIMEOUT) -> str:
         ) from e
 
 
-def probe_embed_dims(base_url: str, model: str, timeout: float = EMBED_TIMEOUT) -> int:
-    """Embed a probe string and return the vector dimensionality."""
+def embed(base_url: str, model: str, texts: list, timeout: float = EMBED_TIMEOUT) -> list:
+    """Embed texts; returns one vector per text. num_ctx is set explicitly so
+    behavior never depends on the packaging default."""
+    payload = {
+        "model": model,
+        "input": texts,
+        "options": {"num_ctx": int(os.environ.get("MEM_EMBED_NUM_CTX", "8192"))},
+    }
     req = urllib.request.Request(
         base_url + "/api/embed",
-        data=json.dumps({"model": model, "input": ["dimension probe"]}).encode("utf-8"),
+        data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
         method="POST",
     )
@@ -62,6 +70,25 @@ def probe_embed_dims(base_url: str, model: str, timeout: float = EMBED_TIMEOUT) 
     except (OSError, ValueError) as e:
         raise OllamaError(f"embed request to {base_url} failed ({_reason(e) if isinstance(e, OSError) else e})") from e
     embeddings = data.get("embeddings") or []
-    if not embeddings or not isinstance(embeddings[0], list):
+    if len(embeddings) != len(texts) or not all(isinstance(v, list) and v for v in embeddings):
         raise OllamaError(f"no embedding returned for model '{model}'")
-    return len(embeddings[0])
+    return embeddings
+
+
+def probe_embed_dims(base_url: str, model: str, timeout: float = EMBED_TIMEOUT) -> int:
+    """Embed a probe string and return the vector dimensionality."""
+    return len(embed(base_url, model, ["dimension probe"], timeout=timeout)[0])
+
+
+def model_digest(base_url: str, model: str, timeout: float = TAGS_TIMEOUT) -> str:
+    """The installed model's digest from /api/tags, or 'unknown' - digest is
+    metadata worth stamping, never worth failing an embed over."""
+    try:
+        with urllib.request.urlopen(base_url + "/api/tags", timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8", "replace"))
+        for entry in data.get("models") or []:
+            if entry.get("name") == model or entry.get("model") == model:
+                return str(entry.get("digest") or "unknown")
+    except (OSError, ValueError):
+        pass
+    return "unknown"

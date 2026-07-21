@@ -8,7 +8,7 @@ import json
 import sqlite3
 from dataclasses import asdict, dataclass
 
-from agent_memory import blocks, config, gitkb, ollama
+from agent_memory import blocks, config, gitkb, ollama, vector
 
 
 @dataclass
@@ -111,6 +111,31 @@ def run_checks() -> list[Check]:
                 )
         except ollama.OllamaError as e:
             checks.append(Check("embed-model", "fail", str(e)))
+
+    # Doctor drains the embed queue fully (F4): pending items are only a
+    # failure when the daemon is up and they still cannot be embedded.
+    if not kb_ok:
+        checks.append(Check("embed-queue", "skip", "no KB home"))
+    else:
+        pending = vector.queue_size(root)
+        if pending == 0:
+            checks.append(Check("embed-queue", "ok", "queue empty"))
+        elif not daemon_up:
+            checks.append(
+                Check(
+                    "embed-queue",
+                    "skip",
+                    f"{pending} pending embedding(s) - they drain when ollama returns",
+                )
+            )
+        else:
+            drained, remaining, error = vector.drain_fully(root)
+            if remaining == 0:
+                checks.append(Check("embed-queue", "ok", f"drained {drained} pending embedding(s)"))
+            else:
+                checks.append(
+                    Check("embed-queue", "fail", f"{remaining} embedding(s) stuck: {error}")
+                )
 
     return checks
 
