@@ -58,8 +58,9 @@ session is effectively lost to every other agent and project.
 - The extract-knowledge document pipeline (extract → dedup → save new → report).
 - **Agent integration:** an instruction block/skill teaching agents when to save and search
   unprompted — the invisibility mechanism — delivered both for Claude Code (global
-  `CLAUDE.md`/skill) and as a provider-neutral `AGENTS.md` block so codex/agy delegates get the
-  same ambient awareness (same content, two files).
+  `CLAUDE.md`/skill) and as a provider-neutral `AGENTS.md` block. **v1 proves ambient behavior
+  on Claude Code only; for codex/agy the v1 claim is installation** (block present and current)
+  — cross-agent ambient observation belongs to the MCP-era phase.
 - Degraded-but-working writes when the Ollama daemon is down (save lands; embedding catches up).
 
 ## 6. Non-Goals
@@ -106,4 +107,6 @@ session is effectively lost to every other agent and project.
 - Dedup similarity thresholds for extract-knowledge (capstone D024 showed lexical similarity
   can't separate near-dups; a real local embedder changes the calculus — calibrate empirically).
 - Sensitivity-tag recall semantics: what the filter does by default at search time.
-- Exact `mem` subcommand surface and flags (architecture decides).
+- Flag grammar beyond the specced set (`--json`, `--update`, `--related`, `--no-work`,
+  `--candidates`) is finalized at build; the subcommand surface itself is settled in
+  ARCHITECTURE (`init · save · search · get · list · extract · reindex · doctor`).

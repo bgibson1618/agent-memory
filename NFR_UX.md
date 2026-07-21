@@ -14,8 +14,10 @@
 
 ### Performance
 - **Targets:** fused `mem search` < 1 s end-to-end with the Ollama daemon warm; < 3 s worst-case
-  cold. `mem save` perceived < 1 s (embedding may complete asynchronously). `mem extract` < 60 s
-  per document, with progress reported. Derived-graph load < 5 ms cached / < 250 ms cold parse.
+  cold. `mem save` perceived < 1 s (embedding may complete asynchronously). The **extract-knowledge
+  procedure** (agent choreography + CLI) < 60 s per document with progress reported; the CLI's
+  candidate pass itself completes in seconds. Derived-graph load < 5 ms cached / < 250 ms cold
+  parse.
 - **Scale assumptions:** v1 ceiling **10,000 concepts** (~50k graph edges). Single user; a
   handful of concurrent agent sessions at most.
 - **Degradation posture:** graceful, never blocking — Ollama down ⇒ saves land (embedding queued),
@@ -30,12 +32,22 @@
   with **no remote**). **Zero network egress on the storage/index/search path** except localhost
   Ollama — provable by the offline test (PRD criterion 5). No encryption at rest (OS/disk
   encryption is the platform's job). Memories persist until deleted; no auto-expiry.
-- **Sensitivity semantics (confirmed):** search **includes** `work`-tagged items by default with
-  a visible `[work]` marker in output; a `--no-work` flag excludes them for cautious contexts.
+- **Sensitivity semantics (confirmed; revised after the pre-build review, 2026-07-21):**
+  `sensitivity: work` means **employer-specific material** — general knowledge learned on the
+  job is normal sensitivity and fully ambient-visible (the KB's core content). CLI default:
+  search **includes** `work`-tagged items with a visible `[work]` marker; `--no-work` excludes.
+  Capture guidance (carried in the instruction blocks): when in doubt whether material is
+  employer-proprietary, tag it `work` — or don't save it.
+- **Vendor policy (Brent, 2026-07-21 — DECISION_LOG D1):** Anthropic and OpenAI are approved
+  vendors; Google is not confirmed. Work-tagged recall — ambient included — is permitted in
+  Claude and Codex contexts. **Antigravity/Gemini-backed agents are excluded from memory work
+  entirely**: the `AGENTS.md` instruction block carries this clause, and the orchestrator does
+  not delegate KB-touching tasks to the antigravity backend.
 - **Threat posture:** the realistic threat is **egress** (confidential content leaving the
   machine), not intrusion. Out of scope: local adversaries, multi-user isolation, at-rest
   encryption. Recall-time exposure (retrieved content entering an agent's vendor context) is
-  accepted and equivalent to typing it; the `[work]` marker keeps that judgment visible.
+  accepted **for approved vendors only** (Anthropic / OpenAI); the `[work]` marker keeps the
+  judgment visible, and the vendor policy above bounds where it can occur.
 
 ### Reliability & Availability
 - **Uptime / availability target:** best-effort local tool; must work fully offline.
@@ -102,4 +114,5 @@ Part B.)
 ## Open Questions
 - Dedup similarity thresholds for extract-knowledge — calibrate empirically during build
   (capstone D024: lexical similarity alone cannot separate near-dups).
-- Exact `mem` subcommand surface and flags — architecture decides.
+- Flag grammar beyond the specced set is finalized at build; the subcommand surface is settled
+  in ARCHITECTURE.

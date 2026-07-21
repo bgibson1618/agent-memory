@@ -24,9 +24,9 @@ agent; the CLI is never interactive and every read command speaks `--json`.
 | `okf` | The OKF schema contract: frontmatter (id/slug, title, description, type, `topics[]`, `sensitivity`, timestamps, `related[]`) + body with `[[wikilinks]]` | Conformance sourced from the capstone OKF spec (see Open Questions re: license/clean-room) |
 | `index.lexical` | SQLite **FTS5** table over title/description/body/topics; BM25 ranking | Capstone-measured over hand-rolled keyword index (0.842 vs 0.825 recall@10, ~5× faster writes); ships in stdlib `sqlite3` |
 | `index.vector` | Ollama `/api/embed` client; vectors as BLOBs in SQLite; **numpy brute-force cosine** at query time; pending-embed queue | ~30 MB / <10 ms at the 10k ceiling; model tag + digest + dims stamped in metadata, mixed-dim writes refused; `num_ctx` set explicitly; **every embed call carries a strict client timeout (~500 ms) — timeout ⇒ enqueue, never block**; sqlite-vec ANN is a later seam, not a v1 dep |
-| `index.graph` | Parse `[[wikilinks]]` + frontmatter `related`/`topics` into an edge table (mtime-invalidated cache); in-process traversal (networkx) | The research-gated "derived graph" — no graph daemon; Obsidian renders the same links natively |
+| `index.graph` | Parse `[[wikilinks]]` + frontmatter `related` into direct edges and `topics` into **topic nodes** (concept → topic → concept — never materialized pairwise edges, so a broad tag can't go quadratic); mtime-invalidated cache; in-process traversal (networkx) | The research-gated "derived graph" — no graph daemon; Obsidian renders the same links natively |
 | `fusion` | RRF across the three legs; rerank seam (no-op in v1); `[work]` marking + `--no-work` filter | Write-to-all + fuse-on-read is settled design (capstone D021/D023/D045) |
-| `extract` | The **deterministic half** of extract-knowledge: candidate concepts (JSON) in → validate → embed → dedup vs KB → save novel → report added/skipped/near-dup | No LLM inside the CLI; thresholds calibrated empirically (capstone D024) |
+| `extract` | The **deterministic half** of extract-knowledge: candidate concepts (JSON) in → validate → embed → dedup vs KB → save novel → report added/skipped/near-dup | No LLM inside the CLI; thresholds calibrated empirically (capstone D024); with Ollama unreachable it **refuses cleanly** (dedup requires embeddings) — nothing partially saved |
 | `cli` | `mem` entry point: `init · save · search · get · list · extract · reindex · doctor` | stdlib argparse; never interactive; meaningful exit codes; `--json` on every read; one-line errors. **`mem init` owns setup**: creates `~/.agent-memory` + git init, verifies Ollama/models/FTS5, and installs/refreshes the agent-integration instruction blocks into the global `CLAUDE.md`/`AGENTS.md` (managed marker section); `mem doctor` re-checks all of it |
 | `agent-integration/` | Shipped **as data, not code**: the CLAUDE.md + AGENTS.md instruction blocks (when to save/search unprompted) and the **extract-knowledge procedure** | The invisibility mechanism; provider-neutral so codex/agy get the same ambient awareness |
 
@@ -63,6 +63,10 @@ with a ~500 ms timeout (timeout/down ⇒ enqueue) → single-line confirmation, 
 - **Bounded opportunistic queue drain**: any `mem` invocation, after its primary work, drains up
   to ~3 queued embeds iff Ollama answers a fast health check — never blocking the caller's
   budget; `mem doctor`/`mem reindex` drain fully.
+- **Egress guard mechanism**: the zero-egress proof (F12) runs the full command surface —
+  including `init`/`doctor` — inside a **loopback-only network namespace** (`unshare -n`, `lo`
+  up), which covers subprocess egress (git) that an in-process socket guard is structurally
+  blind to; the in-process guard remains the fast inner layer.
 
 Source of truth: `~/.agent-memory/concepts/*.md`. All of `.index/mem.db` (FTS5 + vectors +
 edges + queue + metadata, one SQLite file) is disposable — `mem reindex` rebuilds it from the
@@ -78,7 +82,7 @@ markdown. Storage layout:
 | Dependency | Purpose | Constraint |
 | --- | --- | --- |
 | Python 3.12+ via `uv` | Runtime + packaging (`uv tool install`, `uv run pytest`) | WSL2 Linux side only |
-| Ollama | Local embedding daemon — `nomic-embed-text:v1.5` default, `qwen3-embedding:0.6b` step-up | localhost only; `num_ctx` explicit (packaging default 2K); systemd-managed, `OLLAMA_KEEP_ALIVE` pinned; the ONLY permitted network target on the storage/index/search path |
+| Ollama | Local embedding daemon — `nomic-embed-text:v1.5` default, `qwen3-embedding:0.6b` step-up | localhost only; `num_ctx` explicit (packaging default 2K); systemd-managed, `OLLAMA_KEEP_ALIVE` pinned; the ONLY permitted network target on the storage/index/search path. **Provisioning is owned by `/kodos:preflight`**, not any feature. The base URL honors **`MEM_OLLAMA_URL`** (default `localhost:11434`) — the sanctioned test seam for up/down/hung daemon states; tests always run against an isolated `HOME`/KB root, never the real service or KB |
 | numpy | Vector math (cosine scan) | Boring, ubiquitous |
 | PyYAML | OKF frontmatter parse/serialize | — |
 | networkx | Graph traversal at query time | <20 MB / <1 ms at 10k nodes; replaceable with rustworkx if ever needed |
