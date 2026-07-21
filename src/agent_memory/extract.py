@@ -10,13 +10,17 @@ Dedup requires embeddings: with Ollama unreachable the whole batch is refused
 with a one-line error before anything is saved. All embedding happens up
 front (queue drain + one batched embed call), so a daemon failure can never
 leave the batch partially saved.
+
+The agent-side half - the extract-knowledge choreography (fresh-eyed extractor
+fan-out, fresh-eyed review, disposition review) - ships as package data and is
+printed by `mem extract --procedure`.
 """
 
 import json
 import sys
 from pathlib import Path
 
-from agent_memory import config, gitkb, lexical, okf, ollama, store, vector
+from agent_memory import blocks, config, gitkb, lexical, okf, ollama, store, vector
 
 CANDIDATE_FIELDS = {
     "title", "body", "description", "topics", "type", "sensitivity", "related", "slug",
@@ -171,6 +175,14 @@ def _store_vector(con, slug: str, text: str, vec: list) -> None:
 
 
 def cmd_extract(args) -> int:
+    if args.procedure:
+        # The agent-side choreography, shipped as package data. Printing it
+        # needs neither a KB nor the daemon.
+        sys.stdout.write(blocks.render_block(blocks.EXTRACT_PROCEDURE))
+        return 0
+    if not args.candidates:
+        print("error: extract requires --candidates (or --procedure)", file=sys.stderr)
+        return 1
     try:
         return _extract(args)
     except (ExtractError, store.StoreError, okf.OKFError, vector.VectorError) as e:

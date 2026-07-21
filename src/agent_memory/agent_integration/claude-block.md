@@ -13,6 +13,10 @@ technique, or hard-won explanation - not session trivia or project-local facts):
 `mem save`. Claude Code's built-in memory keeps operational/session facts; the KB owns
 durable knowledge - keep pointers between them, never duplicated content.
 
+**Extract from a document** when Brent points you at a paper, article, or doc to
+mine for the KB: run `mem extract --procedure` and follow the printed choreography
+(fresh-eyed extractor fan-out, fresh-eyed review, then `mem extract`).
+
 **Confidentiality (non-negotiable):**
 - `sensitivity: work` marks employer-specific material ONLY; general knowledge learned
   on the job is normal sensitivity. When unsure whether material is

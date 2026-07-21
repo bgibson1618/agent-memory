@@ -18,6 +18,8 @@ trivia): `mem save`. When unsure whether material is employer-proprietary, tag i
 `sensitivity: work` - or don't save it. Work-tagged items appear marked `[work]` in
 results; treat that marker as a handle-with-care signal. `--no-work` excludes
 work-tagged items from search.
+**Extract** knowledge from a document Brent supplies: `mem extract --procedure`
+prints the choreography to follow (approved-vendor subagents only).
 
 The KB is local-only: never add a git remote to `~/.agent-memory`; its content goes
 nowhere but localhost Ollama. `mem doctor` diagnoses the setup.

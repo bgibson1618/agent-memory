@@ -2,7 +2,8 @@
 
 Block text ships as package data (agent_integration/); `mem init` installs it
 between clearly-delimited markers and refreshes in place - never duplicating,
-never touching content outside the markers.
+never touching content outside the markers. The same package-data directory
+carries the extract-knowledge procedure, served by `mem extract --procedure`.
 """
 
 import os
@@ -12,6 +13,7 @@ from pathlib import Path
 
 CLAUDE_BLOCK = "claude-block.md"
 AGENTS_BLOCK = "agents-block.md"
+EXTRACT_PROCEDURE = "extract-knowledge.md"
 
 _SPAN = re.compile(
     r"<!-- BEGIN AGENT-MEMORY BLOCK.*?<!-- END AGENT-MEMORY BLOCK -->\n?",

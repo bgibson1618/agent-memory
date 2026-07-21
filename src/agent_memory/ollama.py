@@ -1,13 +1,18 @@
 """Minimal stdlib client for the local Ollama daemon.
 
-Only localhost may ever be contacted; the base URL comes from MEM_OLLAMA_URL
-(the test seam for up/down/hung daemon states). Every call carries a strict
-timeout so a hung daemon can never stall a caller.
+Only localhost may ever be contacted - and that is enforced here, not just
+documented (F12 zero egress): every entry point refuses a non-loopback base
+URL before a single socket opens, so even a stray MEM_OLLAMA_URL cannot send
+KB content off-box. The base URL comes from MEM_OLLAMA_URL (the test seam for
+up/down/hung daemon states). Every call carries a strict timeout so a hung
+daemon can never stall a caller.
 """
 
+import ipaddress
 import json
 import os
 import urllib.error
+import urllib.parse
 import urllib.request
 
 VERSION_TIMEOUT = 2.0
@@ -17,6 +22,21 @@ TAGS_TIMEOUT = 2.0
 
 class OllamaError(Exception):
     """One-line, user-facing Ollama failure."""
+
+
+def _require_loopback(base_url: str) -> None:
+    """The KB is local-only for life: refuse any Ollama URL whose host is not
+    loopback, before any DNS lookup or connect can happen."""
+    host = urllib.parse.urlsplit(base_url).hostname or ""
+    try:
+        loopback = ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        loopback = host == "localhost"
+    if not loopback:
+        raise OllamaError(
+            f"refusing non-loopback Ollama URL {base_url}"
+            " - the KB is local-only (zero egress); use a 127.0.0.1 endpoint"
+        )
 
 
 def _reason(exc: OSError) -> str:
@@ -30,6 +50,7 @@ def _reason(exc: OSError) -> str:
 
 def check_version(base_url: str, timeout: float = VERSION_TIMEOUT) -> str:
     """Return the daemon version, or raise OllamaError if unreachable."""
+    _require_loopback(base_url)
     try:
         with urllib.request.urlopen(base_url + "/api/version", timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8", "replace"))
@@ -45,6 +66,7 @@ def check_version(base_url: str, timeout: float = VERSION_TIMEOUT) -> str:
 def embed(base_url: str, model: str, texts: list, timeout: float = EMBED_TIMEOUT) -> list:
     """Embed texts; returns one vector per text. num_ctx is set explicitly so
     behavior never depends on the packaging default."""
+    _require_loopback(base_url)
     payload = {
         "model": model,
         "input": texts,
@@ -83,6 +105,7 @@ def probe_embed_dims(base_url: str, model: str, timeout: float = EMBED_TIMEOUT) 
 def model_digest(base_url: str, model: str, timeout: float = TAGS_TIMEOUT) -> str:
     """The installed model's digest from /api/tags, or 'unknown' - digest is
     metadata worth stamping, never worth failing an embed over."""
+    _require_loopback(base_url)
     try:
         with urllib.request.urlopen(base_url + "/api/tags", timeout=timeout) as resp:
             data = json.loads(resp.read().decode("utf-8", "replace"))

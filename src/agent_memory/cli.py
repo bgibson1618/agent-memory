@@ -75,8 +75,12 @@ def main(argv=None) -> int:
         " (refuses cleanly with Ollama down - dedup requires embeddings)",
     )
     p_extract.add_argument(
-        "--candidates", required=True,
+        "--candidates",
         help="candidate concepts as JSON: a file path, '-' for stdin, or an inline JSON array",
+    )
+    p_extract.add_argument(
+        "--procedure", action="store_true",
+        help="print the agent-side extract-knowledge procedure and exit",
     )
     p_extract.add_argument("--json", action="store_true", help="machine-readable output")
     p_extract.set_defaults(func=extract.cmd_extract)

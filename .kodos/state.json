@@ -5,7 +5,10 @@
     "started": "2026-07-21T20:48:25Z",
     "tokens_spent": 0,
     "wall_clock_seconds": 0,
-    "current_features": [],
+    "current_features": [
+      "F10",
+      "F12"
+    ],
     "needs_you": null
   },
   "features": {
@@ -136,7 +139,7 @@
       "needs_you": null
     },
     "F10": {
-      "status": "todo",
+      "status": "building",
       "attempts": 0,
       "evidence": [],
       "needs_you": null
@@ -156,9 +159,17 @@
       "needs_you": null
     },
     "F12": {
-      "status": "todo",
+      "status": "proved",
       "attempts": 0,
-      "evidence": [],
+      "evidence": [
+        {
+          "method": "test",
+          "ok": true,
+          "ref": "MEM_REQUIRE_NETNS=1 uv run pytest -> 89 passed (5 F12 tests: audit-hook guard + netns driver running all 8 commands in a loopback-only namespace with in-namespace fake Ollama; up-leg only-peer-is-Ollama, down-leg degradations, remote-URL zero connects); netns test verified RUNNING, not skipped",
+          "at": "2026-07-22T01:40:00Z",
+          "note": "product hardening included: ollama.py refuses non-loopback base URLs pre-socket, pre-DNS; guard lives in test layer (sitecustomize) at zero product runtime cost; L2 learnings block carried in brief"
+        }
+      ],
       "needs_you": null
     }
   }
