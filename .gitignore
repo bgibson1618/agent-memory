@@ -1,0 +1,11 @@
+# agent-roster observable run dirs (delegate scratch — never committed)
+work/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# local env
+.env
