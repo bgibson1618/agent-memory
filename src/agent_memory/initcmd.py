@@ -47,7 +47,7 @@ def cmd_init(args) -> int:
         print(f"ok: {root} already initialized")
     print("blocks: " + "; ".join(results))
 
-    failing = [c for c in doctor.run_checks() if c.status == "fail"]
+    failing = [c for c in doctor.run_checks(mutate=False) if c.status == "fail"]
     if failing:
         names = ", ".join(c.name for c in failing)
         print(

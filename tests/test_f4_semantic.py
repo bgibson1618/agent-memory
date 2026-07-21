@@ -327,8 +327,10 @@ def test_meta_stamped_and_mismatched_dims_refused(mem, kb, semantic_ollama_facto
     meta = index_meta(kb)
     assert meta == {"model": MODEL, "digest": DIGEST, "dims": "768"}
 
-    # Same model tag suddenly embedding at 512 dims: the write is refused with
-    # one line, the save still lands, and the item stays queued - not lost.
+    # Same model tag suddenly embedding at 512 dims: the VECTOR-INDEX write is
+    # refused with one line (asserted below: no vector row, meta unchanged);
+    # the concept save itself still lands and the item stays queued - not lost
+    # (the same feature's never-block-a-save contract).
     shrunk = semantic_ollama_factory(dims=512)
     result = mem(
         "save", "--title", "second note", "--body", "plain text two",

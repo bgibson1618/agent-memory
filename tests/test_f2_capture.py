@@ -165,6 +165,21 @@ def test_every_save_is_exactly_one_commit_naming_the_slug(mem, kb):
     assert subjects[2] == "mem save: spaced-repetition-scheduling"
 
 
+def test_same_second_identical_update_reports_unchanged(mem, kb):
+    """Drift-checkpoint fix (wave 3): a no-op update (identical content, frozen
+    same-second stamp) must not claim success-with-commit - it reports
+    'unchanged' and adds no commit, keeping one-commit-per-save literally true."""
+    frozen = {"MEM_NOW": "2026-07-21T12:00:00Z"}
+    assert mem("init").returncode == 0
+    assert save_fixture(mem, env_extra=frozen).returncode == 0
+    baseline = commit_subjects(kb)
+
+    result = save_fixture(mem, update=True, env_extra=frozen)
+    assert result.returncode == 0, result.stderr
+    assert result.stdout.startswith("unchanged: spaced-repetition-scheduling")
+    assert commit_subjects(kb) == baseline  # no new commit for a no-op
+
+
 def test_list_shows_slugs_titles_and_topics(mem, kb):
     assert mem("init").returncode == 0
     assert save_fixture(mem).returncode == 0

@@ -5,6 +5,7 @@ sensitivity, created/updated, related[]) + a markdown body carrying plain
 `[[wikilinks]]`. No capstone code was consulted or ported (DECISION_LOG D2).
 """
 
+import os
 import re
 import unicodedata
 from dataclasses import asdict, dataclass, field
@@ -33,6 +34,9 @@ def slugify(text: str) -> str:
 
 
 def now_stamp() -> str:
+    forced = os.environ.get("MEM_NOW")  # test seam: freeze the clock
+    if forced:
+        return forced
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 

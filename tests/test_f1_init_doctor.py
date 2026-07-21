@@ -103,6 +103,26 @@ def test_init_refresh_never_duplicates_blocks(mem, kb):
     assert healed.count(END_MARK) == 1
 
 
+def test_init_never_drains_the_embed_queue(mem, kb, fake_ollama):
+    """Drift-checkpoint fix (wave 3): init's verification path is non-mutating -
+    a pending embed queued while the daemon was down must survive a re-init run
+    with the daemon up (draining belongs to doctor/reindex/ordinary commands)."""
+    import sqlite3
+
+    assert mem("init").returncode == 0
+    # daemon down (kb default closed port): the save queues its embedding
+    assert mem("save", "--title", "Queued concept", "--body", "body").returncode == 0
+    db = kb.kb / ".index" / "mem.db"
+    count = lambda: sqlite3.connect(db).execute(
+        "select count(*) from embed_queue"
+    ).fetchone()[0]
+    assert count() == 1
+
+    # re-init with the daemon UP: non-mutating check must not drain
+    assert mem("init", env_extra={"MEM_OLLAMA_URL": fake_ollama.url}).returncode == 0
+    assert count() == 1
+
+
 def test_doctor_all_green_with_daemon_up(mem, kb, fake_ollama):
     env = {"MEM_OLLAMA_URL": fake_ollama.url}
     assert mem("init", env_extra=env).returncode == 0

@@ -84,3 +84,23 @@ update in the save path (mtime sweep guarantees freshness, avoids sibling collis
 identity = file stem (Obsidian's link target), existing files only.
 **Proof:** parent applied + `uv run pytest` → **54 passed** (full suite); real-daemon smoke:
 `get --related` returns the wikilink neighbor + topic co-member.
+
+## Wave 3 checkpoint — fresh-eyes review  (DRIFT → remediated · 2026-07-21)
+Wave committed `6bf8d5e`. Deterministic half green. Fresh-eyes review: **ran this wave**
+(mandatory after 2 deferrals) — cold codex reviewer `kodos-sanity-w3-20260721`, paths-only,
+read-only. **VERDICT: DRIFT**, 4 validated findings; `run.needs_you` set, then remediated in
+the same engagement:
+1. (certain) agents-block advertised F6's unbuilt `--no-work` → flag mention removed from the
+   installed block; F6 restores flag docs when the flag exists.
+2. (firm) F4 mismatch-dim test wording read as save-refusal → comment now names the
+   vector-index write; refusal was already machine-asserted (no vector row, meta unchanged).
+3. (firm) F2 one-commit criterion had a no-op-update hole (identical content, same-second
+   stamp → success with zero commits) → no-op updates now report `unchanged` with no commit;
+   `MEM_NOW` clock seam + regression test pin it.
+4. (firm) `mem init` routed through the mutating doctor drain, breaking idempotence semantics →
+   `run_checks(mutate=False)` non-mutating path for init; regression test proves a queued
+   embed survives re-init with the daemon up.
+Remediation proof: `uv run pytest` → **56 passed** (54 + 2 regression). Learnings captured
+(seam `checkpoint`): L1 doc-vs-CLI reconcile check, L2 non-mutating init verification,
+L3 exact-invariant no-op edges. `run.needs_you` cleared. Walkthrough (F36): CLI path exists
+but fused search (F6) not yet — deferred to the wave-4 line.

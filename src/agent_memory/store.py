@@ -158,8 +158,14 @@ def _save(args) -> int:
         _sweep_dead_temps(concepts_dir(root))
         atomic_write(path, text)
         verb = "update" if args.update else "save"
-        gitkb.commit_path(root, f"concepts/{slug}.md", f"mem {verb}: {slug}")
+        committed = gitkb.commit_path(root, f"concepts/{slug}.md", f"mem {verb}: {slug}")
         lexical.record_save(root, concept, path)
+
+    if not committed:
+        # A no-op update (identical content, same-second stamp) is not a
+        # "successful save" in the one-commit-per-save contract - say so.
+        print(f"unchanged: {slug} (identical content - nothing to commit)")
+        return 0
 
     # Outside the lock: embed within the strict budget or enqueue - never blocks.
     vector.index_saved(root, concept)

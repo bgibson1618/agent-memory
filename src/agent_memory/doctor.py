@@ -27,7 +27,10 @@ _BLOCK_PROBLEMS = {
 }
 
 
-def run_checks() -> list[Check]:
+def run_checks(mutate: bool = True) -> list[Check]:
+    """mutate=False is the non-mutating diagnosis path (used by `mem init`):
+    it reports queue depth without draining, so init never touches the
+    derived index (F1 idempotence: KB home unchanged on a second run)."""
     checks: list[Check] = []
     root = config.kb_root()
 
@@ -126,6 +129,14 @@ def run_checks() -> list[Check]:
                     "embed-queue",
                     "skip",
                     f"{pending} pending embedding(s) - they drain when ollama returns",
+                )
+            )
+        elif not mutate:
+            checks.append(
+                Check(
+                    "embed-queue",
+                    "ok",
+                    f"{pending} pending embedding(s) - drain via mem doctor/reindex",
                 )
             )
         else:
