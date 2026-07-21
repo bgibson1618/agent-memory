@@ -154,3 +154,38 @@ mention. Observed: **unprompted** `mem search --json` as the first substantive m
 session (protocol allowed 3). Evidence: `.kodos/evidence/F11/`. codex/agy = installation-only
 claim, covered by F1 tests + the real AGENTS.md block. Brent judges "unprompted" per protocol —
 task text preserved; veto open.
+
+## Wave 5 dispatch  (2026-07-21)
+Executor: roster (auto, claude role-default). Ready set was F8 + F9 + F11: builders dispatched
+for F8/F9; **F11 held at the §3b user gate** (installs into Brent's real global agent config)
+and released by Brent's explicit "go on F11" — run by the parent (see F11 entry above).
+
+## F8 — External-edit resilience  (proved · test · 2026-07-22)
+**Route:** lexical sync change-set + `vector.reconcile` wired into search (deleted files lose
+vector+queue rows; edits re-enqueue on content-hash mismatch; touches cost nothing) +
+cross-leg `reindex.py` (FTS5 + graph cache + vectors from markdown alone). Patch applied clean.
+**Parent fix at reconcile:** the builder's own byte-equivalence test caught that per-leg tie
+order was not rebuild-invariant (RRF credit shifted 1/62→1/61 across a rebuild); parent made
+leg ordering deterministic (lexical `ORDER BY neg_score, slug`; vector `ORDER BY slug` + stable
+argsort).
+**Proof:** parent ran `uv run pytest` → **70 passed** (5 F8 tests incl. the machine-asserted
+meaning-flip semantic refresh and full-`.index/`-delete equivalence).
+
+## F9 — Extract-knowledge CLI  (proved · test · 2026-07-22)
+**Route:** `extract.py` reusing store save mechanics; batched up-front embedding with
+drain-before-dedup so Ollama failure can never partially save a batch; intra-batch dedup;
+slug-collision auto-suffix under the lock; threshold in config with `MEM_DEDUP_THRESHOLD` seam.
+Patch carried only cli/config hunks — extract.py/tests/harness promoted from the deliverable
+tree. **The builder refused to fabricate the calibration artifact** (execution-gated seat;
+D024 discipline) and shipped a runnable harness instead.
+**Proof:** parent ran the REAL calibration against the live daemon → threshold **0.79**
+(DECISION_LOG D3; builder's provisional 0.85 corrected by measurement); `uv run pytest` →
+**78 passed**; real-KB extract walkthrough: blatant near-dup skipped at 0.93 with named
+match+score (`.kodos/evidence/walkthrough/wave5-extract.txt`). Advisory: umbrella-vs-member
+pairs can exceed the line (0.84 observed) — report+override is the designed recourse.
+
+## Wave 5 checkpoint  (CLEAN · 2026-07-22)
+Deterministic half green. Fresh-eyes review: **deferred — 2nd consecutive** (ran wave 3);
+**mandatory at wave 6**, which is also the final build wave — the reviewer gets the complete
+tree. Walkthrough (F36): extract exercised on the real KB (see F9 entry); prior integrated
+path unchanged and green.

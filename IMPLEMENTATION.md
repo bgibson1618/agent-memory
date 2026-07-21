@@ -2,11 +2,11 @@
 
 > **Generated snapshot** (D21 / F30) — rendered by `scripts/render-snapshot.mjs` from
 > `FEATURES.md` + `.kodos/state.json`. **Do not hand-edit** — re-render instead.
-> Rendered: 2026-07-21T22:33:47Z.
+> Rendered: 2026-07-21T22:50:12Z.
 
 ## Status
 
-**Phase `build` — 8 of 12 features proved.** Building: F8, F9.
+**Phase `build` — 10 of 12 features proved.**
 
 Current status and the next action are **owned by `.kodos/state.json`** — read them live
 (this snapshot never asserts them, D2):
@@ -30,8 +30,8 @@ rendered count.
 | F5 | Concept graph | test | proved | uv run pytest -> 54 passed after applying kodos-F5 patch (9 F5 tests; import hunk hand-merged); real-daemon s… |
 | F6 | Fused search | test | proved | uv run pytest -> 62 passed after applying kodos-F6 patch (6 F6 tests: single-leg fixtures incl. seed-neighbor… |
 | F7 | Concurrent-session write safety | test | proved | uv run pytest -> 65 passed after applying kodos-F7 patch (3 contention tests: 10-way distinct-slug race, 8-wa… |
-| F8 | External-edit resilience | test | building | — |
-| F9 | Extract-knowledge CLI | test | building | — |
+| F8 | External-edit resilience | test | proved | uv run pytest -> 70 passed after applying kodos-F8 patch (5 F8 tests incl. meaning-flip semantic refresh + fu… |
+| F9 | Extract-knowledge CLI | test | proved | uv run pytest -> 78 passed; REAL calibration executed by parent against live daemon (research/dedup-calibrati… |
 | F10 | Extraction procedure | observed | todo | — |
 | F11 | Ambient agent integration | observed | proved | .kodos/evidence/F11/ - real deployment (uv tool install; mem 0.1.0 on PATH), real mem init (blocks in ~/.clau… |
 | F12 | Zero-egress guarantee | test | todo | — |

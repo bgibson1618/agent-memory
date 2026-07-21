@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from agent_memory import __version__, config, doctor, initcmd, search, store, vector
+from agent_memory import __version__, config, doctor, extract, initcmd, reindex, search, store, vector
 
 
 def main(argv=None) -> int:
@@ -69,10 +69,24 @@ def main(argv=None) -> int:
     p_list.add_argument("--json", action="store_true", help="machine-readable output")
     p_list.set_defaults(func=store.cmd_list)
 
-    p_reindex = sub.add_parser(
-        "reindex", help="rebuild the derived vector index; drain all queued embeddings"
+    p_extract = sub.add_parser(
+        "extract",
+        help="dedup candidate concepts against the KB and save the novel ones"
+        " (refuses cleanly with Ollama down - dedup requires embeddings)",
     )
-    p_reindex.set_defaults(func=vector.cmd_reindex)
+    p_extract.add_argument(
+        "--candidates", required=True,
+        help="candidate concepts as JSON: a file path, '-' for stdin, or an inline JSON array",
+    )
+    p_extract.add_argument("--json", action="store_true", help="machine-readable output")
+    p_extract.set_defaults(func=extract.cmd_extract)
+
+    p_reindex = sub.add_parser(
+        "reindex",
+        help="rebuild all derived indexes (lexical, graph, vector) from the"
+        " markdown; drain all queued embeddings",
+    )
+    p_reindex.set_defaults(func=reindex.cmd_reindex)
 
     args = parser.parse_args(argv)
     try:

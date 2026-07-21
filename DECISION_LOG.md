@@ -51,3 +51,21 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** implementer selected the fallback branch ARCHITECTURE pre-authorized
   (`accepted` shape, no new judgment call); flagged for Brent's confirmation at wave
   reconcile.
+
+## D3 — Dedup threshold: 0.79, measured not guessed (2026-07-22)
+
+- **Context:** ARCHITECTURE required the extract-knowledge dedup threshold be calibrated
+  empirically (capstone D024: lexical similarity provably cannot separate near-dups; a real
+  embedder changes the calculus but not the need to measure). The F9 builder shipped a runnable
+  calibration harness and refused to fabricate the artifact from its execution-gated seat.
+- **Decision:** `DEFAULT_DEDUP_THRESHOLD = 0.79`, from a live run of
+  `research/dedup_calibration.py` against nomic-embed-text:v1.5 (26 labeled pairs): clean
+  separation band 0.77–0.81, fp 0 / fn 0; near-dup sims 0.812–0.917, distinct 0.528–0.768.
+  Artifact: `research/dedup-calibration.md`; a test pins config to the artifact's chosen value.
+  Env seam `MEM_DEDUP_THRESHOLD` overrides.
+- **Known limitation (observed live, wave-5 walkthrough):** umbrella-vs-member concept pairs
+  can exceed the line (desirable-difficulties vs interleaving-effect at 0.84). The disposition
+  report names the match + similarity, and direct `mem save` bypasses dedup — the designed
+  recourse; extraction-procedure reviewers treat skipped-duplicate reports as reviewable.
+- **AI involvement:** builder `suggested` the harness + provisional 0.85; parent measured and
+  `changed` to 0.79; the limitation observation is the parent's walkthrough finding.

@@ -5,10 +5,7 @@
     "started": "2026-07-21T20:48:25Z",
     "tokens_spent": 0,
     "wall_clock_seconds": 0,
-    "current_features": [
-      "F8",
-      "F9"
-    ],
+    "current_features": [],
     "needs_you": null
   },
   "features": {
@@ -111,15 +108,31 @@
       "needs_you": null
     },
     "F8": {
-      "status": "building",
+      "status": "proved",
       "attempts": 0,
-      "evidence": [],
+      "evidence": [
+        {
+          "method": "test",
+          "ok": true,
+          "ref": "uv run pytest -> 70 passed after applying kodos-F8 patch (5 F8 tests incl. meaning-flip semantic refresh + full-index-delete byte-equivalence); parent fixed a real defect the builder's own equivalence test caught: per-leg tie order was not rebuild-invariant (lexical ORDER BY +slug; vector ORDER BY slug + stable argsort)",
+          "at": "2026-07-22T00:45:00Z",
+          "note": "reconcile runs before the vector leg so ghost vectors never feed RRF; content-hash guard skips re-embeds on touches"
+        }
+      ],
       "needs_you": null
     },
     "F9": {
-      "status": "building",
+      "status": "proved",
       "attempts": 0,
-      "evidence": [],
+      "evidence": [
+        {
+          "method": "test",
+          "ok": true,
+          "ref": "uv run pytest -> 78 passed; REAL calibration executed by parent against live daemon (research/dedup-calibration.md: chosen 0.79, band 0.77-0.81, fp 0 fn 0 on 26 pairs) - builder's provisional 0.85 corrected by measurement; config pinned to artifact by test; real-KB extract walkthrough: near-dup skipped at 0.93 with named match+score",
+          "at": "2026-07-22T00:45:00Z",
+          "note": "builder honestly refused to fabricate the calibration artifact (D024 discipline); advisory: umbrella-vs-member pairs can exceed the line (desirable-difficulties vs interleaving at 0.84) - the disposition report + direct mem save are the designed recourse; F10 reviewers should treat skipped-duplicate reports as reviewable"
+        }
+      ],
       "needs_you": null
     },
     "F10": {

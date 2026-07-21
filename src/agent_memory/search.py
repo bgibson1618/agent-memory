@@ -32,13 +32,18 @@ def cmd_search(args) -> int:
     try:
         conn = lexical.connect(root)
         try:
-            lexical.sync(conn, root)
+            changed, removed = lexical.sync(conn, root)
             lex_hits = lexical.search(conn, args.query, pool)
         finally:
             conn.close()
     except sqlite3.Error as e:
         print(f"error: lexical index: {e}", file=sys.stderr)
         return 1
+
+    # External-edit healing (F8): before the vector leg runs, drop vectors for
+    # deleted files and enqueue re-embeds for edited ones - the post-command
+    # drain replaces stale vectors without any manual reindex.
+    vector.reconcile(root, changed, removed)
 
     # Vector leg: an unreachable/refusing daemon degrades the search to
     # lexical + graph with exactly one warning line, never an error. Zero or

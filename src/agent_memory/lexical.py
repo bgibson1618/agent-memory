@@ -82,10 +82,16 @@ def record_save(root: Path, concept: okf.Concept, path: Path) -> None:
         )
 
 
-def sync(conn: sqlite3.Connection, root: Path) -> None:
+def sync(conn: sqlite3.Connection, root: Path) -> tuple:
     """Reconcile the index with concepts/*.md by mtime+size: index new/changed
     files, drop rows for deleted ones. Slugs are file stems - the same key
-    `mem get` resolves. Unparseable files are skipped with a warning, like list."""
+    `mem get` resolves. Unparseable files are skipped with a warning, like list.
+
+    Returns the change-set as (changed, removed): changed is [(slug, Concept)]
+    for files (re-)indexed this sync, removed is [slug] for rows dropped
+    (deleted or unparseable files). The vector leg reconciles from exactly
+    this change-set (F8), so external edits pay one stat-scan, not one
+    parse-scan, per search."""
     known = dict(conn.execute("SELECT slug, mtime_ns || ':' || size FROM lexical_files"))
     to_upsert, seen = [], set()
     for path in sorted((root / "concepts").glob("*.md")):
@@ -97,8 +103,9 @@ def sync(conn: sqlite3.Connection, root: Path) -> None:
         to_upsert.append((slug, path, stat))
     to_delete = [slug for slug in known if slug not in seen]
     if not to_upsert and not to_delete:
-        return
+        return [], []
 
+    changed, removed = [], []
     conn.execute("BEGIN IMMEDIATE")
     try:
         for slug, path, stat in to_upsert:
@@ -107,14 +114,18 @@ def sync(conn: sqlite3.Connection, root: Path) -> None:
             except okf.OKFError as e:
                 print(f"warning: skipping {path}: {e}", file=sys.stderr)
                 _remove(conn, slug)
+                removed.append(slug)
                 continue
             _upsert(conn, slug, concept, stat)
+            changed.append((slug, concept))
         for slug in to_delete:
             _remove(conn, slug)
+            removed.append(slug)
         conn.execute("COMMIT")
     except BaseException:
         conn.execute("ROLLBACK")
         raise
+    return changed, removed
 
 
 def match_expr(query: str) -> str:
@@ -133,7 +144,7 @@ def search(conn: sqlite3.Connection, query: str, limit: int) -> list:
                    bm25(lexical, {_BM25_WEIGHTS}) AS neg_score,
                    snippet(lexical, -1, '', '', '…', 12) AS snip
             FROM lexical WHERE lexical MATCH ?
-            ORDER BY neg_score LIMIT ?""",
+            ORDER BY neg_score, slug LIMIT ?""",
         (expr, limit),
     ).fetchall()
     return [

@@ -1,0 +1,3 @@
+skipped-duplicate: Practice testing beats rereading - matches 'testing-effect' (similarity 0.93 >= threshold 0.79)
+skipped-duplicate: Desirable difficulties - matches 'interleaving-effect' (similarity 0.84 >= threshold 0.79)
+extract: 0 added, 2 skipped-duplicate, 0 invalid

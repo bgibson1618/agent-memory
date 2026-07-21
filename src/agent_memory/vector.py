@@ -203,6 +203,36 @@ def _drain(root: Path, limit: int | None, timeout: float):
         con.close()
 
 
+def reconcile(root: Path, changed, removed) -> None:
+    """External-edit healing for the vector leg (F8), fed by lexical.sync's
+    change-set on every search. Removed slugs lose their vector rows and queue
+    entries - no ghost hits pointing at missing paths. Changed slugs whose
+    stored embedding no longer matches the file's current embed-text are
+    (re-)enqueued; a touch or byte-identical rewrite matches its content hash
+    and costs nothing. Local DB work only - never contacts the daemon, never
+    raises: the index is derived state and must not break a search."""
+    if not changed and not removed:
+        return
+    try:
+        con = connect(root)
+        try:
+            for slug in removed:
+                con.execute("DELETE FROM vectors WHERE slug = ?", (slug,))
+                con.execute("DELETE FROM embed_queue WHERE slug = ?", (slug,))
+            for slug, concept in changed:
+                row = con.execute(
+                    "SELECT content_hash FROM vectors WHERE slug = ?", (slug,)
+                ).fetchone()
+                if row is not None and row[0] == content_hash(embed_text(concept)):
+                    continue  # vector still current
+                enqueue(con, slug)
+            con.commit()
+        finally:
+            con.close()
+    except Exception as e:
+        print(f"warning: vector reconcile failed: {e}", file=sys.stderr)
+
+
 def opportunistic_drain(root: Path) -> None:
     """After a command's primary work: drain up to DRAIN_LIMIT queued embeds
     iff the daemon answers a fast health check. Quiet; never raises."""
@@ -247,7 +277,12 @@ def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> l
             raise VectorError(
                 f"query embedding dims {len(qvec)} != index dims {meta.get('dims')} - run: mem reindex"
             )
-        rows = con.execute("SELECT slug, vec FROM vectors WHERE dims = ?", (len(qvec),)).fetchall()
+        # ORDER BY slug + stable argsort below: leg ranking (and thus RRF rank
+        # credit) must be rebuild-invariant - exact-tie order can't depend on
+        # insertion order (the wave-5 byte-equivalence catch).
+        rows = con.execute(
+            "SELECT slug, vec FROM vectors WHERE dims = ? ORDER BY slug", (len(qvec),)
+        ).fetchall()
     finally:
         con.close()
     if not rows:
@@ -262,44 +297,5 @@ def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> l
     if qnorm == 0.0:
         return []
     scores = (mat @ q) / (np.where(norms == 0.0, 1.0, norms) * qnorm)
-    order = np.argsort(-scores)[:k]
+    order = np.argsort(-scores, kind="stable")[:k]
     return [(rows[i][0], float(scores[i])) for i in order]
-
-
-def cmd_reindex(args) -> int:
-    """Rebuild the vector index from markdown alone: wipe vectors + metadata,
-    enqueue every valid concept, drain fully."""
-    root = config.kb_root()
-    if not (root / "concepts").is_dir():
-        print(f"error: no KB home at {root} - run: mem init", file=sys.stderr)
-        return 1
-
-    con = connect(root)
-    try:
-        con.execute("DELETE FROM vectors")
-        con.execute("DELETE FROM embed_queue")
-        con.execute("DELETE FROM vector_meta")
-        for path in sorted((root / "concepts").glob("*.md")):
-            try:
-                okf.parse(path.read_text(encoding="utf-8"))
-            except okf.OKFError as e:
-                print(f"warning: skipping {path}: {e}", file=sys.stderr)
-                continue
-            enqueue(con, path.stem)
-        con.commit()
-    finally:
-        con.close()
-
-    drained, remaining, error = drain_fully(root)
-    if remaining == 0:
-        print(f"reindexed: {drained} concept embedding(s) rebuilt")
-        return 0
-    if isinstance(error, ollama.OllamaError):
-        print(
-            f"reindexed: {drained} embedded, {remaining} queued - {error};"
-            " they drain when the daemon returns",
-            file=sys.stderr,
-        )
-        return 0
-    print(f"error: {error} ({remaining} embedding(s) still queued)", file=sys.stderr)
-    return 1
