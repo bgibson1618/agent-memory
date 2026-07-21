@@ -64,9 +64,10 @@ with a ~500 ms timeout (timeout/down ⇒ enqueue) → single-line confirmation, 
   to ~3 queued embeds iff Ollama answers a fast health check — never blocking the caller's
   budget; `mem doctor`/`mem reindex` drain fully.
 - **Egress guard mechanism**: the zero-egress proof (F12) runs the full command surface —
-  including `init`/`doctor` — inside a **loopback-only network namespace** (`unshare -n`, `lo`
-  up), which covers subprocess egress (git) that an in-process socket guard is structurally
-  blind to; the in-process guard remains the fast inner layer.
+  including `init`/`doctor` — inside a **loopback-only network namespace** (`unshare --user
+  --net`, `lo` up — the unprivileged userns+netns form, verified working on this host at
+  preflight), which covers subprocess egress (git) that an in-process socket guard is
+  structurally blind to; the in-process guard remains the fast inner layer.
 
 Source of truth: `~/.agent-memory/concepts/*.md`. All of `.index/mem.db` (FTS5 + vectors +
 edges + queue + metadata, one SQLite file) is disposable — `mem reindex` rebuilds it from the
