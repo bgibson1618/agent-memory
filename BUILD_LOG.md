@@ -140,3 +140,17 @@ cold search) with a `MEM_EMBED_QUERY_TIMEOUT` seam; save path keeps its strict 5
 Re-test reproduced the exact cold window (forced unload + default-ctx reload) — first search
 now succeeds. 65 passed post-fix. Learning L4 captured (num_ctx reload class). Ops follow-up
 for Brent: pin `OLLAMA_KEEP_ALIVE` in the systemd override to shrink the window structurally.
+
+## F11 — Ambient agent integration  (proved · observed · 2026-07-21)
+**Route:** deployment + observation, run by the parent (Brent's explicit go on the real-config
+gate): `uv tool install --editable` → `mem` 0.1.0 on PATH; real `mem init` → KB home + managed
+blocks in the real `~/.claude/CLAUDE.md` and `~/.agent-docs/AGENTS.md` (one block each,
+existing content intact, doctor 9/9); KB seeded with four genuine learning-science concepts.
+**Proof (observed, protocol-conformant):** staged session `f11-observe-1` — fresh claude
+session, different project (`~/projects/tutor-scratch`), task on record and free of any memory
+mention. Observed: **unprompted** `mem search --json` as the first substantive move → `mem get`
+×4 → results grounded the deliverable; then **unprompted `mem save interleaving-effect`**
+(correctly linked + topiced) after the agent noticed a KB gap. Both observed criteria in one
+session (protocol allowed 3). Evidence: `.kodos/evidence/F11/`. codex/agy = installation-only
+claim, covered by F1 tests + the real AGENTS.md block. Brent judges "unprompted" per protocol —
+task text preserved; veto open.

@@ -1,0 +1,6 @@
+15:[tool] Bash {"command":"mem search \"cognitive load lesson design spaced practice\" --json 2>&1 | head -50","description":"Search knowledge base for lesson design concepts"}
+18:[tool] Bash {"command":"mem get cognitive-load-theory --json; echo ---; mem get worked-example-effect --json; echo ---; mem get spaced-repetition --json; echo ---; mem get testing-effect --json","description":"Fe
+20:[tool] Bash {"command":"mem search \"interleaving practice blocked\" --json 2>&1 | head -30","description":"Search knowledge base for interleaving concept"}
+24:[tool] Bash {"command":"mem save --help 2>&1 | head -30","description":"Check mem save usage"}
+25:[tool result] usage: mem save [-h] --title TITLE [--body BODY] [--description DESCRIPTION]                 [--topics TOPICS] [--type TYPE] [--sensitivity {normal,work}]      
+26:[tool] Bash {"command":"mem save --title \"Interleaving effect\" --slug interleaving-effect --topics \"learning-science,instructional-design\" --related \"spaced-repetition,testing-effect\" --body \"Mixing proble

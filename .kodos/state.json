@@ -5,7 +5,10 @@
     "started": "2026-07-21T20:48:25Z",
     "tokens_spent": 0,
     "wall_clock_seconds": 0,
-    "current_features": [],
+    "current_features": [
+      "F8",
+      "F9"
+    ],
     "needs_you": null
   },
   "features": {
@@ -108,13 +111,13 @@
       "needs_you": null
     },
     "F8": {
-      "status": "todo",
+      "status": "building",
       "attempts": 0,
       "evidence": [],
       "needs_you": null
     },
     "F9": {
-      "status": "todo",
+      "status": "building",
       "attempts": 0,
       "evidence": [],
       "needs_you": null
@@ -126,9 +129,17 @@
       "needs_you": null
     },
     "F11": {
-      "status": "todo",
+      "status": "proved",
       "attempts": 0,
-      "evidence": [],
+      "evidence": [
+        {
+          "method": "observed",
+          "ok": true,
+          "ref": ".kodos/evidence/F11/ - real deployment (uv tool install; mem 0.1.0 on PATH), real mem init (blocks in ~/.claude/CLAUDE.md + ~/.agent-docs/AGENTS.md, one block each, existing content intact, doctor 9/9); staged observation f11-observe-1 (fresh claude session, tutor-scratch project, prompt on record never mentions the memory system): UNPROMPTED mem search --json as first substantive move, mem get x4, results grounded LESSON_DESIGN.md; UNPROMPTED mem save interleaving-effect (correctly linked+topiced) after finding a KB gap",
+          "at": "2026-07-21T23:59:00Z",
+          "note": "both observed criteria in ONE session (protocol allowed 3); run at/after wave-4 reconcile against deployed tree 8518aac; codex/agy claim = installation-only, covered by F1 tests + real AGENTS.md block verified; per protocol Brent judges 'unprompted' - task text preserved as evidence, veto open"
+        }
+      ],
       "needs_you": null
     },
     "F12": {
