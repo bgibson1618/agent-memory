@@ -30,3 +30,24 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   semantics split (work = employer-specific vs work-derived); Brent set the vendor line
   (`changed` — vendor-scoping replaced the orchestrator's blanket ambient `--no-work`
   recommendation).
+
+## D2 — OKF posture: clean-room from the field contract, no capstone code ported (2026-07-21)
+
+- **Context:** ARCHITECTURE's open question required checking the capstone repo's license
+  before porting `okf.py`-style code, "otherwise clean-room the schema from the format spec —
+  resolve at build start." F2 is the first feature that could land capstone-derived code. The
+  F2 build session is confined to this workspace and cannot read the capstone repo
+  (`~/projects/capstone-workspace`), so the license could not be verified from the build seat.
+- **Decision (implementer, F2 start):** take the pre-authorized conservative branch —
+  **clean-room**. `src/agent_memory/okf.py` is implemented solely from the field contract
+  already recorded in this repo (ARCHITECTURE `okf` component row + FEATURES F2 criteria:
+  frontmatter id/slug, title, description, type, `topics[]`, `sensitivity`, created/updated,
+  `related[]`; body with plain `[[wikilinks]]`). No capstone source was consulted, copied, or
+  ported. The license check is thereby moot for v1; porting capstone code later remains
+  possible if Brent verifies the license first.
+- **Why defensible:** clean-room is safe under any license outcome; the contract is small
+  (ten fields + a markdown body), so re-deriving it costs less than resolving the legal
+  question, and the schema stays Obsidian-compatible by construction.
+- **AI involvement:** implementer selected the fallback branch ARCHITECTURE pre-authorized
+  (`accepted` shape, no new judgment call); flagged for Brent's confirmation at wave
+  reconcile.

@@ -3,7 +3,7 @@ name = "agent-memory"
 version = "0.1.0"
 description = "Personal cross-agent knowledge base: OKF markdown source of truth + local vector + derived graph, RRF-fused"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["pyyaml>=6"]
 
 [project.scripts]
 mem = "agent_memory.cli:run"

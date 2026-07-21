@@ -23,3 +23,23 @@ gpgsign off; AGENTS block carries the D1 Antigravity exclusion verbatim.
 preflight); real-env smoke: `mem doctor` diagnoses 5/8 with actionable one-liners, exit 1.
 Note: the late-remote criterion's write-path-warn half is a `gitkb` seam consumed by F2's
 save — held to at F2 reconcile.
+
+## Wave 1 checkpoint  (CLEAN · 2026-07-21)
+Wave committed as `ee5eda7`. Deterministic half green (ledger + state validators, scheduler
+coherent: F1 proved, F2 ready). Fresh-eyes review: **deferred — 1st consecutive deferral**
+(single-feature scaffold wave, nothing integrated); fires by wave 3 at the latest.
+Walkthrough (F36): no integrated path yet — no-op. Context sensor flapping Tier 1↔0 between
+invocations (34% when readable) — noted, not a gate.
+
+## F2 — Durable concept capture  (proved · test · 2026-07-21)
+**Route:** clean-room `okf.py` (DECISION_LOG D2) + `store.py` (flock write-lock, atomic
+temp+rename, per-path git commit) + save/get/list CLI; `MEM_FAULT` crash seam for the
+atomicity proof; write-path remote warning consumed from the F1 holdover. Delivered as
+F2.patch (`ok: false` — execution gated in the builder's seat).
+**Decisions:** D2 clean-room (capstone unreadable from the build seat; pre-authorized
+fallback; flagged for Brent) · `--update` requires an existing concept, replaces fields,
+preserves `created` · one path-scoped commit per save (never sweeps unrelated KB changes) ·
+dead-writer temp sweep under the lock.
+**Proof:** parent applied the patch and ran `uv run pytest` → **27 passed** (14 F2 + 11 F1 +
+2 preflight); pyyaml re-lock folded into the wave commit. All six criteria test-mapped; the
+F1 holdover (write warns on late remote) is proven by `test_save_warns_while_a_remote_is_configured`.

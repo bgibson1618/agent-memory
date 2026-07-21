@@ -2,11 +2,11 @@
 
 > **Generated snapshot** (D21 / F30) — rendered by `scripts/render-snapshot.mjs` from
 > `FEATURES.md` + `.kodos/state.json`. **Do not hand-edit** — re-render instead.
-> Rendered: 2026-07-21T21:10:34Z.
+> Rendered: 2026-07-21T21:27:53Z.
 
 ## Status
 
-**Phase `build` — 1 of 12 features proved.**
+**Phase `build` — 2 of 12 features proved.**
 
 Current status and the next action are **owned by `.kodos/state.json`** — read them live
 (this snapshot never asserts them, D2):
@@ -24,7 +24,7 @@ rendered count.
 | id | title | proof | status | evidence (abridged) |
 |---|---|---|---|---|
 | F1 | Initialized, verified KB home | test | proved | uv run pytest -> 13 passed (11 F1 + 2 preflight); parent re-run after applying work/agents/kodos-F1-20260721T… |
-| F2 | Durable concept capture | test | todo | — |
+| F2 | Durable concept capture | test | proved | uv run pytest -> 27 passed after applying work/agents/kodos-F2-20260721T2115Z/implementer/F2.patch (14 F2 tes… |
 | F3 | Keyword search | test | todo | — |
 | F4 | Semantic recall | test | todo | — |
 | F5 | Concept graph | test | todo | — |

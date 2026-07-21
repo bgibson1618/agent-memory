@@ -140,7 +140,7 @@ def kb(tmp_path, closed_port_url) -> KBEnv:
 
 @pytest.fixture
 def mem(kb):
-    def _run(*args, env_extra=None) -> subprocess.CompletedProcess:
+    def _run(*args, env_extra=None, input=None) -> subprocess.CompletedProcess:
         env = dict(kb.env)
         if env_extra:
             env.update(env_extra)
@@ -149,6 +149,7 @@ def mem(kb):
             capture_output=True,
             text=True,
             env=env,
+            input=input,
             timeout=60,
         )
 

@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from agent_memory import __version__, doctor, initcmd
+from agent_memory import __version__, doctor, initcmd, store
 
 
 def main(argv=None) -> int:
@@ -23,6 +23,33 @@ def main(argv=None) -> int:
     p_doctor = sub.add_parser("doctor", help="diagnose the KB environment")
     p_doctor.add_argument("--json", action="store_true", help="machine-readable output")
     p_doctor.set_defaults(func=doctor.cmd_doctor)
+
+    p_save = sub.add_parser("save", help="save a concept as OKF markdown (one commit per save)")
+    p_save.add_argument("--title", required=True, help="concept title; the slug derives from it")
+    p_save.add_argument("--body", help="markdown body (reads stdin when omitted)")
+    p_save.add_argument("--description", help="one-line summary (defaults to the body's first line)")
+    p_save.add_argument("--topics", help="comma-separated topics")
+    p_save.add_argument("--type", default="concept", help="concept type (default: concept)")
+    p_save.add_argument(
+        "--sensitivity", choices=["normal", "work"], default="normal",
+        help="'work' = employer-specific material (DECISION_LOG D1)",
+    )
+    p_save.add_argument("--related", help="comma-separated related slugs")
+    p_save.add_argument("--slug", help="explicit slug (default: derived from --title)")
+    p_save.add_argument(
+        "--update", action="store_true",
+        help="replace an existing concept: keeps created, bumps updated",
+    )
+    p_save.set_defaults(func=store.cmd_save)
+
+    p_get = sub.add_parser("get", help="print one concept by slug")
+    p_get.add_argument("slug")
+    p_get.add_argument("--json", action="store_true", help="machine-readable output")
+    p_get.set_defaults(func=store.cmd_get)
+
+    p_list = sub.add_parser("list", help="list saved concepts with their topics")
+    p_list.add_argument("--json", action="store_true", help="machine-readable output")
+    p_list.set_defaults(func=store.cmd_list)
 
     args = parser.parse_args(argv)
     try:

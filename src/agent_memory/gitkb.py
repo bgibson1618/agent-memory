@@ -43,3 +43,13 @@ def commit_all(root: Path, message: str) -> None:
     staged = _git(root, "diff", "--cached", "--quiet", check=False)
     if staged.returncode != 0:
         _git(root, "commit", "-q", "-m", message)
+
+
+def commit_path(root: Path, rel_path: str, message: str) -> bool:
+    """Stage and commit exactly one path - one save, one commit, nothing swept in."""
+    _git(root, "add", "--", rel_path)
+    staged = _git(root, "diff", "--cached", "--quiet", "--", rel_path, check=False)
+    if staged.returncode == 0:
+        return False
+    _git(root, "commit", "-q", "-m", message, "--", rel_path)
+    return True
