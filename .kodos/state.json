@@ -1,0 +1,19 @@
+{
+  "version": 1,
+  "phase": "build",
+  "run": { "started": "2026-07-21T20:48:25Z", "tokens_spent": 0, "wall_clock_seconds": 0, "current_features": [] },
+  "features": {
+    "F1": { "status": "proved", "attempts": 0, "evidence": [ { "method": "test", "ok": true, "ref": "uv run pytest -> 13 passed (11 F1 + 2 preflight); parent re-run after applying work/agents/kodos-F1-20260721T2050Z/implementer/F1.patch; real-env smoke: mem doctor diagnoses correctly, exit 1 on failing checks", "at": "2026-07-21T21:09:50Z", "note": "all 5 criteria test-mapped; write-path remote-warn half of the late-remote criterion is a gitkb seam F2's save must consume (held to at F2 reconcile)" } ], "needs_you": null },
+    "F2": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F3": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F4": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F5": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F6": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F7": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F8": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F9": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F10": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F11": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null },
+    "F12": { "status": "todo", "attempts": 0, "evidence": [], "needs_you": null }
+  }
+}
