@@ -5,7 +5,8 @@
       "id": "backend-research-report",
       "deliverable": "Researcher report: local embedding model choice (Ollama on WSL2) + knowledge-graph backend evaluation (Neo4j vs FalkorDB vs Obsidian-style derived wikilink graph vs embedded engines)",
       "flagged_by": "intake",
-      "status": "pending"
+      "status": "produced",
+      "path": "research/backend-research.md"
     }
   ]
 }
