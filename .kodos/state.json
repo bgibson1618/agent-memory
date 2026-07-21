@@ -80,15 +80,31 @@
       "needs_you": null
     },
     "F6": {
-      "status": "todo",
+      "status": "proved",
       "attempts": 0,
-      "evidence": [],
+      "evidence": [
+        {
+          "method": "test",
+          "ok": true,
+          "ref": "uv run pytest -> 62 passed after applying kodos-F6 patch (6 F6 tests: single-leg fixtures incl. seed-neighbor graph-only, [work] marking, --no-work, Ollama-down one-line degradation); F36 walkthrough: fused paraphrase search verified live incl. the cold num_ctx-reload window after the query-budget fix",
+          "at": "2026-07-21T23:25:00Z",
+          "note": "RRF k=60, lexical>vector>graph tie-break; agents-block --no-work sentence restored WITH the flag (learnings L1 honored)"
+        }
+      ],
       "needs_you": null
     },
     "F7": {
-      "status": "todo",
+      "status": "proved",
       "attempts": 0,
-      "evidence": [],
+      "evidence": [
+        {
+          "method": "test",
+          "ok": true,
+          "ref": "uv run pytest -> 65 passed after applying kodos-F7 patch (3 contention tests: 10-way distinct-slug race, 8-way same-slug race, 8-way --update race; flock start barrier makes contention deterministic; zero index.lock/database-is-locked across racers)",
+          "at": "2026-07-21T23:25:00Z",
+          "note": "test-only slice - locking discipline from F2/F3 already satisfied the criteria; the permanent proof now lives in the suite"
+        }
+      ],
       "needs_you": null
     },
     "F8": {

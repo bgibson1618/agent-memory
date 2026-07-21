@@ -1,0 +1,39 @@
+# F36 whole-product walkthrough — wave 4 tree (c10f2aa) — 2026-07-21
+Route: real CLI, fresh isolated HOME, real Ollama daemon.
+(model warmed)
+
+## init
+initialized: /home/brent-gibson/.claude/jobs/9141aa12/tmp/walkthrough-home/.agent-memory (concepts/, .index/, git - no remote)
+blocks: installed: /home/brent-gibson/.claude/jobs/9141aa12/tmp/walkthrough-home/.claude/CLAUDE.md; installed: /home/brent-gibson/.claude/jobs/9141aa12/tmp/walkthrough-home/.agent-docs/AGENTS.md
+
+## saves
+saved: testing-effect (/home/brent-gibson/.claude/jobs/9141aa12/tmp/walkthrough-home/.agent-memory/concepts/testing-effect.md)
+saved: spaced-repetition (/home/brent-gibson/.claude/jobs/9141aa12/tmp/walkthrough-home/.agent-memory/concepts/spaced-repetition.md)
+saved: internal-lms-rollout-notes (/home/brent-gibson/.claude/jobs/9141aa12/tmp/walkthrough-home/.agent-memory/concepts/internal-lms-rollout-notes.md)
+internal-lms-rollout-notes  [work-projects]  Internal LMS rollout notes
+spaced-repetition  [learning-science]  Spaced repetition
+testing-effect  [learning-science]  Testing effect
+
+## fused paraphrase search (no shared keywords with target)
+warning: semantic leg skipped (embed request to http://127.0.0.1:11434 failed (timed out))
+no matches: quiz yourself to remember longer
+
+## work marking + --no-work
+internal-lms-rollout-notes  0.03  Internal LMS rollout notes  [work]
+    Internal LMS rollout notes
+spaced-repetition  0.02  Spaced repetition
+spaced-repetition  0.02  Spaced repetition
+    Reviewing at increasing intervals strengthens retention. Builds on [[testing-effect]].
+testing-effect  0.02  Testing effect
+
+## graph neighborhood
+
+neighbors:
+  link: testing-effect (wikilink)  Testing effect
+  topic learning-science: testing-effect
+
+## degraded search (daemon unreachable)
+warning: semantic leg skipped (embed request to http://127.0.0.1:9 failed (connection refused))
+testing-effect  0.02  Testing effect
+    Retrieval practice beats re-reading for durable memory.
+spaced-repetition  0.02  Spaced repetition

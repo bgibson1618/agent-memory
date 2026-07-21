@@ -43,11 +43,17 @@ def main(argv=None) -> int:
     p_save.set_defaults(func=store.cmd_save)
 
     p_search = sub.add_parser(
-        "search", help="find concepts by keyword (BM25-ranked; works with Ollama down)"
+        "search",
+        help="fused search: lexical + semantic + graph via RRF (degrades to"
+        " lexical + graph with Ollama down)",
     )
-    p_search.add_argument("query", help="literal search terms")
+    p_search.add_argument("query", help="search terms")
     p_search.add_argument("--json", action="store_true", help="machine-readable output")
     p_search.add_argument("--limit", type=int, default=10, help="max hits (default: 10)")
+    p_search.add_argument(
+        "--no-work", action="store_true", dest="no_work",
+        help="exclude sensitivity:work items entirely",
+    )
     p_search.set_defaults(func=search.cmd_search)
 
     p_get = sub.add_parser("get", help="print one concept by slug")

@@ -23,7 +23,9 @@ DRAIN_LIMIT = 3            # bounded opportunistic drain: ~3 items per invocatio
 STRICT_TIMEOUT = 0.5       # save-path / opportunistic embed budget, seconds
 FULL_DRAIN_TIMEOUT = 30.0  # doctor/reindex per-item budget, seconds
 HEALTH_TIMEOUT = 0.5       # pre-drain daemon health check budget, seconds
-QUERY_TIMEOUT = 2.0        # query-embed budget, seconds
+QUERY_TIMEOUT = 2.5        # query-embed budget, seconds (inside NFR's <3s cold search;
+                           # must survive Ollama's num_ctx-change model reload, the
+                           # wave-4 walkthrough finding - see BUILD_LOG)
 EMBED_MAX_CHARS = 32000    # ~8k tokens, the nomic num_ctx ceiling
 
 # One failed daemon contact per process is enough evidence to skip further
@@ -33,6 +35,13 @@ _daemon_unhealthy = False
 
 class VectorError(Exception):
     """A one-line, agent-actionable vector-index refusal."""
+
+
+def mark_daemon_unhealthy() -> None:
+    """Callers that just watched a daemon call fail record it here, so the
+    post-command opportunistic drain doesn't pay another timeout."""
+    global _daemon_unhealthy
+    _daemon_unhealthy = True
 
 
 def strict_timeout() -> float:
@@ -214,7 +223,11 @@ def drain_fully(root: Path, timeout: float = FULL_DRAIN_TIMEOUT):
     return _drain(root, None, timeout)
 
 
-def top_k(root: Path, query: str, k: int = 5, timeout: float = QUERY_TIMEOUT) -> list:
+def query_timeout() -> float:
+    return float(os.environ.get("MEM_EMBED_QUERY_TIMEOUT", str(QUERY_TIMEOUT)))
+
+
+def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> list:
     """The vector leg: brute-force cosine over stored vectors, best first.
     Returns [(slug, score), ...]; raises ollama.OllamaError when the daemon
     cannot embed the query (callers decide how to degrade)."""
@@ -227,7 +240,8 @@ def top_k(root: Path, query: str, k: int = 5, timeout: float = QUERY_TIMEOUT) ->
             return []
         qvec = ollama.embed(
             config.ollama_base_url(), config.embed_model(),
-            ["search_query: " + query], timeout=timeout,
+            ["search_query: " + query],
+            timeout=timeout if timeout is not None else query_timeout(),
         )[0]
         if len(qvec) != int(meta.get("dims", 0)):
             raise VectorError(

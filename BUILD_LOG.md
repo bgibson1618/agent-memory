@@ -104,3 +104,39 @@ Remediation proof: `uv run pytest` → **56 passed** (54 + 2 regression). Learni
 (seam `checkpoint`): L1 doc-vs-CLI reconcile check, L2 non-mutating init verification,
 L3 exact-invariant no-op edges. `run.needs_you` cleared. Walkthrough (F36): CLI path exists
 but fused search (F6) not yet — deferred to the wave-4 line.
+
+## Wave 4 dispatch  (2026-07-21)
+Executor: roster (auto, claude role-default). Ready set: **F6 (fusion) + F7 (concurrency)**.
+F6's brief carried learnings block [L1] (prefilter match on "--no-work") + explicit scope note:
+restoring the flag sentence to agents-block is in-scope once the flag exists.
+
+## F6 — Fused search  (proved · test · 2026-07-21)
+**Route:** `fusion.py` (RRF k=60; exact ties break lexical > vector > graph, then slug) +
+three-leg orchestration in `search.py`; zero-cosine vector hits carry no RRF credit; graph leg
+= 1-hop seed-neighbor expansion (link > topic weighted); `[work]` marking + `--no-work`;
+agents-block flag sentence restored **with** the flag (L1 honored).
+**Decisions:** sensitivity field in `--json` only on work hits (preserves F3's 4-key contract);
+1-hop expansion (within ARCHITECTURE's 1–2-hop; networkx still unneeded).
+**Proof:** parent applied + `uv run pytest` → 62 passed; live fused paraphrase search verified
+in the walkthrough (below), including the cold-window re-test after remediation.
+
+## F7 — Concurrent-session write safety  (proved · test · 2026-07-21)
+**Route:** test-only slice — the F2/F3 locking discipline already satisfied the criteria; added
+the permanent contention proof: 10-way distinct-slug race, 8-way same-slug race, 8-way
+`--update` race, with a flock start-barrier so contention is deterministic, asserting zero
+`index.lock` / database-is-locked / traceback across all racers.
+**Proof:** parent applied + `uv run pytest` → **65 passed**.
+
+## Wave 4 checkpoint + walkthrough  (F36 finding → remediated · 2026-07-21)
+Deterministic half green. Fresh-eyes review: deferred — ran wave 3, 1 wave ago (1st deferral of
+the new cycle). **Walkthrough (F36): RAN — first integrated pass** (init → saves incl. a
+work-tagged concept → fused search → `--no-work` → `get --related` → daemon-down degradation;
+evidence: `.kodos/evidence/walkthrough/wave4-walkthrough.txt`). **One validated finding**
+(firm): the fused paraphrase search lost its semantic leg on first contact after idle — mem's
+`num_ctx` 8192 request forces an Ollama model RELOAD that exceeded the 2.0s query budget;
+observed live ("semantic leg skipped (timed out)" with a warm daemon). `run.needs_you` set →
+remediated in-engagement → cleared: query-embed budget raised to 2.5s (inside the NFR's <3s
+cold search) with a `MEM_EMBED_QUERY_TIMEOUT` seam; save path keeps its strict 500ms.
+Re-test reproduced the exact cold window (forced unload + default-ctx reload) — first search
+now succeeds. 65 passed post-fix. Learning L4 captured (num_ctx reload class). Ops follow-up
+for Brent: pin `OLLAMA_KEEP_ALIVE` in the systemd override to shrink the window structurally.

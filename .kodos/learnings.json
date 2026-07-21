@@ -5,7 +5,15 @@
       "id": "L1",
       "category": "verification",
       "applies_when": "a feature ships instruction text, docs, or installed blocks that name CLI flags or behavior owned by a later feature",
-      "symptoms": ["instruction block", "AGENTS.md", "CLAUDE.md", "installs", "--no-work", "agent integration", "managed block"],
+      "symptoms": [
+        "instruction block",
+        "AGENTS.md",
+        "CLAUDE.md",
+        "installs",
+        "--no-work",
+        "agent integration",
+        "managed block"
+      ],
       "lesson": "Check installed instruction/doc artifacts against the ACTUAL CLI surface at reconcile - a proved feature's shipped text can advertise a sibling's unbuilt flag, putting doc reality ahead of implementation.",
       "source": "BUILD_LOG.md wave 3 checkpoint finding 1 (kodos-sanity-w3-20260721)",
       "seam": "checkpoint",
@@ -15,7 +23,15 @@
       "id": "L2",
       "category": "design",
       "applies_when": "wiring an init/setup command to a doctor or diagnostic path that can mutate derived state (drain queues, rebuild indexes)",
-      "symptoms": ["mem init", "doctor", "idempotent", "drain", "embed queue", "derived index", "verification path"],
+      "symptoms": [
+        "mem init",
+        "doctor",
+        "idempotent",
+        "drain",
+        "embed queue",
+        "derived index",
+        "verification path"
+      ],
       "lesson": "Setup/init verification must be non-mutating - route init through a read-only diagnosis mode; draining/rebuilding belongs to explicit commands, or idempotence criteria silently break as later features extend the diagnostic.",
       "source": "BUILD_LOG.md wave 3 checkpoint finding 4 (kodos-sanity-w3-20260721)",
       "seam": "checkpoint",
@@ -25,11 +41,36 @@
       "id": "L3",
       "category": "spec",
       "applies_when": "a success criterion asserts an exact invariant (exactly one commit, exactly N artifacts) over an operation with content- or time-dependent no-op edge cases",
-      "symptoms": ["exactly one commit", "every successful save", "no-op", "identical content", "same second", "timestamp"],
+      "symptoms": [
+        "exactly one commit",
+        "every successful save",
+        "no-op",
+        "identical content",
+        "same second",
+        "timestamp"
+      ],
       "lesson": "Exact-invariant criteria need the no-op edge named and handled - an operation that changes nothing must either report itself as a no-op or be made impossible; tests that sleep past the boundary hide the hole.",
       "source": "BUILD_LOG.md wave 3 checkpoint findings 2+3 (kodos-sanity-w3-20260721)",
       "seam": "checkpoint",
       "captured_at": "2026-07-21T22:45:00Z"
+    },
+    {
+      "id": "L4",
+      "category": "environment",
+      "applies_when": "a CLI calls a local model daemon with a client-requested context size (num_ctx) under a strict latency budget",
+      "symptoms": [
+        "num_ctx",
+        "timeout",
+        "model reload",
+        "cold start",
+        "embed",
+        "keep_alive",
+        "query budget"
+      ],
+      "lesson": "A client num_ctx differing from the daemon's loaded context forces a model RELOAD that dwarfs steady-state latency - first-contact call paths need a budget sized to the cold NFR (or the deployment must pin keep_alive), or the first query after idle silently loses its leg.",
+      "source": "BUILD_LOG.md wave 4 walkthrough finding (.kodos/evidence/walkthrough/wave4-walkthrough.txt)",
+      "seam": "checkpoint",
+      "captured_at": "2026-07-21T23:25:00Z"
     }
   ]
 }

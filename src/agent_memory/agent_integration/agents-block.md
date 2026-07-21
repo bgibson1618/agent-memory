@@ -16,7 +16,8 @@ shared by his coding agents. Use it silently during ordinary work.
 **Save** durable, reusable concepts (principles, techniques, findings - not session
 trivia): `mem save`. When unsure whether material is employer-proprietary, tag it
 `sensitivity: work` - or don't save it. Work-tagged items appear marked `[work]` in
-results; treat that marker as a handle-with-care signal.
+results; treat that marker as a handle-with-care signal. `--no-work` excludes
+work-tagged items from search.
 
 The KB is local-only: never add a git remote to `~/.agent-memory`; its content goes
 nowhere but localhost Ollama. `mem doctor` diagnoses the setup.
