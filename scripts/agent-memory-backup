@@ -1,0 +1,49 @@
+#!/bin/bash
+# agent-memory-backup: bundle the KB git repo to the Windows-side backup dir,
+# and sync the Windows-native Obsidian viewing mirror.
+# Machine-specific ops tooling (Brent's WSL2 box), not part of the mem product.
+#
+# The bundle carries the FULL git history; restore with:
+#   git clone /mnt/c/Users/bgibs/Backups/agent-memory/agent-memory-latest.bundle ~/.agent-memory
+#   mem reindex   # indexes are derived, never backed up
+# Confidentiality: destination is this machine's own disk - the KB never leaves localhost.
+#
+# Deploy wiring (already live; reproduce on a fresh machine with):
+#   ln -sf <repo>/scripts/agent-memory-backup ~/.local/bin/agent-memory-backup
+#   crontab: @reboot sleep 60 && $HOME/.local/bin/agent-memory-backup >> $HOME/.local/state/agent-memory-backup.log 2>&1
+#            0 12 * * *          $HOME/.local/bin/agent-memory-backup >> $HOME/.local/state/agent-memory-backup.log 2>&1
+set -euo pipefail
+
+KB="$HOME/.agent-memory"
+DEST="/mnt/c/Users/bgibs/Backups/agent-memory"
+mkdir -p "$DEST"
+
+# Sweep external edits (e.g. Obsidian) into a commit so the bundle captures them.
+if [ -n "$(git -C "$KB" status --porcelain)" ]; then
+    git -C "$KB" add -A
+    git -C "$KB" commit -q -m "backup sweep: external edits"
+fi
+
+TMP="$DEST/.bundle.tmp"
+git -C "$KB" bundle create "$TMP" --all 2>/dev/null
+git -C "$KB" bundle verify "$TMP" > /dev/null 2>&1
+
+cp "$TMP" "$DEST/agent-memory-$(date +%a).bundle"   # 7-generation weekday ring
+mv "$TMP" "$DEST/agent-memory-latest.bundle"
+
+# Windows-native read-only mirror for Obsidian (C:\Users\bgibs\agent-memory-view).
+# One-way WSL -> Windows; MUST stay out of OneDrive-synced folders (confidentiality).
+# Edits belong in the canonical KB - a dirty mirror is surfaced and skipped, never clobbered.
+MIRROR="/mnt/c/Users/bgibs/agent-memory-view"
+if [ ! -d "$MIRROR/.git" ]; then
+    git clone -q "$KB" "$MIRROR"
+elif [ -n "$(git -C "$MIRROR" status --porcelain)" ]; then
+    echo "agent-memory-backup: WARNING - mirror at $MIRROR has local changes; sync SKIPPED." \
+         " The mirror is a viewer: make edits in the real KB, then clean the mirror" \
+         " (git -C $MIRROR checkout . / clean -fd) to resume syncing."
+else
+    git -C "$MIRROR" fetch -q origin
+    git -C "$MIRROR" reset -q --hard origin/main
+fi
+
+echo "agent-memory-backup: $(date -u +%FT%TZ) -> $DEST ($(git -C "$KB" rev-parse --short HEAD))"

@@ -42,6 +42,13 @@ This project follows the KodOS read order — there is no `CONTEXT.md`:
 
 Run `/kodos:go` to resume the workflow.
 
+## Ops
+
+`scripts/agent-memory-backup` (cron: daily + on WSL boot) sweeps external edits into a KB
+commit, writes verified full-history git bundles to the Windows-side disk (7-day ring +
+latest), and one-way-syncs a Windows-native read-only mirror for Obsidian viewing. Machine-
+specific; deploy wiring documented in the script header.
+
 ## Environment
 
 Python 3.12+ via `uv` on WSL2 (Ubuntu); `uv run pytest` to verify (the netns egress guard needs `MEM_REQUIRE_NETNS=1` to be asserted rather than skipped). Runtime deps: numpy + PyYAML only; the graph is a derived in-process structure — no graph database.
