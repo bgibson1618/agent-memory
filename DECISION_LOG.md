@@ -111,3 +111,27 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
      serialize time.
 - **AI involvement:** Brent supplied the spec URL and the confirmation condition; parent
   fetched, pinned, and machine-verified conformance (`suggested`→`accepted`).
+
+## D5 — OKF interop hardening: reserved-slug guard + spec-vocabulary mirrors (2026-07-22)
+
+- **Context:** the D2 amendment recorded two gaps against the official OKF v0.1 spec as
+  post-v1 candidates; Brent asked for both to be addressed same-day.
+- **Decision:**
+  1. `index` and `log` are refused as concept slugs in `Concept.validate()` — one guard
+     covering `mem save` (derived and explicit `--slug`) and extract candidates (reported
+     as `invalid` with the reason), closing the §9-rule-3 edge. Refuse, not auto-suffix:
+     silently mutating an explicitly requested slug is worse than a one-line error.
+  2. The serializer mirrors the spec-recommended vocabulary (`tags` <- `topics`,
+     `timestamp` <- `updated`) so conforming OKF consumers see categorization and
+     last-modified; the parser accepts `tags`/`timestamp` (and derives `created` from
+     `timestamp`) as fallback so externally-authored spec-shaped files load. Canonical
+     keys stay `topics`/`created`/`updated`; a stale mirror in a hand-edited file
+     self-heals on the next save/update (parse prefers canonical, serialize re-syncs).
+- **Migration:** all 33 existing live-KB concepts re-serialized in place (229 insertions,
+  0 deletions — mirrors only), single KB commit; `mem reindex` re-drained all embeddings;
+  doctor 9/9.
+- **Proof:** `tests/test_okf_interop.py` (6 tests: reserved title/slug refusal, extract
+  invalid reporting, mirror emission, update sync, external spec-vocabulary parse);
+  full suite `MEM_REQUIRE_NETNS=1 uv run pytest` → **95 passed**.
+- **AI involvement:** parent implemented on Brent's direct request; refuse-vs-suffix call
+  is the parent's (`suggested`), open to reversal if it ever bites.

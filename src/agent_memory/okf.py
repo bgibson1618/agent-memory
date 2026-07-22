@@ -1,8 +1,12 @@
-"""OKF concept schema - clean-room from the ARCHITECTURE/FEATURES field contract.
+"""OKF concept schema - implemented from the official OKF v0.1 spec
+(research/okf-spec-v0.1.md; DECISION_LOG D2/D5).
 
 One concept = YAML frontmatter (id/slug, title, description, type, topics[],
 sensitivity, created/updated, related[]) + a markdown body carrying plain
-`[[wikilinks]]`. No capstone code was consulted or ported (DECISION_LOG D2).
+`[[wikilinks]]`. Interop with conforming OKF consumers: the serializer mirrors
+the spec-recommended vocabulary (`tags` <- topics, `timestamp` <- updated), the
+parser accepts that vocabulary as fallback for externally-authored files, and
+the OKF reserved filenames (index.md, log.md) are refused as concept slugs.
 """
 
 import os
@@ -15,6 +19,7 @@ import yaml
 
 TYPE_DEFAULT = "concept"
 SENSITIVITIES = ("normal", "work")
+RESERVED_SLUGS = ("index", "log")  # OKF v0.1 §3.1: reserved filenames, never concept documents
 
 _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.DOTALL)
 _SLUG_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -56,6 +61,11 @@ class Concept:
     def validate(self) -> "Concept":
         if not _SLUG_RE.match(self.slug):
             raise OKFError(f"invalid slug {self.slug!r} (lowercase alnum-hyphen)")
+        if self.slug in RESERVED_SLUGS:
+            raise OKFError(
+                f"slug {self.slug!r} is a reserved OKF filename ({self.slug}.md may not be"
+                " a concept document) - pick another title or pass an explicit --slug"
+            )
         for name in ("title", "description", "created", "updated"):
             if not str(getattr(self, name)).strip():
                 raise OKFError(f"missing required field: {name}")
@@ -90,9 +100,11 @@ def serialize(concept: Concept) -> str:
         "description": concept.description,
         "type": concept.type,
         "topics": list(concept.topics),
+        "tags": list(concept.topics),  # OKF v0.1 recommended vocabulary (mirror of topics)
         "sensitivity": concept.sensitivity,
         "created": concept.created,
         "updated": concept.updated,
+        "timestamp": concept.updated,  # OKF v0.1 recommended vocabulary (mirror of updated)
         "related": list(concept.related),
     }
     yaml_text = yaml.safe_dump(front, sort_keys=False, allow_unicode=True, width=1000)
@@ -129,15 +141,22 @@ def parse(text: str) -> Concept:
     if not isinstance(front, dict):
         raise OKFError("frontmatter is not a mapping")
     slug = _as_str(front.get("slug") or front.get("id"))
+    # Canonical keys win; the OKF-recommended vocabulary (tags/timestamp) is
+    # accepted as fallback so externally-authored spec-shaped files parse.
+    topics_raw = front.get("topics")
+    if topics_raw is None:
+        topics_raw = front.get("tags")
+    updated = _as_str(front.get("updated")) or _as_str(front.get("timestamp"))
+    created = _as_str(front.get("created")) or updated
     return Concept(
         slug=slug,
         title=_as_str(front.get("title")),
         description=_as_str(front.get("description")),
         type=_as_str(front.get("type")) or TYPE_DEFAULT,
-        topics=_as_str_list(front.get("topics")),
+        topics=_as_str_list(topics_raw),
         sensitivity=_as_str(front.get("sensitivity")) or "normal",
-        created=_as_str(front.get("created")),
-        updated=_as_str(front.get("updated")),
+        created=created,
+        updated=updated,
         related=_as_str_list(front.get("related")),
         body=match.group(2).lstrip("\n"),
     ).validate()
