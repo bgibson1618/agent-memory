@@ -189,3 +189,38 @@ Deterministic half green. Fresh-eyes review: **deferred — 2nd consecutive** (r
 **mandatory at wave 6**, which is also the final build wave — the reviewer gets the complete
 tree. Walkthrough (F36): extract exercised on the real KB (see F9 entry); prior integrated
 path unchanged and green.
+
+## Wave 6 dispatch  (2026-07-22)
+Final wave; ready set F10 + F12. F12 → roster builder `kodos-F12-20260722T0105Z` (first
+dispatch stopped inside a minute — brief was missing the matched L2 learnings block — appended
+and relaunched; the learning about learnings held). F10's deterministic half rode the same
+builder cycle; its **observed** half ran as two staged live sessions (`f10-observe-roster`,
+`f10-observe-inline` — `architect` role used as the plain-session vehicle; roster has no bare
+`claude` role).
+
+## F12 — Zero-egress guarantee  (proved · test · 2026-07-22)
+**Route:** two layers. Product hardening: `ollama.py` refuses non-loopback base URLs before
+any socket or DNS work (a hostile `MEM_OLLAMA_URL` never yields a connect attempt). Test
+layer: a `sitecustomize` audit-hook guard plus a netns driver that re-execs the suite under
+`unshare --user --net` (loopback only) with an in-namespace fake Ollama, then runs **all 8
+commands** there — up-leg proves the only peer ever contacted is Ollama on 127.0.0.1;
+down-leg proves the documented one-line degradations; remote-URL leg proves zero connects.
+**Proof:** `MEM_REQUIRE_NETNS=1 uv run pytest` → **89 passed**; the netns test is asserted
+RUNNING, not skipped. Guard lives entirely in the test layer — zero product runtime cost.
+
+## F10 — Extraction procedure  (proved · observed · 2026-07-22)
+**Route:** `extract-knowledge.md` procedure shipped in `agent_integration/` and printed by
+`mem extract --procedure`; deterministic half covered by tests 84–89. **Observed proof, both
+modes** (protocol: staged is legit — the session prompts never mention the memory system):
+**(A) roster mode** — a real session pointed at `research/backend-research.md` followed the
+printed choreography unprompted: cross-backend `agent-roster fanout` per D1 (Codex+Claude),
+2 extractor lenses → 13→12 merged candidates, 2 fresh-eyed reviewers → 0 rejections + 4 fixes
+applied → `mem extract`: **11 added, 1 skipped-dup**; D3's disposition-review recourse used
+once (0.8032 umbrella-vs-sibling, saved via direct `mem save`). **(B) inline mode** — roster
+made genuinely undiscoverable (PATH symlink held out); same procedure on the capstone router
+doc via `claude -p` one-shot subagents (2 extractors, 2 reviewers, 1 fix): **6 added,
+2 skipped-dup, 2 sanctioned overrides**. Both runs ended with the readable added-vs-skipped
+report. Evidence: `.kodos/evidence/F10/`. Managed blocks refreshed after observation
+(`mem init`; doctor 9/9). **Follow-up journaled (not v1 scope):** both observation reports
+independently flagged that intra-batch `related`-slug normalization belongs inside
+`mem extract` (candidates referencing each other's not-yet-existing slugs).

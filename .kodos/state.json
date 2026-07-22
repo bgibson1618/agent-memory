@@ -5,10 +5,7 @@
     "started": "2026-07-21T20:48:25Z",
     "tokens_spent": 0,
     "wall_clock_seconds": 0,
-    "current_features": [
-      "F10",
-      "F12"
-    ],
+    "current_features": [],
     "needs_you": null
   },
   "features": {
@@ -139,9 +136,17 @@
       "needs_you": null
     },
     "F10": {
-      "status": "building",
+      "status": "proved",
       "attempts": 0,
-      "evidence": [],
+      "evidence": [
+        {
+          "method": "observed",
+          "ok": true,
+          "ref": ".kodos/evidence/F10/ + run dirs f10-observe-roster / f10-observe-inline: (A) roster mode - real session followed `mem extract --procedure` on research/backend-research.md; cross-backend fanout per D1 (agent-roster fanout, Codex+Claude, 2 extractor lenses -> 13->12 merged, 2 fresh-eyes reviewers -> 0 rejections + 4 fixes applied) -> mem extract: 11 added, 1 skipped-dup; D3 disposition-review used once (0.8032 sibling). (B) inline mode - roster genuinely undiscoverable (PATH symlink held out); same procedure on the capstone router doc via claude -p one-shot subagents (2 extractors, 2 reviewers, 1 fix): 6 added, 2 skipped-dup, 2 sanctioned overrides. Both runs ended with a readable added-vs-skipped report; tests 84-89 cover the deterministic half",
+          "at": "2026-07-22T02:20:00Z",
+          "note": "follow-ups journaled: intra-batch related-slug normalization belongs inside mem extract; managed blocks refreshed post-observation (mem init, doctor 9/9)"
+        }
+      ],
       "needs_you": null
     },
     "F11": {
