@@ -85,3 +85,29 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** drift surfaced by the wave-6 cross-vendor fresh-eyes reviewer (codex);
   parent `changed` the target to the measured envelope. Flagged for Brent at closeout — if he
   wants a fast path, a single-extractor `--quick` mode is a post-v1 seam, not a v1 promise.
+
+## D2 — Amended: confirmed by Brent against the official spec (2026-07-22)
+
+- **New basis (Brent):** OKF is a public standard (Google,
+  `GoogleCloudPlatform/knowledge-catalog/okf/SPEC.md`, v0.1 Draft) — not a capstone-private
+  format. His confirmation condition: "as long as the format we're using matches the official
+  spec, the capstone code is irrelevant." The clean-room-vs-port question D2 originally
+  flagged is thereby dissolved, not just resolved.
+- **Conformance verified (spec §9, snapshot pinned at `research/okf-spec-v0.1.md`):**
+  (1) every concept file carries parseable YAML frontmatter — serializer-guaranteed, and a
+  live sweep of all 32 real KB concepts passed; (2) every frontmatter has non-empty `type` —
+  required by `okf.py` validate, default `concept`; (3) reserved filenames (`index.md`,
+  `log.md`) — none exist in the KB. **Verdict: conformant with OKF v0.1.** Our extra fields
+  (`id`, `slug`, `topics`, `sensitivity`, `created`, `updated`, `related`) are
+  spec-sanctioned producer extensions (§4.1); `[[wikilinks]]` don't affect conformance (§9
+  ignores link form) and Obsidian-compatibility matches the spec's own kinship note (§10).
+- **Known gaps, recorded not remediated (post-v1 candidates):**
+  1. *Latent reserved-name edge:* a concept titled "Index" or "Log" would slugify to a
+     reserved filename carrying frontmatter, breaking §9 rule 3 — no guard exists in
+     `slugify`/store. Trivial fix (refuse or auto-suffix those two slugs).
+  2. *Interop vocabulary:* we emit `topics`/`created`/`updated` (extensions) instead of the
+     spec-recommended `tags`/`timestamp`, so conforming OKF consumers see no
+     tags/last-modified. Additive fix if wanted: mirror `tags:` and `timestamp:` at
+     serialize time.
+- **AI involvement:** Brent supplied the spec URL and the confirmation condition; parent
+  fetched, pinned, and machine-verified conformance (`suggested`→`accepted`).
