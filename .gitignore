@@ -9,3 +9,8 @@ __pycache__/
 
 # local env
 .env
+
+# KodOS per-session machine state (SessionStart hook + statusline sensor); never committed
+.kodos/runtime.json
+.kodos/ctx-*.json
+.kodos/hook-fire.log
