@@ -268,3 +268,27 @@ Dispositions:
 11. Stale snapshot render timestamp → re-rendered via `render-snapshot.mjs`.
 **Post-remediation:** `MEM_REQUIRE_NETNS=1 uv run pytest` → **89 passed**; state re-validated.
 Build phase complete → `/kodos:closeout`.
+
+## Closeout  (done · 2026-07-22)
+**Delivered:** `mem` 0.1.0 — OKF markdown store + FTS5 lexical + Ollama/numpy vector + derived
+topic-node graph, RRF-fused; installed on PATH (`uv tool install --editable`), live KB at
+`~/.agent-memory` (32 concepts, local-only, per-save commits), managed blocks in the real
+`~/.claude/CLAUDE.md` + `~/.agent-docs/AGENTS.md`. 12/12 features proved; verification
+`MEM_REQUIRE_NETNS=1 uv run pytest` → **89 passed**.
+**Closeout gate (F37/F36):** both `observed` features re-observed against the FINAL tree —
+F10 (`architect-iqj1`): full choreography unprompted on a new document, cross-backend per D1,
+7 added incl. one D3 disposition-review override at 0.8403, all KB commits verified real;
+F11 (`architect-wve5`): pure teaching task, unprompted `mem search`+`get`, deliverable grounded
+in KB concepts (save leg not re-triggered — no KB gap; original observation stands). Final
+whole-product walkthrough: 14 dynamic states, zero validated findings
+(`.kodos/evidence/walkthrough/closeout-walkthrough.txt`). Learnings store refreshed at the
+closeout seam (L4 updated, L5+L6 added; 6 records valid).
+**Caveats / follow-ups for Brent:**
+- **D2 (clean-room OKF) awaits his explicit confirmation** — flagged since F2.
+- D4 revised the extract-choreography envelope to minutes (measured); a single-extractor
+  `--quick` mode is a possible post-v1 seam.
+- Product follow-up (both F10 observations + closeout run): intra-batch `related`-slug
+  normalization belongs inside `mem extract`.
+- KodOS upstream: the generated snapshot's `scripts/schedule.mjs` hint assumes the KodOS repo
+  layout — misleading in a project checkout (wave-6 finding 1).
+- Repo has a remote; **nothing pushed** — pushing is Brent's call (F14 approval gate).

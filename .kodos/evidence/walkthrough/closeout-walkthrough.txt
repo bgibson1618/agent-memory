@@ -1,0 +1,106 @@
+
+### 1. fresh init (creates KB home, installs blocks)
+initialized: /tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory (concepts/, .index/, git - no remote)
+blocks: installed: /tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.claude/CLAUDE.md; installed: /tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-docs/AGENTS.md
+
+### 2. doctor
+ok    kb-home: /tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory
+ok    git-repo: local repository present
+ok    no-remote: no remotes configured
+ok    blocks-claude: current (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.claude/CLAUDE.md)
+ok    blocks-agents: current (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-docs/AGENTS.md)
+ok    fts5: available (sqlite 3.46.1)
+ok    ollama: reachable at http://127.0.0.1:11434 (version 0.32.1)
+ok    embed-model: nomic-embed-text:v1.5 embeds at 768 dims
+ok    embed-queue: queue empty
+doctor: ok (9/9 checks passed)
+exit=0
+
+### 3. saves: normal + work-tagged + wikilinked
+saved: testing-effect (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory/concepts/testing-effect.md)
+saved: spacing-effect (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory/concepts/spacing-effect.md)
+saved: internal-curriculum-plan (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory/concepts/internal-curriculum-plan.md)
+
+### 4. fused search, warm daemon, paraphrase (no shared keywords)
+testing-effect  0.02  Testing effect
+    Self-testing strengthens memory more than review
+spacing-effect  0.02  Spacing effect
+    Distributed practice beats massed practice
+internal-curriculum-plan  0.02  Internal curriculum plan  [work]
+    Employer-specific planning notes
+
+### 5. work marking + --no-work
+internal-curriculum-plan  0.03  Internal curriculum plan  [work]
+    Internal curriculum plan
+spacing-effect  0.02  Spacing effect
+    Distributed practice beats massed practice
+testing-effect  0.02  Testing effect
+    Self-testing strengthens memory more than review
+spacing-effect  0.02  Spacing effect
+    Distributed practice beats massed practice
+testing-effect  0.02  Testing effect
+    Self-testing strengthens memory more than review
+
+### 6. graph neighborhood
+slug: testing-effect
+title: Testing effect
+type: concept
+sensitivity: normal
+topics: learning-science
+related: 
+created: 2026-07-22T15:52:28Z
+updated: 2026-07-22T15:52:28Z
+description: Self-testing strengthens memory more than review
+
+Retrieval practice (self-testing) beats re-reading for long-term retention. See [[spacing-effect]].
+
+neighbors:
+  link: spacing-effect (wikilink)  Spacing effect
+  topic learning-science: spacing-effect
+
+### 7. list
+internal-curriculum-plan  [work-projects]  Internal curriculum plan
+spacing-effect  [learning-science]  Spacing effect
+testing-effect  [learning-science]  Testing effect
+
+### 8. extract: one novel + one near-dup
+skipped-duplicate: Testing effect boosts retention - matches 'testing-effect' (similarity 0.92 >= threshold 0.79)
+added: interleaving-practice (Interleaving practice)
+extract: 1 added, 1 skipped-duplicate, 0 invalid
+
+### 9. no-op update edge
+updated: spacing-effect (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory/concepts/spacing-effect.md)
+
+### 10. full reindex, then the same fused search
+reindexed: 4 concept(s) - lexical + graph rebuilt, 4 embedding(s) drained
+testing-effect  0.02  Testing effect
+    Self-testing strengthens memory more than review
+spacing-effect  0.02  Spacing effect
+    Distributed practice beats massed practice
+
+### 11. daemon-down state: search degrades one-line, save enqueues
+warning: semantic leg skipped (embed request to http://127.0.0.1:9 failed (connection refused))
+no matches: quiz yourself to remember longer
+saved: concrete-fading (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory/concepts/concrete-fading.md)
+
+### 12. queue drains on an ordinary invocation once the daemon is back
+queue check: [{'name': 'embed-queue', 'status': 'ok', 'detail': 'queue empty', 'required': True}]
+
+### 13. remote-URL refusal (zero-egress product guard)
+warning: semantic leg skipped (refusing non-loopback Ollama URL http://evil.example.com:11434 - the KB is local-only (zero egress); use a 127.0.0.1 endpoint)
+no matches: anything
+
+### 14. late-remote warning on the write path
+warning: KB git repo has remote(s): origin - the KB must stay local-only; remove: git -C /tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory remote remove origin
+saved: remote-warn-probe (/tmp/claude-1000/-home-brent-gibson-projects-agent-memory/9141aa12-5f7b-4239-9e8f-6432142cd534/scratchpad/closeout-home/.agent-memory/concepts/remote-warn-probe.md)
+
+# --- assessment (closeout walkthrough, F36 bookend) ---
+# 14 states traversed: fresh init, doctor 9/9, 3-way save (normal/work/wikilinked), warm fused
+# paraphrase search (semantic leg live), [work] marking + --no-work exclusion, graph neighborhood,
+# list, extract add+skip (0.92 vs 0.79 named), update path, full reindex + post-rebuild search
+# equivalence, daemon-down degradation (one-line warn; save enqueued), queue drain on ordinary
+# invocation, non-loopback URL refusal (pre-socket), late-remote write-path warning.
+# Findings: none validated. Note: step 9 printed "updated" not "unchanged" — correct by design:
+# the saves ran in different seconds so the `updated` stamp changed (a real content change);
+# the exact-invariant no-op edge (same-second, identical content) is machine-asserted by the
+# MEM_NOW-pinned regression test from the wave-3 remediation.

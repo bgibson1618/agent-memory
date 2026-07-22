@@ -17,3 +17,6 @@
 {"at":"2026-07-22T15:19:43.437Z","source":"resume","session_id":"9141aa12-5f7b-4239-9e8f-6432142cd534","wrote":true,"reason":null,"directive":false,"pid":2002}
 {"at":"2026-07-22T15:21:52.054Z","source":"compact","session_id":"9141aa12-5f7b-4239-9e8f-6432142cd534","wrote":true,"reason":null,"directive":true,"pid":2082}
 {"at":"2026-07-22T15:33:12.808Z","source":"resume","session_id":"9141aa12-5f7b-4239-9e8f-6432142cd534","wrote":true,"reason":null,"directive":false,"pid":4605}
+{"at":"2026-07-22T15:51:57.122Z","source":"startup","session_id":"bc180e8b-0f69-471c-b526-a37bab0ed7ab","wrote":true,"reason":null,"directive":false,"pid":78449}
+{"at":"2026-07-22T15:52:58.080Z","source":"startup","session_id":"ce500bd0-c0df-4669-844e-e82ffa18ae30","wrote":true,"reason":null,"directive":false,"pid":85028}
+{"at":"2026-07-22T15:56:28.293Z","source":"startup","session_id":"63658f09-5ce5-45ed-8076-f392011ec187","wrote":true,"reason":null,"directive":false,"pid":101425}

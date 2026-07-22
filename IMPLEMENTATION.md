@@ -2,11 +2,11 @@
 
 > **Generated snapshot** (D21 / F30) — rendered by `scripts/render-snapshot.mjs` from
 > `FEATURES.md` + `.kodos/state.json`. **Do not hand-edit** — re-render instead.
-> Rendered: 2026-07-22T15:48:56Z.
+> Rendered: 2026-07-22T16:00:16Z.
 
 ## Status
 
-**Phase `build` — 12 of 12 features proved.**
+**Phase `done` — 12 of 12 features proved.**
 
 Current status and the next action are **owned by `.kodos/state.json`** — read them live
 (this snapshot never asserts them, D2):
@@ -32,6 +32,6 @@ rendered count.
 | F7 | Concurrent-session write safety | test | proved | uv run pytest -> 65 passed after applying kodos-F7 patch (3 contention tests: 10-way distinct-slug race, 8-wa… |
 | F8 | External-edit resilience | test | proved | uv run pytest -> 70 passed after applying kodos-F8 patch (5 F8 tests incl. meaning-flip semantic refresh + fu… |
 | F9 | Extract-knowledge CLI | test | proved | uv run pytest -> 78 passed; REAL calibration executed by parent against live daemon (research/dedup-calibrati… |
-| F10 | Extraction procedure | observed | proved | .kodos/evidence/F10/ + run dirs f10-observe-roster / f10-observe-inline: (A) roster mode - real session follo… |
-| F11 | Ambient agent integration | observed | proved | .kodos/evidence/F11/ - real deployment (uv tool install; mem 0.1.0 on PATH), real mem init (blocks in ~/.clau… |
+| F10 | Extraction procedure | observed | proved | run architect-iqj1 (work/agents/architect-iqj1/): fresh session pointed at research/architecture-review-2026-… |
+| F11 | Ambient agent integration | observed | proved | run architect-wve5 (tutor-scratch/work/agents/architect-wve5/): fresh session, pure teaching task (two-week a… |
 | F12 | Zero-egress guarantee | test | proved | MEM_REQUIRE_NETNS=1 uv run pytest -> 89 passed (5 F12 tests: audit-hook guard + netns driver running all 8 co… |

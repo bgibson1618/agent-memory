@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "phase": "build",
+  "phase": "done",
   "run": {
     "started": "2026-07-21T20:48:25Z",
     "tokens_spent": 0,
@@ -152,6 +152,13 @@
           "ref": ".kodos/evidence/F10/ + run dirs f10-observe-roster / f10-observe-inline: (A) roster mode - real session followed `mem extract --procedure` on research/backend-research.md; cross-backend fanout per D1 (agent-roster fanout, Codex+Claude, 2 extractor lenses -> 13->12 merged, 2 fresh-eyes reviewers -> 0 rejections + 4 fixes applied) -> mem extract: 11 added, 1 skipped-dup; D3 disposition-review used once (0.8032 sibling). (B) inline mode - roster genuinely undiscoverable (PATH symlink held out); same procedure on the capstone router doc via claude -p one-shot subagents (2 extractors, 2 reviewers, 1 fix): 6 added, 2 skipped-dup, 2 sanctioned overrides. Both runs ended with a readable added-vs-skipped report; tests 84-89 cover the deterministic half",
           "at": "2026-07-22T02:20:00Z",
           "note": "follow-ups journaled: intra-batch related-slug normalization belongs inside mem extract; managed blocks refreshed post-observation (mem init, doctor 9/9)"
+        },
+        {
+          "method": "observed",
+          "ok": true,
+          "ref": "run architect-iqj1 (work/agents/architect-iqj1/): fresh session pointed at research/architecture-review-2026-07-21.md against the FINAL tree (c5ea195 + closeout docs) - discovered mem extract --procedure unprompted, ran the full choreography: doctor preflight 9/9, cross-backend fanout per D1 (Claude principles + Codex techniques lenses), self-merge, 2 fresh-eyed cross-backend reviewers (0 rejections, 2 fixes applied), mem extract at 0.79 -> 7 added, 0 true-dup; D3 disposition-review used once (0.8403 umbrella-vs-member, override save with related backlink). Readable added-vs-skipped report produced. All 7 KB commits verified real in ~/.agent-memory git log",
+          "at": "2026-07-22T16:20:00Z",
+          "note": "closeout re-observe"
         }
       ],
       "needs_you": null
@@ -166,6 +173,13 @@
           "ref": ".kodos/evidence/F11/ - real deployment (uv tool install; mem 0.1.0 on PATH), real mem init (blocks in ~/.claude/CLAUDE.md + ~/.agent-docs/AGENTS.md, one block each, existing content intact, doctor 9/9); staged observation f11-observe-1 (fresh claude session, tutor-scratch project, prompt on record never mentions the memory system): UNPROMPTED mem search --json as first substantive move, mem get x4, results grounded LESSON_DESIGN.md; UNPROMPTED mem save interleaving-effect (correctly linked+topiced) after finding a KB gap",
           "at": "2026-07-21T23:59:00Z",
           "note": "both observed criteria in ONE session (protocol allowed 3); run at/after wave-4 reconcile against deployed tree 8518aac; codex/agy claim = installation-only, covered by F1 tests + real AGENTS.md block verified; per protocol Brent judges 'unprompted' - task text preserved as evidence, veto open"
+        },
+        {
+          "method": "observed",
+          "ok": true,
+          "ref": "run architect-wve5 (tutor-scratch/work/agents/architect-wve5/): fresh session, pure teaching task (two-week algebra review schedule), prompt on record free of any memory mention, against the FINAL tree - ran mem search + mem get UNPROMPTED (terminal.log) and the deliverable is grounded in KB concepts (testing effect, expanding spacing, interleaving, with the KB entries' citations). Unprompted-save leg not re-triggered this session: zero mem save calls because the KB already covered the task's topics (no gap to fill) - the original wave-4 save observation stands; search+grounding is the integration-drift check this re-observe exists for",
+          "at": "2026-07-22T16:20:00Z",
+          "note": "closeout re-observe"
         }
       ],
       "needs_you": null

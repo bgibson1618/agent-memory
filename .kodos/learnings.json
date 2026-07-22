@@ -67,10 +67,45 @@
         "keep_alive",
         "query budget"
       ],
-      "lesson": "A client num_ctx differing from the daemon's loaded context forces a model RELOAD that dwarfs steady-state latency - first-contact call paths need a budget sized to the cold NFR (or the deployment must pin keep_alive), or the first query after idle silently loses its leg.",
-      "source": "BUILD_LOG.md wave 4 walkthrough finding (.kodos/evidence/walkthrough/wave4-walkthrough.txt)",
+      "lesson": "A client num_ctx differing from the daemon's loaded context forces a model RELOAD that dwarfs steady-state latency AND is environment-variable (0.8-3.8s measured for the same model) - no fixed budget under a tight NFR reliably covers it. Design the contract as graceful degradation + self-warm (the timed-out request loads the model server-side; the next call succeeds warm) and pin keep_alive in deployment to make the window once-per-boot.",
+      "source": "BUILD_LOG.md wave 4 walkthrough finding + wave 6 checkpoint finding 4 re-measurement (.kodos/evidence/walkthrough/wave6-f36-postfix.txt)",
       "seam": "checkpoint",
-      "captured_at": "2026-07-21T23:25:00Z"
+      "captured_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "id": "L5",
+      "category": "verification",
+      "applies_when": "a live retest proves a timing/performance fix and its pass depends on ambient environment state (page cache, daemon warmth, loaded models)",
+      "symptoms": [
+        "retest passed",
+        "cold start",
+        "page cache",
+        "warm",
+        "timing fix",
+        "not reproducible",
+        "environment-dependent"
+      ],
+      "lesson": "Record the environmental precondition (cache warmth, daemon/model state) as part of any live timing-proof evidence, and state the claim as the guaranteed contract (what happens when the budget is exceeded), not the best-case observation - an environment-dependent pass journaled as 'now succeeds' becomes a false claim the next time the environment differs.",
+      "source": "BUILD_LOG.md wave 6 checkpoint finding 4: wave-4 'first search now succeeds' passed page-cache-warm only; cold re-measurement 3.83s failed the same budget",
+      "seam": "closeout",
+      "captured_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "id": "L6",
+      "category": "verification",
+      "applies_when": "adjudicating a fresh-eyes reviewer's drift finding that attributes a claim to the wrong artifact or protocol",
+      "symptoms": [
+        "reviewer finding",
+        "drift",
+        "protocol",
+        "success criteria",
+        "misattributed",
+        "which document owns"
+      ],
+      "lesson": "Before remediating a drift finding, re-read the ledger/spec text it cites - a directionally-correct finding can misattribute the defect (e.g. blaming evidence when a journal sentence imported a sibling feature's protocol clause), and the cheap fix differs by an order of magnitude from the expensive one (one-line correction vs re-running an observation).",
+      "source": "BUILD_LOG.md wave 6 checkpoint finding 2 (verifier-ca8z): F11's 'prompt never mentions memory' clause wrongly imported into the F10 journal entry",
+      "seam": "closeout",
+      "captured_at": "2026-07-22T16:00:00Z"
     }
   ]
 }
