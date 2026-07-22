@@ -1,0 +1,17 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "mem-local",
+  "description": "Local marketplace exposing the mem plugin — slash-command surface for the agent-memory knowledge base.",
+  "owner": { "name": "bgibs" },
+  "plugins": [
+    {
+      "name": "mem",
+      "source": ".",
+      "description": "Slash-command surface for agent-memory: /mem:extract runs the extract-knowledge choreography on a document. Search/save stay ambient by design.",
+      "version": "0.1.0",
+      "category": "knowledge",
+      "keywords": ["knowledge-base", "memory", "okf", "extraction", "personal-kb"],
+      "author": { "name": "bgibs" }
+    }
+  ]
+}

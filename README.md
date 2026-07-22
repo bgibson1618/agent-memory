@@ -25,6 +25,11 @@ mem search "anything"          # fused lexical + semantic + graph search
 mem extract --procedure        # prints the extract-knowledge choreography
 ```
 
+In Claude Code, `/mem:extract <document>` (from the repo's bundled `mem` plugin) is a
+deterministic entry point for that choreography. It is deliberately the only slash command:
+search and save stay ambient — the managed blocks installed by `mem init` make sessions use
+them unprompted.
+
 Requires a local Ollama daemon with `nomic-embed-text:v1.5` for the semantic leg; with Ollama down, saves queue their embeddings and search degrades to lexical + graph with a one-line warning.
 
 ## Getting oriented

@@ -135,3 +135,23 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   full suite `MEM_REQUIRE_NETNS=1 uv run pytest` → **95 passed**.
 - **AI involvement:** parent implemented on Brent's direct request; refuse-vs-suffix call
   is the parent's (`suggested`), open to reversal if it ever bites.
+
+## D6 — Slash-command surface: /mem:extract only; search/save stay ambient (2026-07-22)
+
+- **Context:** Brent asked how to invoke the system in other sessions and whether a plugin
+  with `/mem:extract`-style commands was planned. V1 shipped no plugin (Claude-first via
+  managed blocks; MCP deferred).
+- **Decision:** a minimal Claude Code plugin (`mem`, bundled in this repo:
+  `.claude-plugin/` + `skills/extract/`) ships exactly one command. **Extraction earns a
+  slash command** because it is inherently user-triggered and benefits from a deterministic
+  entry point; the skill is a thin driver that gates on `mem doctor`, then follows
+  `mem extract --procedure` verbatim (the CLI stays the single source of truth for the
+  choreography — no duplicated instructions to drift, per learning L1). **Search and save
+  deliberately get no commands**: wrapping them would undo the PRD's invisibility behavior,
+  which is installed by `mem init` and proved by F11. Registered via `mem-local` directory
+  marketplace + `claude plugin install mem@mem-local`.
+- **Proof:** fresh headless session: `/mem:extract` with no argument follows the skill —
+  asks for the document, names the choreography stages, runs nothing. The full-run path is
+  the same procedure already observed live three times (F10 + closeout re-observe).
+- **AI involvement:** parent `suggested` the extract-only scope in conversation; Brent
+  `accepted` and requested the build.

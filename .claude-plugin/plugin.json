@@ -1,0 +1,7 @@
+{
+  "name": "mem",
+  "version": "0.1.0",
+  "description": "Slash-command surface for agent-memory, Brent's local-only cross-agent knowledge base. Ships /mem:extract — a deterministic entry point for the extract-knowledge choreography (fresh-eyed extractor fan-out, fresh-eyed review, dedup+save via the mem CLI). Search and save deliberately stay ambient (no commands): the KB's invisibility behavior is installed by `mem init` as managed CLAUDE.md/AGENTS.md blocks.",
+  "author": { "name": "bgibs" },
+  "keywords": ["knowledge-base", "memory", "okf", "extraction", "personal-kb"]
+}
