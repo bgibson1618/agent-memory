@@ -23,12 +23,12 @@ agent; the CLI is never interactive and every read command speaks `--json`.
 | `store` | OKF markdown read/write — one concept per file, atomic write; **a single inter-process write lock** serializes store mutation + git commit (retry w/ backoff, never fail an agent's save); auto-commit to the local git | The only irreplaceable state; everything else rebuilds from it. Deterministic slugs (lowercase alnum-hyphen, NFKD-folded); saving onto an existing slug **errors unless `--update`** — no silent overwrite |
 | `okf` | The OKF schema contract: frontmatter (id/slug, title, description, type, `topics[]`, `sensitivity`, timestamps, `related[]`) + body with `[[wikilinks]]` | Conformance sourced from the capstone OKF spec (see Open Questions re: license/clean-room) |
 | `index.lexical` | SQLite **FTS5** table over title/description/body/topics; BM25 ranking | Capstone-measured over hand-rolled keyword index (0.842 vs 0.825 recall@10, ~5× faster writes); ships in stdlib `sqlite3` |
-| `index.vector` | Ollama `/api/embed` client; vectors as BLOBs in SQLite; **numpy brute-force cosine** at query time; pending-embed queue | ~30 MB / <10 ms at the 10k ceiling; model tag + digest + dims stamped in metadata, mixed-dim writes refused; `num_ctx` set explicitly; **every embed call carries a strict client timeout (~500 ms) — timeout ⇒ enqueue, never block**; sqlite-vec ANN is a later seam, not a v1 dep |
-| `index.graph` | Parse `[[wikilinks]]` + frontmatter `related` into direct edges and `topics` into **topic nodes** (concept → topic → concept — never materialized pairwise edges, so a broad tag can't go quadratic); mtime-invalidated cache; in-process traversal (networkx) | The research-gated "derived graph" — no graph daemon; Obsidian renders the same links natively |
+| `index.vector` | Ollama `/api/embed` client; vectors as BLOBs in SQLite; **numpy brute-force cosine** at query time; pending-embed queue | ~30 MB / <10 ms at the 10k ceiling; model tag + digest + dims stamped in metadata, mixed-dim writes refused; `num_ctx` set explicitly; **embed calls carry strict per-purpose client budgets — save/opportunistic-drain 500 ms (timeout ⇒ enqueue, never block); query 2.5 s (`MEM_EMBED_QUERY_TIMEOUT` seam — absorbs moderate model-reload windows; a full cold reload (~3.8 s measured) instead degrades that one query to lexical+graph and warms the model for the next — learning L4, wave-6 evidence); full drain (doctor/reindex) 30 s**; sqlite-vec ANN is a later seam, not a v1 dep |
+| `index.graph` | Parse `[[wikilinks]]` + frontmatter `related` into direct edges and `topics` into **topic nodes** (concept → topic → concept — never materialized pairwise edges, so a broad tag can't go quadratic); mtime-invalidated cache; in-process traversal (pure Python — 1–2-hop expansion needs no traversal lib; networkx/rustworkx remain a later seam) | The research-gated "derived graph" — no graph daemon; Obsidian renders the same links natively |
 | `fusion` | RRF across the three legs; rerank seam (no-op in v1); `[work]` marking + `--no-work` filter | Write-to-all + fuse-on-read is settled design (capstone D021/D023/D045) |
 | `extract` | The **deterministic half** of extract-knowledge: candidate concepts (JSON) in → validate → embed → dedup vs KB → save novel → report added/skipped/near-dup | No LLM inside the CLI; thresholds calibrated empirically (capstone D024); with Ollama unreachable it **refuses cleanly** (dedup requires embeddings) — nothing partially saved |
 | `cli` | `mem` entry point: `init · save · search · get · list · extract · reindex · doctor` | stdlib argparse; never interactive; meaningful exit codes; `--json` on every read; one-line errors. **`mem init` owns setup**: creates `~/.agent-memory` + git init, verifies Ollama/models/FTS5, and installs/refreshes the agent-integration instruction blocks into the global `CLAUDE.md`/`AGENTS.md` (managed marker section); `mem doctor` re-checks all of it |
-| `agent-integration/` | Shipped **as data, not code**: the CLAUDE.md + AGENTS.md instruction blocks (when to save/search unprompted) and the **extract-knowledge procedure** | The invisibility mechanism; provider-neutral so codex/agy get the same ambient awareness |
+| `agent-integration/` | Shipped **as data, not code**: the CLAUDE.md + AGENTS.md instruction blocks (when to save/search unprompted) and the **extract-knowledge procedure** | The invisibility mechanism, vendor-scoped per DECISION_LOG D1: ambient awareness is claimed and proved on Claude; the AGENTS.md block carries the same instructions to approved-vendor consumers (Codex), but for codex/agy v1 claims installation only (F11); Antigravity/Gemini-backed agents are excluded from memory work entirely |
 
 **The extract-knowledge procedure** (agent-side, per Brent's design): ≥2 fresh-eyed extractor
 subagents read the document independently and propose concept candidates — **cross-backend via
@@ -47,8 +47,10 @@ mem search → embed query (Ollama, warm; skip leg + warn if daemon down)
 → RRF fuse (k=60, unweighted v1) → rerank seam (no-op) → mark [work] → text/JSON out
 ```
 Write path (`mem save`): validate OKF → acquire the write lock → atomic write to
-`concepts/<slug>.md` → `git commit` → update FTS5 + edge cache in-line → release lock → embed
-with a ~500 ms timeout (timeout/down ⇒ enqueue) → single-line confirmation, < 1 s.
+`concepts/<slug>.md` → `git commit` → update FTS5 in-line → release lock → embed
+with a 500 ms save budget (timeout/down ⇒ enqueue) → single-line confirmation, < 1 s.
+The graph leg keeps no inline structure to update — it is a derived, mtime-invalidated
+cache rebuilt lazily on the next load.
 
 **Consistency & concurrency (gate-hardened):**
 - `.index/mem.db` runs **WAL mode + busy_timeout** (`PRAGMA journal_mode=WAL; busy_timeout=5000`)
@@ -86,7 +88,7 @@ markdown. Storage layout:
 | Ollama | Local embedding daemon — `nomic-embed-text:v1.5` default, `qwen3-embedding:0.6b` step-up | localhost only; `num_ctx` explicit (packaging default 2K); systemd-managed, `OLLAMA_KEEP_ALIVE` pinned; the ONLY permitted network target on the storage/index/search path. **Provisioning is owned by `/kodos:preflight`**, not any feature. The base URL honors **`MEM_OLLAMA_URL`** (default `localhost:11434`) — the sanctioned test seam for up/down/hung daemon states; tests always run against an isolated `HOME`/KB root, never the real service or KB |
 | numpy | Vector math (cosine scan) | Boring, ubiquitous |
 | PyYAML | OKF frontmatter parse/serialize | — |
-| networkx | Graph traversal at query time | <20 MB / <1 ms at 10k nodes; replaceable with rustworkx if ever needed |
+| ~~networkx~~ — not shipped | 1–2-hop expansion proved to need no traversal lib (pure Python in `graph.py`) | Re-enters as a seam only if deeper traversal ever lands (rustworkx the likely pick) |
 | git (system binary, via subprocess) | KB history/auto-commit | Local repo, no remote — hard confidentiality line |
 | pytest (dev) | Verification (`uv run pytest`) | The KodOS verification command |
 
@@ -113,15 +115,15 @@ No paid services, no cloud, no copyleft/SSPL components — $0 and Apache/MIT/PS
   eval-harness machinery around it.
 
 ## Open Architecture Questions
-- **Dedup threshold** — the cosine-similarity line between "near-duplicate, skip" and "distinct,
-  save" must be calibrated empirically during build (capstone D024: lexical similarity alone
-  provably cannot separate these; a real embedder changes the calculus but not the need to
-  measure). Becomes a DECISION_LOG entry with data.
+- **Dedup threshold** — ✅ **resolved during build**: calibrated empirically at **0.79**
+  (band 0.77–0.81, fp 0 / fn 0 on 26 measured pairs) — DECISION_LOG **D3**,
+  `research/dedup-calibration.md`.
 - **Graph-leg scoring** — v1 seeds traversal from the other legs' hits and expands 1–2 hops;
   the exact hop-decay/link-weight scoring gets fixed against real KB data during build.
 - **RRF tuning** — start k=60, unweighted. Tune only if real usage shows a leg drowning others.
-- **OKF porting posture** — check the capstone repo's license before porting `okf.py`-style
-  code; otherwise clean-room the schema from the format spec. Resolve at build start.
+- **OKF porting posture** — ✅ **resolved at build start**: clean-room implementation from the
+  format spec, no capstone code ported (DECISION_LOG **D2** — flagged for Brent's explicit
+  confirmation at closeout).
 - **Topic taxonomy** — free-form tags in v1; whether a curated topic list (and topic hub pages
   in the graph) earns its keep is a post-v1 review against real accumulated tags.
 - **WAL checkpoint cadence** — keep `mem.db`'s WAL small without blocking readers; pick a

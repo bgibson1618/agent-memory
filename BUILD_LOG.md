@@ -224,3 +224,47 @@ report. Evidence: `.kodos/evidence/F10/`. Managed blocks refreshed after observa
 (`mem init`; doctor 9/9). **Follow-up journaled (not v1 scope):** both observation reports
 independently flagged that intra-batch `related`-slug normalization belongs inside
 `mem extract` (candidates referencing each other's not-yet-existing slugs).
+
+## Wave 6 checkpoint — fresh-eyes review  (DRIFT → remediated · 2026-07-22)
+Deterministic validators all green (ledger, state+join, learnings, scheduler → closeout).
+**Mandatory final review ran on CODEX** (run `verifier-ca8z`, read-only sandbox, paths-only
+cold prompt over the complete tree at fbad261): **VERDICT: DRIFT, 11 findings** (8 MAJOR /
+2 MINOR / 1 NIT) — all verified by the parent against the cited files; 10 genuine, 1 reframed.
+Dispositions:
+1. `IMPLEMENTATION.md` cites `scripts/schedule.mjs`, absent in this repo — the path lives in
+   the KodOS install, not the project; snapshot is generated (no hand-edit). **Upstream KodOS
+   template feedback**, recorded here; the `# or: /kodos:go` alternative in the same line is
+   correct for cold readers.
+2. **CORRECTION to the F10 entry above (append-only journal):** its parenthetical "the session
+   prompts never mention the memory system" imported F11's protocol by mistake. F10's ledger
+   protocol has no such clause — F10 is literally "Brent points an agent at a document" and
+   the observation prompts rightly did; what they never pre-specified was the *choreography*
+   (fan-out counts, reviewer structure), which is what the observation proves the shipped
+   procedure supplied. The evidence stands; the journal sentence was wrong.
+3. Extract timing: NFR + shipped procedure claimed < 60 s/document; roster observation
+   measured the extractor fanout alone at 83 s. **DECISION_LOG D4**: envelope revised to
+   single-digit minutes with per-stage progress (CLI half stays seconds-scale); NFR_UX.md +
+   `extract-knowledge.md` reworded. Flagged for Brent at closeout.
+4. F36 post-fix retest had no evidence artifact — and re-running it live exposed a real
+   overclaim: **CORRECTION to the wave-4 checkpoint above** — "first search now succeeds" was
+   environment-dependent (page-cache-warm reload). Measured at wave 6: full cold reload 3.83 s
+   (no NFR-compatible budget covers it); the durable contract is graceful degradation + self-
+   warm (first cold query: lexical+graph, warning, 2.661 s; second query: semantic leg back,
+   0.431 s, paraphrase → testing-effect). Query budget kept at 2.5 s. Evidence:
+   `.kodos/evidence/walkthrough/wave6-f36-postfix.txt`; second F6 evidence entry appended;
+   ARCHITECTURE reworded honestly.
+5. ARCHITECTURE "~500 ms every embed call" → rewritten to the real per-purpose budgets
+   (save/drain 500 ms · query 2.5 s · full drain 30 s).
+6. ARCHITECTURE save-path "FTS5 + edge cache in-line" → corrected: lexical inline; graph is a
+   lazy mtime-invalidated derived cache; vector queued/post-save.
+7. README + ARCHITECTURE "provider-neutral, same ambient awareness for codex/agy" → rewritten
+   to D1 scope (Claude+Codex approved; ambient proved on Claude; codex/agy installation-only;
+   Antigravity excluded).
+8. README "Early discovery / graph backend under evaluation" → refreshed to built state
+   (12/12 proved, usage quickstart, real environment notes).
+9. networkx listed as dependency/traversal lib → corrected (pure Python; numpy+PyYAML only).
+10. Resolved open questions in PRD/NFR/ARCHITECTURE → annotated with D2/D3/NFR-session
+    resolutions (D2 still awaiting Brent's explicit confirm).
+11. Stale snapshot render timestamp → re-rendered via `render-snapshot.mjs`.
+**Post-remediation:** `MEM_REQUIRE_NETNS=1 uv run pytest` → **89 passed**; state re-validated.
+Build phase complete → `/kodos:closeout`.

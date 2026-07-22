@@ -15,8 +15,10 @@
 ### Performance
 - **Targets:** fused `mem search` < 1 s end-to-end with the Ollama daemon warm; < 3 s worst-case
   cold. `mem save` perceived < 1 s (embedding may complete asynchronously). The **extract-knowledge
-  procedure** (agent choreography + CLI) < 60 s per document with progress reported; the CLI's
-  candidate pass itself completes in seconds. Derived-graph load < 5 ms cached / < 250 ms cold
+  procedure** (agent choreography + CLI) completes in single-digit minutes per document with
+  per-stage progress — revised from an aspirational < 60 s by live measurement (DECISION_LOG D4:
+  a cross-backend extractor fanout alone runs ~83 s); the CLI's candidate pass itself completes
+  in seconds. Derived-graph load < 5 ms cached / < 250 ms cold
   parse.
 - **Scale assumptions:** v1 ceiling **10,000 concepts** (~50k graph edges). Single user; a
   handful of concurrent agent sessions at most.
@@ -112,7 +114,6 @@ Part B.)
 ---
 
 ## Open Questions
-- Dedup similarity thresholds for extract-knowledge — calibrate empirically during build
-  (capstone D024: lexical similarity alone cannot separate near-dups).
-- Flag grammar beyond the specced set is finalized at build; the subcommand surface is settled
-  in ARCHITECTURE.
+- Dedup similarity thresholds for extract-knowledge — ✅ resolved at build: **0.79** measured
+  (DECISION_LOG D3, `research/dedup-calibration.md`).
+- Flag grammar — ✅ finalized at build (see PRD Open Questions for the shipped surface).

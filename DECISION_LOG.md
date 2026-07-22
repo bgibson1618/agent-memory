@@ -69,3 +69,19 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   recourse; extraction-procedure reviewers treat skipped-duplicate reports as reviewable.
 - **AI involvement:** builder `suggested` the harness + provisional 0.85; parent measured and
   `changed` to 0.79; the limitation observation is the parent's walkthrough finding.
+
+## D4 — Extract-choreography timing envelope: minutes, not seconds (2026-07-22)
+
+- **Context:** NFR_UX and the shipped `extract-knowledge.md` procedure both targeted "< 60 s
+  per document" for the full extract-knowledge choreography. The F10 roster-mode observation
+  measured the cross-backend extractor fanout alone at ~83 s — before merge, review, and the
+  `mem extract` call. The 60 s figure predated any live measurement of real subagent fan-outs.
+- **Decision:** the documented envelope is **single-digit minutes per document with per-stage
+  progress**; the deterministic CLI half (`mem extract --candidates`) keeps its
+  seconds-scale expectation. NFR_UX.md and `agent_integration/extract-knowledge.md` revised
+  to match. The quality mechanism (fresh-eyed fan-out + review) is the point of the
+  procedure; compressing it to fit an aspirational number would trade away exactly what F10
+  proved works.
+- **AI involvement:** drift surfaced by the wave-6 cross-vendor fresh-eyes reviewer (codex);
+  parent `changed` the target to the measured envelope. Flagged for Brent at closeout — if he
+  wants a fast path, a single-extractor `--quick` mode is a post-v1 seam, not a v1 promise.

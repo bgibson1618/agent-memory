@@ -3,8 +3,10 @@
 You are the orchestrating agent. Brent has pointed you at a document - a paper,
 article, spec, chapter, or transcript - and wants its durable knowledge in his
 KB. `mem extract` is the deterministic half (validate, dedup, save); this
-procedure is everything before and after that call. Target: under ~60 seconds
-per document; report progress as each stage completes.
+procedure is everything before and after that call. Expect a few minutes per
+document - the subagent fan-outs dominate (a cross-backend extractor fanout
+alone measures ~83s); the `mem extract` call itself completes in seconds.
+Report progress as each stage completes.
 
 Non-negotiables:
 

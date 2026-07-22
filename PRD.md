@@ -104,9 +104,11 @@ session is effectively lost to every other agent and project.
 
 ## 9. Open Questions
 
-- Dedup similarity thresholds for extract-knowledge (capstone D024 showed lexical similarity
-  can't separate near-dups; a real local embedder changes the calculus — calibrate empirically).
-- Sensitivity-tag recall semantics: what the filter does by default at search time.
-- Flag grammar beyond the specced set (`--json`, `--update`, `--related`, `--no-work`,
-  `--candidates`) is finalized at build; the subcommand surface itself is settled in
-  ARCHITECTURE (`init · save · search · get · list · extract · reindex · doctor`).
+- Dedup similarity thresholds for extract-knowledge — ✅ resolved at build: **0.79** measured
+  (DECISION_LOG D3, `research/dedup-calibration.md`).
+- Sensitivity-tag recall semantics — ✅ resolved (NFR working session): work-tagged items are
+  **included and marked `[work]`** by default; `--no-work` excludes them entirely.
+- Flag grammar — ✅ finalized at build: `--json`, `--update`, `--related`, `--no-work`,
+  `--candidates`, plus `--title/--body/--description/--topics/--type/--sensitivity/--slug`
+  (save), `--limit` (search), `--procedure` (extract); the subcommand surface shipped as
+  settled in ARCHITECTURE (`init · save · search · get · list · extract · reindex · doctor`).

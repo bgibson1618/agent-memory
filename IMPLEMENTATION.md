@@ -2,7 +2,7 @@
 
 > **Generated snapshot** (D21 / F30) — rendered by `scripts/render-snapshot.mjs` from
 > `FEATURES.md` + `.kodos/state.json`. **Do not hand-edit** — re-render instead.
-> Rendered: 2026-07-21T23:37:01Z.
+> Rendered: 2026-07-22T15:48:56Z.
 
 ## Status
 
@@ -28,7 +28,7 @@ rendered count.
 | F3 | Keyword search | test | proved | uv run pytest -> 36 passed after applying kodos-F3 patch (9 F3 tests, Ollama absent); real-daemon smoke: lite… |
 | F4 | Semantic recall | test | proved | uv run pytest -> 45 passed after hand-merging kodos-F4 patch (store.py/cli.py hunks conflicted with F3 — pare… |
 | F5 | Concept graph | test | proved | uv run pytest -> 54 passed after applying kodos-F5 patch (9 F5 tests; import hunk hand-merged); real-daemon s… |
-| F6 | Fused search | test | proved | uv run pytest -> 62 passed after applying kodos-F6 patch (6 F6 tests: single-leg fixtures incl. seed-neighbor… |
+| F6 | Fused search | test | proved | .kodos/evidence/walkthrough/wave6-f36-postfix.txt - wave-6 re-measurement of the num_ctx-reload cold window a… |
 | F7 | Concurrent-session write safety | test | proved | uv run pytest -> 65 passed after applying kodos-F7 patch (3 contention tests: 10-way distinct-slug race, 8-wa… |
 | F8 | External-edit resilience | test | proved | uv run pytest -> 70 passed after applying kodos-F8 patch (5 F8 tests incl. meaning-flip semantic refresh + fu… |
 | F9 | Extract-knowledge CLI | test | proved | uv run pytest -> 78 passed; REAL calibration executed by parent against live daemon (research/dedup-calibrati… |

@@ -89,6 +89,13 @@
           "ref": "uv run pytest -> 62 passed after applying kodos-F6 patch (6 F6 tests: single-leg fixtures incl. seed-neighbor graph-only, [work] marking, --no-work, Ollama-down one-line degradation); F36 walkthrough: fused paraphrase search verified live incl. the cold num_ctx-reload window after the query-budget fix",
           "at": "2026-07-21T23:25:00Z",
           "note": "RRF k=60, lexical>vector>graph tie-break; agents-block --no-work sentence restored WITH the flag (learnings L1 honored)"
+        },
+        {
+          "method": "test",
+          "ok": true,
+          "ref": ".kodos/evidence/walkthrough/wave6-f36-postfix.txt - wave-6 re-measurement of the num_ctx-reload cold window against the real KB: full cold reload measured 3.83s (above any budget compatible with the NFR <3s cold-search ceiling; wave-4's passing retest ran with a page-cache-warm reload). Verified durable semantics: first cold query degrades gracefully (lexical+graph, one-line warning, wall 2.661s, inside the NFR ceiling) and warms the model server-side; second query gets the semantic leg (0.431s, paraphrase hits testing-effect/spaced-repetition). Query budget kept at 2.5s.",
+          "at": "2026-07-22T15:50:00Z",
+          "note": "corrects the wave-4 walkthrough note's 'first search now succeeds' overclaim - reload cost is environment-variable; the guaranteed contract is graceful degradation + self-warm, once-per-boot under OLLAMA_KEEP_ALIVE=-1"
         }
       ],
       "needs_you": null

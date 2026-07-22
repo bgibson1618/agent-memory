@@ -1,0 +1,65 @@
+# wave-6 F36 post-fix evidence — semantic leg survives the num_ctx-reload cold window
+# Repro of the wave-4 finding (see wave4-walkthrough.txt: 'semantic leg skipped (timed out)').
+# Fix under test: query-embed budget 2.5s (MEM_EMBED_QUERY_TIMEOUT seam), BUILD_LOG wave-4 checkpoint.
+# Captured live against the real KB + real daemon, 2026-07-22T15:47:19Z
+
+$ ollama stop nomic-embed-text:v1.5   # force model unload -> next embed pays the full reload
+[?25l[?2026h[?25l[1G[K[?25h[?2026l[2K[1G[?25h$ ollama ps
+NAME    ID    SIZE    PROCESSOR    CONTEXT    UNTIL 
+
+$ time mem search 'quiz yourself to remember longer'   # paraphrase, first query = cold reload window
+warning: semantic leg skipped (embed request to http://127.0.0.1:11434 failed (timed out))
+embedding-context-window-pitfalls-silent-truncation-and-packaging-vs-native-limits  0.02  Embedding context-window pitfalls: silent truncation and packaging vs native limits
+    …If your content can exceed the model's window, chunk it yourself…
+ollama-api-embed-use-the-batch-endpoint-not-the-legacy-api-embeddings  0.02  Ollama /api/embed: use the batch endpoint, not the legacy /api/embeddings
+    Ollama's /api/embed supports batched inputs and a truncate flag; /api/embeddings is the deprecated single-string legacy endpoint
+gate-technique-re-verify-a-research-agent-s-fast-moving-claims-before-accepting-its-recommendation  0.02  Gate technique: re-verify a research agent's fast-moving claims before accepting its recommendation
+    …decision-critical, fast-moving** claims yourself. Cheap, high-signal checks:
+
+- **'Project X…
+ollama-on-wsl2-native-install-with-windows-cuda-passthrough-and-systemd-lifecycle  0.02  Ollama on WSL2: native install with Windows CUDA passthrough and systemd lifecycle
+    Recipe for GPU-accelerated Ollama in WSL2: host-driver CUDA passthrough, systemd service, keep-alive, and the VM-shutdown pitfall
+use-mtime-caches-to-buy-latency-without-owning-a-service  0.02  Use mtime caches to buy latency without owning a service
+    …This avoids reparsing unchanged files while preserving the ability to rebuild from…
+fts5-write-through-cache  0.02  FTS5 write-through cache over a file-first document store
+    Mirror file writes into a persistent SQLite FTS5 table for C-speed BM25 search over a file-first store, with zero new dependencies
+embedding-model-pinning-and-dimension-enforcement-to-protect-a-vector-index  0.02  Embedding model pinning and dimension enforcement to protect a vector index
+    …A bare name can float to a new version with different weights…
+budget-local-ai-systems-for-coexistence  0.02  Budget local AI systems for coexistence
+    Optimize model choice for total system headroom, not isolated benchmark rank.
+let-scale-thresholds-select-infrastructure  0.02  Let scale thresholds select infrastructure
+    …Until then, in-process traversal plus a cache can be easier to…
+keep-authoring-data-canonical-and-indexes-disposable  0.02  Keep authoring data canonical and indexes disposable
+    Prefer durable source files; treat graph and vector indexes as rebuildable projections.
+
+# --- wave-6 re-measurement: the truth is degradation + self-warm, not budget-covers-reload ---
+# Direct /api/embed after full unload (num_ctx 8192): 3.830s real (above any budget compatible
+# with the NFR <3s cold-search ceiling). Warm embed: 0.035s. The wave-4 retest passed with a
+# page-cache-warm reload; reload cost is environment-variable. Durable semantics, verified below:
+# the timed-out first query degrades gracefully (lexical+graph, one-line warning, wall 2.661s
+# — inside the NFR 3s ceiling) AND loads the model server-side; the SECOND query gets the
+# semantic leg. With OLLAMA_KEEP_ALIVE=-1 (systemd override) this is a once-per-boot window.
+
+$ time mem search 'quiz yourself to remember longer'   # second query, model now warm
+gate-technique-re-verify-a-research-agent-s-fast-moving-claims-before-accepting-its-recommendation  0.03  Gate technique: re-verify a research agent's fast-moving claims before accepting its recommendation
+    …decision-critical, fast-moving** claims yourself. Cheap, high-signal checks:
+
+- **'Project X…
+two-stage-ann-then-sql-filter  0.03  Two-stage retrieval: ANN candidates, then SQL metadata filter
+    …2. **Metadata stage:** run an ordinary SQL query restricted to those candidate…
+interleaving-effect  0.03  Interleaving effect
+    …term retention and transfer, because it forces learners to discriminate which strateg...
+ann-index-in-sqlite-blob  0.03  Single-file vector store: serialize an ANN index into a SQLite BLOB
+    To upgrade a brute-force cosine-similarity loop to approximate nearest neighbor…
+embedding-context-window-pitfalls-silent-truncation-and-packaging-vs-native-limits  0.02  Embedding context-window pitfalls: silent truncation and packaging vs native limits
+    …If your content can exceed the model's window, chunk it yourself…
+testing-effect  0.02  Testing effect
+    Retrieval practice (self-testing) produces stronger long-term retention than re-reading or passive review - the act of recalling strengthens the memory trace itself (Roediger & Karpicke, 2006). Des...
+ollama-api-embed-use-the-batch-endpoint-not-the-legacy-api-embeddings  0.02  Ollama /api/embed: use the batch endpoint, not the legacy /api/embeddings
+    Ollama's /api/embed supports batched inputs and a truncate flag; /api/embeddings is the deprecated single-string legacy endpoint
+spaced-repetition  0.02  Spaced repetition
+    Reviewing material at increasing intervals (1d, 3d, 7d, 14d...) counteracts the forgetting curve far better than massed practice of equal total time. The optimal review moment is just before the it...
+ollama-on-wsl2-native-install-with-windows-cuda-passthrough-and-systemd-lifecycle  0.02  Ollama on WSL2: native install with Windows CUDA passthrough and systemd lifecycle
+    Recipe for GPU-accelerated Ollama in WSL2: host-driver CUDA passthrough, systemd service, keep-alive, and the VM-shutdown pitfall
+use-mtime-caches-to-buy-latency-without-owning-a-service  0.02  Use mtime caches to buy latency without owning a service
+    …This avoids reparsing unchanged files while preserving the ability to rebuild from…
