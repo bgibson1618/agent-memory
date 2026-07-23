@@ -155,3 +155,30 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   the same procedure already observed live three times (F10 + closeout re-observe).
 - **AI involvement:** parent `suggested` the extract-only scope in conversation; Brent
   `accepted` and requested the build.
+
+## D7 — Obsidian-readable canonical form: wikilink related[], kebab topics (2026-07-23)
+
+- **Context:** Brent's Obsidian viewing mirror showed a near-edgeless graph: only 9/700
+  bodies carried `[[wikilinks]]`, because `related:` was stored as plain slug strings
+  (not indexed as links by Obsidian), and space-form topics ("learning science") are
+  invalid Obsidian tags, splitting labels across space/hyphen variants.
+- **Decision:** two-boundary canonicalization in `okf.py`, no store/extract changes
+  needed. In memory, `related` is always plain slugs and `topics` always kebab-case:
+  `Concept.__post_init__` normalizes every construction path (save, extract, parse), so
+  externally-authored variants ("Learning Science", `[[slug]]`) canonicalize on read.
+  On write, `serialize` emits `related` as quoted `"[[slug]]"` wikilinks (Obsidian
+  property links) and kebab `topics`/`tags`. `mem get --json` therefore returns plain
+  slugs while files carry the wikilink form — an intentional divergence. Spec-safe:
+  OKF v0.1 defines no `related` field (it is a mem key, ours to shape) and spec `tags`
+  are free strings; graph-side `slugify()` strips brackets, so pre-D7 files and other
+  OKF writers parse unchanged. Topics that cannot slugify are silently dropped.
+- **Migration:** the live KB (700 concepts) was bulk-rewritten the same day BEFORE this
+  code change, via `scripts/kb-obsidianize.py` (KB commits b722ed9 links, 42bdd40 kebab
+  in ~/.agent-memory); `mem reindex` re-drained 700 embeddings; doctor 9/9. The script
+  stays as a one-shot re-normalizer for externally-introduced drift.
+- **Proof:** 3 new tests in `tests/test_okf_interop.py` (wikilink-on-write/slug-on-read
+  round-trip, kebab normalize+dedupe, pre-D7 plain-slug file reads clean) + updated F2
+  capture round-trip; full suite → **98 passed**.
+- **AI involvement:** parent `suggested` the native-write form after the bulk KB
+  transform exposed forward drift (new saves would revert to plain form); Brent
+  `accepted` and requested the build.

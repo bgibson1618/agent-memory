@@ -82,6 +82,55 @@ def test_update_keeps_mirrors_in_sync(kb, mem):
     assert front["timestamp"] == front["updated"] == "2026-07-22T23:59:59Z"
 
 
+def test_related_written_as_wikilinks_read_as_slugs(kb, mem):
+    """D7: files carry '[[slug]]' related (Obsidian property links); the in-memory
+    and --json form stays plain slugs."""
+    mem("init")
+    proc = mem(
+        "save", "--title", "Linked concept", "--body", BODY,
+        "--related", "forgetting-curve,spaced-repetition",
+    )
+    assert proc.returncode == 0
+    front = read_front(kb, "linked-concept")
+    assert front["related"] == ["[[forgetting-curve]]", "[[spaced-repetition]]"]
+    got = mem("get", "linked-concept", "--json")
+    assert json.loads(got.stdout)["related"] == ["forgetting-curve", "spaced-repetition"]
+
+
+def test_topics_normalize_to_kebab_case_and_dedupe(kb, mem):
+    """D7: space/case topic variants collapse to one kebab tag on write."""
+    mem("init")
+    proc = mem(
+        "save", "--title", "Kebab probe", "--body", BODY,
+        "--topics", "Learning Science,learning-science,Assessment Design",
+    )
+    assert proc.returncode == 0
+    front = read_front(kb, "kebab-probe")
+    assert front["tags"] == front["topics"] == ["learning-science", "assessment-design"]
+
+
+def test_external_plain_slug_related_normalizes_on_read(kb, mem):
+    """Pre-D7 files (and other OKF tools) write related as plain slugs; a mem
+    update round-trips them into the wikilink form without changing meaning."""
+    mem("init")
+    external = (
+        "---\n"
+        "slug: plain-related\n"
+        "title: Plain related concept\n"
+        "description: Authored with plain-slug related\n"
+        "type: concept\n"
+        "topics: [interop]\n"
+        "related: [forgetting-curve]\n"
+        "timestamp: 2026-07-20T00:00:00Z\n"
+        "---\n\n"
+        "Body with plain-slug related frontmatter.\n"
+    )
+    (kb.kb / "concepts" / "plain-related.md").write_text(external)
+    got = mem("get", "plain-related", "--json")
+    assert got.returncode == 0
+    assert json.loads(got.stdout)["related"] == ["forgetting-curve"]
+
+
 def test_parse_accepts_spec_vocabulary_from_external_files(kb, mem):
     """A hand-authored file using only the spec-recommended keys still loads."""
     mem("init")

@@ -73,7 +73,7 @@ def test_save_writes_valid_okf_and_get_round_trips(mem, kb):
     assert front["type"] == "concept"
     assert front["topics"] == ["learning", "memory"]
     assert front["sensitivity"] == "normal"
-    assert front["related"] == ["forgetting-curve"]
+    assert front["related"] == ["[[forgetting-curve]]"]  # Obsidian property link (D7)
     assert front["description"]  # derived from the body's first line
     for stamp in (front["created"], front["updated"]):
         assert isinstance(stamp, str) and stamp.endswith("Z"), stamp
@@ -81,8 +81,10 @@ def test_save_writes_valid_okf_and_get_round_trips(mem, kb):
 
     data = get_json(mem, "spaced-repetition-scheduling")
     for key in ("id", "slug", "title", "description", "type", "topics",
-                "sensitivity", "created", "updated", "related"):
+                "sensitivity", "created", "updated"):
         assert data[key] == front[key], key
+    # D7: the file carries "[[slug]]" property links; the API form is plain slugs.
+    assert data["related"] == ["forgetting-curve"]
     assert data["body"].strip() == BODY.strip()
 
     text_out = mem("get", "spaced-repetition-scheduling")

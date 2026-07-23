@@ -7,6 +7,15 @@ sensitivity, created/updated, related[]) + a markdown body carrying plain
 the spec-recommended vocabulary (`tags` <- topics, `timestamp` <- updated), the
 parser accepts that vocabulary as fallback for externally-authored files, and
 the OKF reserved filenames (index.md, log.md) are refused as concept slugs.
+
+Obsidian-readable form (D7): in memory, `related` holds plain slugs and
+`topics` holds kebab-case slugs - `Concept.__post_init__` canonicalizes every
+construction path (save, extract, parse), so externally-authored variants
+("Learning Science", `[[slug]]`) normalize on read. On write, `related` is
+emitted as quoted `"[[slug]]"` wikilinks so Obsidian indexes property links,
+and kebab topics/tags register as valid Obsidian tags. `related` is a mem key
+(OKF v0.1 defines no such field) and spec `tags` are free strings, so both
+stay spec-conformant.
 """
 
 import os
@@ -38,6 +47,27 @@ def slugify(text: str) -> str:
     return slug
 
 
+_WIKILINK_WRAP_RE = re.compile(r"\A\s*\[\[(.+?)\]\]\s*\Z", re.DOTALL)
+
+
+def _unwrap_related(value: str) -> str:
+    match = _WIKILINK_WRAP_RE.match(value)
+    return match.group(1) if match else value
+
+
+def normalize_topics(items) -> list:
+    """Kebab-case topics via slugify, dropping unslugifiable ones and duplicates."""
+    out = []
+    for item in items or []:
+        try:
+            slug = slugify(str(item))
+        except OKFError:
+            continue
+        if slug not in out:
+            out.append(slug)
+    return out
+
+
 def now_stamp() -> str:
     forced = os.environ.get("MEM_NOW")  # test seam: freeze the clock
     if forced:
@@ -57,6 +87,15 @@ class Concept:
     updated: str
     related: list = field(default_factory=list)
     body: str = ""
+
+    def __post_init__(self):
+        # Canonical in-memory form regardless of construction path (D7):
+        # kebab topics, plain-slug related (external "[[slug]]" unwrapped).
+        self.topics = normalize_topics(self.topics)
+        if isinstance(self.related, list):
+            self.related = [
+                _unwrap_related(r) if isinstance(r, str) else r for r in self.related
+            ]
 
     def validate(self) -> "Concept":
         if not _SLUG_RE.match(self.slug):
@@ -105,7 +144,9 @@ def serialize(concept: Concept) -> str:
         "created": concept.created,
         "updated": concept.updated,
         "timestamp": concept.updated,  # OKF v0.1 recommended vocabulary (mirror of updated)
-        "related": list(concept.related),
+        # Quoted wikilinks so Obsidian indexes property links; parse unwraps,
+        # and graph-side slugify strips the brackets either way (D7).
+        "related": [f"[[{r}]]" for r in concept.related],
     }
     yaml_text = yaml.safe_dump(front, sort_keys=False, allow_unicode=True, width=1000)
     return f"---\n{yaml_text}---\n\n{concept.body.rstrip()}\n"
