@@ -182,3 +182,20 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** parent `suggested` the native-write form after the bulk KB
   transform exposed forward drift (new saves would revert to plain form); Brent
   `accepted` and requested the build.
+
+## D8 — Usage log + `mem stats`: measure whether the KB earns its keep (2026-07-23)
+
+- **Context:** Brent asked how many times agents have queried the KB. Writes were fully
+  auditable (907 save commits in git) but reads left no trace; transcript grepping
+  undercounts badly (misses subprocess calls and non-Claude harnesses).
+- **Decision:** every CLI invocation (except `init` and `stats` itself) appends one JSON
+  line — ts/cmd/arg/rc/ms — to `.index/usage.jsonl` at the `main()` dispatch seam.
+  `mem stats [--days N]` reports counts by command and by day, plus git-derived
+  save counts. The log is the ONE non-derived file in `.index/`: reindex leaves it
+  alone (tested), it stays out of git (`.index/` ignored), and logging is best-effort —
+  a telemetry failure can never break a KB operation (bare-except by design).
+  `stats` is unlogged so it cannot inflate its own numbers.
+- **Proof:** `tests/test_usage_stats.py` (3 tests: append + field shape, stats counts,
+  reindex preservation); full suite → **101 passed**.
+- **AI involvement:** parent implemented on Brent's direct request ("I want some data on
+  how useful this KB actually is").

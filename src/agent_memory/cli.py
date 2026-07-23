@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from agent_memory import __version__, config, doctor, extract, initcmd, reindex, search, store, vector
+from agent_memory import __version__, config, doctor, extract, initcmd, reindex, search, store, usage, vector
 
 
 def main(argv=None) -> int:
@@ -92,7 +92,13 @@ def main(argv=None) -> int:
     )
     p_reindex.set_defaults(func=reindex.cmd_reindex)
 
+    p_stats = sub.add_parser("stats", help="usage counts from the local invocation log (D8)")
+    p_stats.add_argument("--days", type=int, default=30, help="window in days (default 30)")
+    p_stats.set_defaults(func=usage.cmd_stats)
+
     args = parser.parse_args(argv)
+    import time as _time
+    _t0 = _time.monotonic()
     try:
         rc = args.func(args)
     except FileNotFoundError as e:
@@ -108,9 +114,13 @@ def main(argv=None) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
+    if args.command not in ("init", "stats"):
+        usage.log_event(config.kb_root(), args.command, args, rc,
+                        int((_time.monotonic() - _t0) * 1000))
+
     # Bounded opportunistic drain: any ordinary invocation moves the embed
     # queue along a little; doctor/reindex drain fully themselves.
-    if args.command not in ("init", "doctor", "reindex"):
+    if args.command not in ("init", "doctor", "reindex", "stats"):
         try:
             vector.opportunistic_drain(config.kb_root())
         except Exception:
