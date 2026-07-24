@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Reinstall the `mem` CLI when a commit touches its source.
+#
+# The shell `mem` is a uv tool install — a snapshot of this repo, not the live
+# worktree — so source commits don't reach the CLI agents actually invoke until
+# a reinstall. This hook closes that gap on every commit that changes src/,
+# pyproject.toml, or uv.lock. Wired via: git config core.hooksPath scripts/git-hooks
+#
+# Post-commit hooks cannot fail the commit; on reinstall failure this warns and
+# leaves the previously installed snapshot in place.
+
+set -u
+
+if ! git diff-tree --no-commit-id --name-only -r HEAD | grep -qE '^(src/|pyproject\.toml$|uv\.lock$)'; then
+    exit 0
+fi
+
+if ! command -v uv >/dev/null 2>&1; then
+    echo "post-commit: uv not found; 'mem' NOT reinstalled (stale snapshot still installed)" >&2
+    exit 0
+fi
+
+root="$(git rev-parse --show-toplevel)"
+if uv tool install --reinstall --quiet "$root" >/dev/null 2>&1; then
+    echo "post-commit: source changed -> 'mem' reinstalled ($(mem --version 2>/dev/null || echo 'version n/a'))"
+else
+    echo "post-commit: uv tool install FAILED; 'mem' still running the previous snapshot" >&2
+fi
