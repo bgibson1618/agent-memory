@@ -9,7 +9,8 @@ resolve during the build.
 
 ## Overview
 agent-memory is a **local-first Python monolith** whose single organizing idea is: **markdown is
-the database; everything else is a rebuildable index.** One `agent_memory` package (installed
+the database; everything else is a rebuildable index** (one deliberate post-v1 exception: the D8
+usage log `.index/usage.jsonl` is non-derived telemetry — see Storage). One `agent_memory` package (installed
 via `uv tool install`, entry point `mem`) owns OKF markdown files under `~/.agent-memory/` as
 the sole source of truth; three derived indexes — lexical (FTS5), vector (local Ollama
 embeddings), graph (wikilink edges) — serve every read through RRF fusion. **No resident
@@ -71,13 +72,17 @@ cache rebuilt lazily on the next load.
   preflight), which covers subprocess egress (git) that an in-process socket guard is
   structurally blind to; the in-process guard remains the fast inner layer.
 
-Source of truth: `~/.agent-memory/concepts/*.md`. All of `.index/mem.db` (FTS5 + vectors +
-edges + queue + metadata, one SQLite file) is disposable — `mem reindex` rebuilds it from the
-markdown. Storage layout:
+Source of truth: `~/.agent-memory/concepts/*.md`. The derived stores — `.index/mem.db` (FTS5 +
+vectors + embed-queue + metadata, one SQLite file) and `.index/graph.json` (the mtime/size-keyed
+graph edge cache) — are disposable: `mem reindex` rebuilds both from the markdown. One deliberate
+exception since D8: `.index/usage.jsonl` (the per-invocation usage log) is NOT derived — reindex
+preserves it, and deleting `.index/` wholesale loses usage history by design. Storage layout:
 ```
 ~/.agent-memory/
   concepts/<slug>.md    # OKF source of truth (Obsidian-openable)
-  .index/mem.db         # derived: fts5 / vectors / edges / embed-queue / meta
+  .index/mem.db         # derived: fts5 / vectors / embed-queue / meta
+  .index/graph.json     # derived: graph edge cache (wikilink/related/topic edges)
+  .index/usage.jsonl    # NOT derived: usage telemetry (D8) — reindex leaves it alone
   .git/                 # local history, auto-commit per write, NO remote
 ```
 

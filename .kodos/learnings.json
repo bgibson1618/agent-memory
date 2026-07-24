@@ -106,6 +106,43 @@
       "source": "BUILD_LOG.md wave 6 checkpoint finding 2 (verifier-ca8z): F11's 'prompt never mentions memory' clause wrongly imported into the F10 journal entry",
       "seam": "closeout",
       "captured_at": "2026-07-22T16:00:00Z"
+    },
+    {
+      "id": "L7",
+      "category": "process",
+      "applies_when": "post-closeout work (or a decision-log amendment) changes something a status-bearing doc line asserts \u2014 ARCHITECTURE orientation claims, storage layouts, or standing 'awaiting X' caveats in BUILD_LOG/README",
+      "symptoms": [
+        "ARCHITECTURE.md",
+        "storage layout",
+        "rebuildable index",
+        "organizing idea",
+        "awaits confirmation",
+        "closeout caveat",
+        "stale caveat",
+        "usage.jsonl",
+        "graph.json"
+      ],
+      "lesson": "DECISION_LOG entries don't propagate: every post-closeout decision or amendment must sweep the status-bearing doc lines that assert the old reality (orientation claims, layout blocks, standing caveats) \u2014 supersede journals with a dated entry, amend orientation docs in place.",
+      "source": "sanity 2026-07-24 findings 1-2 + the D2 stale-caveat that misled an external doc-sweep",
+      "seam": "checkpoint",
+      "captured_at": "2026-07-24T16:34:27Z"
+    },
+    {
+      "id": "L8",
+      "category": "process",
+      "applies_when": "writing evidence timestamps into state or rendering snapshots that self-report a render time",
+      "symptoms": [
+        "Rendered:",
+        "hand-rounded",
+        "timestamp",
+        "at\": \"",
+        "evidence entry",
+        "snapshot"
+      ],
+      "lesson": "Hand-rounded evidence timestamps eventually contradict machine-stamped artifacts (a snapshot 'rendered' before evidence it contains) \u2014 record real whole-second UTC times in evidence 'at' fields, and re-render snapshots after state writes, not before.",
+      "source": "sanity 2026-07-24 finding 3 (IMPLEMENTATION.md:5 vs state F10/F11 evidence)",
+      "seam": "checkpoint",
+      "captured_at": "2026-07-24T16:34:27Z"
     }
   ]
 }

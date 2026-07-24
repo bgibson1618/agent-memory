@@ -292,3 +292,19 @@ closeout seam (L4 updated, L5+L6 added; 6 records valid).
 - KodOS upstream: the generated snapshot's `scripts/schedule.mjs` hint assumes the KodOS repo
   layout — misleading in a project checkout (wave-6 finding 1).
 - Repo has a remote; **nothing pushed** — pushing is Brent's call (F14 approval gate).
+
+## Post-closeout — standalone sanity checkpoint + remediation (2026-07-24)
+
+Standalone `/kodos:sanity` (deterministic validators green; drift + code-quality reviewers via
+roster, 3 findings validated per-finding): ARCHITECTURE.md's storage layout still placed graph
+edges in `mem.db` (they live in `.index/graph.json`) and its organizing-idea line predated D8's
+non-derived `usage.jsonl`; IMPLEMENTATION.md's render stamp (16:00:16Z) precedes state evidence
+it renders (16:20:00Z, hand-rounded). **Remediated:** ARCHITECTURE.md storage section + organizing
+idea amended to D7/D8 reality. The IMPLEMENTATION.md stamp is a generated-snapshot wrinkle —
+accepted as-is (hand-edits to the snapshot are off-limits; a future KodOS engagement re-renders).
+Quality lens: PASS, zero hazards; improvements journaled in the checkpoint report (chat).
+**Supersedes a stale closeout caveat above:** "D2 (clean-room OKF) awaits his explicit
+confirmation" was resolved 2026-07-22 — see DECISION_LOG "D2 — Amended: confirmed by Brent
+against the official spec" (the question dissolved; OKF is a public standard). An external
+doc-sweep on 2026-07-24 was misled by the stale caveat, which is what triggered this checkpoint.
+Learnings L7-L8 captured at the checkpoint seam; `run.needs_you` cleared.
