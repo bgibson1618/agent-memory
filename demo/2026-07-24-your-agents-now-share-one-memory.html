@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light" />
+<title>Your agents now share one memory</title>
+<!-- deck runtime implements demo-gen contract version 1; the generator fills the
+     slot below with the demo-gen-* <meta> tags required by deck-contract.md -->
+<meta name="demo-gen-contract" content="1" />
+<meta name="demo-gen-date" content="2026-07-24" />
+<meta name="demo-gen-target-repo" content="agent-memory" />
+<meta name="demo-gen-source-doc" content="README.md" />
+<meta name="demo-gen-source-doc" content="IMPLEMENTATION.md" />
+<meta name="demo-gen-source-doc" content="FEATURES.md" />
+<meta name="demo-gen-source-doc" content="PRD.md" />
+<meta name="demo-gen-source-doc" content="DECISION_LOG.md" />
+<meta name="demo-gen-source-doc" content="BUILD_LOG.md" />
+<meta name="demo-gen-design-example" content="internal-demo-style-guide.md" />
+<meta name="demo-gen-design-example" content="internal-demo-sample.html" />
+<style>
+/* ==========================================================================
+   demo-gen deck runtime — base styles
+   Stable across every generated deck. The injected theme style block below
+   may override any custom property or selector here; nothing in this block
+   reads generated content directly.
+
+   Structural helper classes a generated deck can compose with:
+     .slide[data-tone="shipped|risk|signal|neutral"]  colors the kicker + the
+       left content rail — use it to signal what kind of claim a slide makes.
+     .kicker            small bracket-styled label, e.g. <p class="kicker">Shipped</p>
+     .content            wraps a slide's body; draws the tone rail
+     .slide-title / .slide-lead / .slide-body   heading and copy scale
+     .slide--hero / .slide--closing   centered bookend treatment (title / ask)
+     .stat-row / .stat / .stat-figure / .stat-label   big-number evidence rows
+     .beat-list          unordered feature/point list with a square marker
+     .split / .panel     two-column layout with a bordered mono content panel
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- color tokens ------------------------------------------------------ */
+  --ink: #14171E;          /* primary text */
+  --paper: #F6F6F3;        /* slide background */
+  --paper-raise: #FFFFFF;  /* raised surfaces: panels, overlays, controls */
+  --rule: #DBDBD4;         /* hairline borders */
+  --muted: #6B6E76;        /* secondary text */
+  --signal: #2F5CFF;       /* primary accent: progress, links, focus */
+  --shipped: #147A52;      /* status: shipped / done */
+  --risk: #B5540A;         /* status: risk / watch */
+  --tone: var(--ink);      /* current slide tone, set per data-tone below */
+
+  /* --- type tokens -------------------------------------------------------- */
+  --font-display: ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-body: ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", "Roboto Mono", "Liberation Mono", monospace;
+
+  --text-hero: clamp(2.75rem, 5.6vw, 5.75rem);
+  --text-title: clamp(2rem, 3.8vw, 3.25rem);
+  --text-lead: clamp(1.125rem, 1.9vw, 1.625rem);
+  --text-body: clamp(0.95rem, 1.25vw, 1.1875rem);
+  --text-kicker: 0.8125rem;
+  --text-caption: 0.8125rem;
+  --text-stat: clamp(3.75rem, 8vw, 7.5rem);
+  --measure: 46ch;
+
+  /* --- layout tokens ------------------------------------------------------ */
+  --slide-margin: clamp(28px, 5.6vw, 88px);
+  --rail-width: 3px;
+  --radius: 3px;
+
+  /* --- motion tokens ------------------------------------------------------ */
+  --duration: 340ms;
+  --ease: cubic-bezier(.22, .7, .24, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration: 0ms; }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* --------------------------------------------------------------------------
+   Stage: full-viewport backdrop, letterboxes a fixed 16:9 frame.
+   -------------------------------------------------------------------------- */
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  overflow: hidden;
+}
+
+.frame {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  background: var(--paper);
+  box-shadow: 0 2px 48px rgba(0, 0, 0, .28);
+  overflow: hidden;
+}
+
+/* main.deck holds ONLY <section class="slide"> children — see deck-contract */
+.deck {
+  position: absolute;
+  inset: 0;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--slide-margin);
+  background: var(--paper);
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+
+.slide.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  z-index: 1;
+}
+
+/* tone -> rail + kicker color. Meaning-bearing, not decorative: it names the
+   kind of claim a slide makes (shipped fact, open risk, live demo, context). */
+.slide[data-tone="shipped"] { --tone: var(--shipped); }
+.slide[data-tone="risk"]    { --tone: var(--risk); }
+.slide[data-tone="signal"]  { --tone: var(--signal); }
+.slide[data-tone="neutral"] { --tone: var(--muted); }
+
+.content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.15em;
+  border-left: var(--rail-width) solid var(--tone);
+  padding-left: clamp(18px, 2.2vw, 34px);
+  min-height: 0;
+}
+
+.kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-kicker);
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+.kicker::before { content: "[ "; }
+.kicker::after { content: " ]"; }
+
+.slide-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-title);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--ink);
+  max-width: 22ch;
+}
+
+.slide-lead {
+  font-family: var(--font-body);
+  font-size: var(--text-lead);
+  line-height: 1.45;
+  color: var(--ink);
+  max-width: var(--measure);
+  margin: 0;
+}
+
+.slide-body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: var(--measure);
+  margin: 0;
+}
+
+.muted { color: var(--muted); }
+
+.beat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .85em;
+  max-width: var(--measure);
+}
+.beat-list li {
+  position: relative;
+  padding-left: 1.4em;
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+.beat-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .6em;
+  width: 7px;
+  height: 7px;
+  background: var(--tone);
+  border-radius: 1px;
+}
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(28px, 5vw, 64px);
+}
+.stat { display: flex; flex-direction: column; }
+.stat-figure {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-stat);
+  line-height: 1;
+  color: var(--tone);
+  font-variant-numeric: tabular-nums;
+}
+.stat-label {
+  margin-top: .55em;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  max-width: 22ch;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: clamp(24px, 4vw, 56px);
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .split { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--paper-raise);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: clamp(16px, 2vw, 26px);
+  font-family: var(--font-mono);
+  font-size: .9rem;
+  line-height: 1.6;
+  color: var(--ink);
+  overflow: auto;
+}
+.panel-title {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin-bottom: .75em;
+}
+.panel-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: .4em 0;
+  border-bottom: 1px solid var(--rule);
+}
+.panel-row:last-child { border-bottom: none; }
+.panel-row dt { color: var(--muted); font-weight: 400; margin: 0; }
+.panel-row dd { margin: 0; text-align: right; }
+
+/* --- bookend slides: title + closing/ask --------------------------------- */
+.slide--hero, .slide--closing {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.slide--hero .eyebrow, .slide--closing .eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-kicker);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 1.1em;
+}
+.slide--hero .hero-title, .slide--closing .hero-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-hero);
+  line-height: 1.03;
+  letter-spacing: -0.015em;
+  margin: 0 0 .5em;
+  max-width: 20ch;
+}
+.slide--hero .hero-sub, .slide--closing .hero-sub {
+  font-family: var(--font-body);
+  font-size: var(--text-lead);
+  color: var(--muted);
+  max-width: 42ch;
+  margin: 0 auto;
+}
+.slide--hero .hero-meta, .slide--closing .hero-meta {
+  margin-top: 2.2em;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+
+/* speaker notes: authoring content, never shown to the audience or in print */
+.speaker-notes {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Chrome: progress bar + control cluster. Always runtime-owned.
+   -------------------------------------------------------------------------- */
+.progress {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--rule);
+  z-index: 5;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--signal);
+  transition: width var(--duration) var(--ease);
+}
+
+.controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: linear-gradient(to top, rgba(20, 23, 30, .06), transparent);
+}
+.ctrl-btn {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--paper-raise);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: .95rem;
+  line-height: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+.ctrl-btn:hover { background: var(--paper); }
+.ctrl-btn:disabled { opacity: .35; cursor: default; }
+.ctrl-btn:active:not(:disabled) { transform: scale(.92); }
+.counter {
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  color: var(--muted);
+  letter-spacing: .03em;
+  min-width: 52px;
+  text-align: center;
+}
+.counter-sep { margin: 0 .25em; opacity: .5; }
+.controls-spacer { flex: 1; }
+
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.ctrl-btn:focus-visible { outline-offset: 3px; }
+
+/* --------------------------------------------------------------------------
+   Overlays: help dialog + rehearsal drawer. Fixed to viewport, not the frame.
+   -------------------------------------------------------------------------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 23, 30, .55);
+  padding: 24px;
+}
+.overlay[hidden] { display: none; }
+.overlay-panel {
+  background: var(--paper-raise);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: clamp(24px, 3vw, 40px);
+  max-width: 520px;
+  width: 100%;
+  max-height: 82vh;
+  overflow: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .35);
+  font-family: var(--font-body);
+}
+.overlay-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.1em;
+}
+.overlay-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0;
+  flex: 1;
+}
+.overlay-close {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: inherit;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: .95rem;
+  line-height: 1;
+  flex: none;
+}
+.shortcut-list { display: grid; gap: .6em; margin: 0; }
+.shortcut-list > div { display: flex; justify-content: space-between; gap: 16px; font-size: .92rem; }
+.shortcut-list dt { font-family: var(--font-mono); color: var(--muted); font-weight: 400; margin: 0; }
+.shortcut-list dd { margin: 0; text-align: right; }
+
+.drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(360px, 86vw);
+  background: var(--ink);
+  color: var(--paper);
+  z-index: 20;
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -16px 0 40px rgba(0, 0, 0, .35);
+  font-family: var(--font-body);
+}
+.drawer[hidden] { display: none; }
+.drawer-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2em; }
+.drawer-elapsed { font-family: var(--font-mono); font-size: .85rem; opacity: .75; margin-left: auto; }
+.drawer .overlay-close { border-color: rgba(246, 246, 243, .3); color: var(--paper); }
+.drawer-label { font-family: var(--font-mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; opacity: .6; margin: 1em 0 .3em; }
+.drawer-label:first-of-type { margin-top: 0; }
+.drawer-title { font-family: var(--font-display); font-size: 1.15rem; margin: 0; }
+.drawer-notes { font-size: .95rem; line-height: 1.55; opacity: .92; white-space: pre-wrap; margin: 0; }
+.drawer-next { font-size: .95rem; opacity: .85; margin: 0; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Print / PDF export: every slide becomes one 16in x 9in page.
+   -------------------------------------------------------------------------- */
+@media print {
+  @page { size: 16in 9in; margin: 0; }
+
+  html, body { background: #fff; }
+
+  .stage, .frame, .deck {
+    position: static;
+    width: auto;
+    height: auto;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .slide {
+    position: static;
+    width: 16in;
+    height: 9in;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    transition: none !important;
+    break-after: page;
+    page-break-after: always;
+    box-shadow: none !important;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+
+  .progress, .controls, .overlay, .drawer, .sr-only, .speaker-notes {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+}
+
+/* The generated theme is injected below and cascades after the tokens/rules
+   above, so it may override any custom property or selector by source order. */
+</style>
+<style id="demo-gen-theme">
+/* Theme derived from design-examples/internal-demo-style-guide.md and
+   internal-demo-sample.html (the README's preferred exemplars for an
+   engineering status report). The base runtime already implements this
+   system; the theme only reaffirms the palette tokens. */
+:root {
+  --ink: #14171E;
+  --paper: #F6F6F3;
+  --paper-raise: #FFFFFF;
+  --rule: #DBDBD4;
+  --muted: #6B6E76;
+  --signal: #2F5CFF;
+  --shipped: #147A52;
+  --risk: #B5540A;
+}
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="frame">
+      <main class="deck">
+<section class="slide slide--hero active" id="slide-1" aria-label="Your agents now share one memory">
+  <p class="eyebrow">Internal demo</p>
+  <h1 class="hero-title">Your agents now share one memory</h1>
+  <p class="hero-sub">agent-memory v1: concepts captured once are retrievable by any coding agent, in any project, from a fresh session &mdash; without demanding Brent's attention.</p>
+  <p class="hero-meta">agent-memory repo &middot; all 12 features proved &middot; 24 Jul 2026</p>
+  <aside class="speaker-notes">Open with the one-liner from the README. Status is "Built — all 12 features proved," developed with the KodOS workflow. Everything in this deck traces to the repo's own docs.</aside>
+</section>
+<section class="slide" data-tone="neutral" id="slide-2" aria-label="Every session starts cold" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Context</p>
+    <h2 class="slide-title">Every session starts cold</h2>
+    <p class="slide-lead">Until now: Claude Code's built-in memory is per-project and Claude-only, plus chat history and scattered notes.</p>
+    <ul class="beat-list">
+      <li>Knowledge learned in one session is lost to every other agent and project</li>
+      <li>No cross-agent access, no semantic recall, no concept graph</li>
+      <li>Brent is absorbing a flood of new concepts he wants working <em>inside</em> his AI workflow</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: PRD &sect;3 "What the User Does Today" and &sect;2 persona. The real operator is the agents themselves — they save and search on Brent's behalf.</aside>
+</section>
+<section class="slide" data-tone="shipped" id="slide-3" aria-label="One store, three ways to find it" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Shipped</p>
+    <h2 class="slide-title">One store, three ways to find it</h2>
+    <p class="slide-lead">An OKF markdown store is the source of truth. Three rebuildable indexes read it; one command fuses them.</p>
+    <ul class="beat-list">
+      <li><strong>Lexical</strong> &mdash; SQLite FTS5 keyword search</li>
+      <li><strong>Semantic</strong> &mdash; vector recall via local Ollama embeddings</li>
+      <li><strong>Graph</strong> &mdash; a derived wikilink/topic graph, traversed in-process</li>
+      <li><code>mem search</code> fuses all three with RRF &mdash; a concept findable by only one leg still surfaces in the top results</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: README "What this is" and FEATURES F6. The fuse-all property is test-proved with lexical-only, semantic-only, and graph-only fixtures. CLI surface: mem init / doctor / save / search / extract.</aside>
+</section>
+<section class="slide" data-tone="signal" id="slide-4" aria-label="Save once, recall anywhere" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Demo &middot; 1 of 3</p>
+    <h2 class="slide-title">Save once, recall anywhere</h2>
+    <p class="slide-lead">The core promise, test-proved: from a fresh Claude session in a <em>different project</em>, a fused search returns a previously saved concept in the top results.</p>
+    <ul class="beat-list">
+      <li>One capture command: <code>mem save</code> &mdash; body from stdin, committed to the KB's own git history</li>
+      <li>One retrieval command: <code>mem search "anything"</code> &mdash; ranked, agent-parseable, one screen by default</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: PRD success criterion 1 and FEATURES F6/F2. Walk it live if there's time: mem save in this repo, mem search from another.</aside>
+</section>
+<section class="slide" data-tone="signal" id="slide-5" aria-label="Unprompted use, actually observed" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Demo &middot; 2 of 3</p>
+    <h2 class="slide-title">Unprompted use &mdash; actually observed</h2>
+    <p class="slide-lead">The invisibility test: managed instruction blocks installed by <code>mem init</code> make fresh sessions use the KB without being told.</p>
+    <ul class="beat-list">
+      <li>Observed at closeout: a fresh Claude session on a pure teaching task &mdash; the prompt never mentioned memory &mdash; ran <code>mem search</code> and <code>mem get</code> unprompted and grounded its deliverable in KB concepts</li>
+      <li>Also observed: an agent saving a durable concept unprompted during normal work</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: FEATURES F11 and the BUILD_LOG closeout re-observation (run architect-wve5). Observation protocol was bounded and Brent judged "unprompted." For codex/agy the v1 claim is block installation only — ambient behavior is claimed on Claude alone.</aside>
+</section>
+<section class="slide" data-tone="signal" id="slide-6" aria-label="Point it at a document" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Demo &middot; 3 of 3</p>
+    <h2 class="slide-title">Point it at a document</h2>
+    <p class="slide-lead"><code>/mem:extract</code> mines a paper or spec for durable concepts, dedups them against the KB, saves what's new, and reports added vs. skipped.</p>
+    <ul class="beat-list">
+      <li>Dedup threshold 0.79 &mdash; measured against real KB data, not guessed (Decision D3)</li>
+      <li>Closeout observation: a fresh session ran the full choreography unprompted on a new document &mdash; 7 concepts added, every KB commit verified real</li>
+      <li>Deliberately the only slash command &mdash; save and search stay ambient (Decision D6)</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: PRD use case 4, DECISION_LOG D3/D6, BUILD_LOG closeout F10 re-observation (run architect-iqj1). One of the 7 saves was a disposition-review override at 0.8403 similarity — the threshold has a human-judgment seam.</aside>
+</section>
+<section class="slide" data-tone="neutral" id="slide-7" aria-label="Degraded, never broken" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">How it holds up</p>
+    <h2 class="slide-title">Degraded, never broken</h2>
+    <ul class="beat-list">
+      <li>Ollama down &rarr; search still answers from lexical + graph, one warning line, exit 0</li>
+      <li>Saves land anyway &mdash; embeddings queue and the concept becomes semantically searchable when the daemon returns</li>
+      <li>Concurrent sessions write safely &mdash; proved with 10-way race tests</li>
+      <li>External edits to KB files (even meaning-flips) are detected and re-indexed</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: README "Using it", FEATURES F6, and the IMPLEMENTATION.md evidence rows for F7 (10-way distinct-slug race) and F8 (meaning-flip semantic refresh). The theme: no failure mode takes the KB offline.</aside>
+</section>
+<section class="slide" data-tone="shipped" id="slide-8" aria-label="Confidentiality enforced by machine" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Shipped</p>
+    <h2 class="slide-title">Confidentiality enforced by machine, not policy</h2>
+    <ul class="beat-list">
+      <li>Zero egress, proved: every command runs inside a loopback-only network namespace in the test suite &mdash; a regression can never land silently</li>
+      <li>With Ollama up, the only network peer across all operations is the local Ollama endpoint &mdash; memory content never leaves the machine</li>
+      <li>The KB is a git repo with <strong>zero remotes, for life</strong> &mdash; <code>mem doctor</code> fails loudly if one ever appears</li>
+      <li>Recall is vendor-scoped: Claude and Codex only; Antigravity/Gemini agents are excluded from memory work entirely (Decision D1)</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: FEATURES F12 and F1, README vendor-scope paragraph, DECISION_LOG D1. The netns guard covers subprocess egress (git) as well as Python's own sockets, across init/doctor/save/search/get/list/extract/reindex.</aside>
+</section>
+<section class="slide" data-tone="shipped" id="slide-9" aria-label="Evidence" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Evidence</p>
+    <h2 class="slide-title">Proved, not promised</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-figure">12/12</div><div class="stat-label">features proved, incl. two by live observation</div></div>
+      <div class="stat"><div class="stat-figure">101</div><div class="stat-label">tests passing in the full suite</div></div>
+      <div class="stat"><div class="stat-figure">32</div><div class="stat-label">concepts in the live KB at closeout</div></div>
+      <div class="stat"><div class="stat-figure">0</div><div class="stat-label">validated findings in the 14-state closeout walkthrough</div></div>
+    </div>
+  </div>
+  <aside class="speaker-notes">Sources: IMPLEMENTATION.md status; DECISION_LOG D8 proof (101 passed, post-closeout); BUILD_LOG closeout (32 concepts; walkthrough; the closeout verification itself was MEM_REQUIRE_NETNS=1 uv run pytest &rarr; 89 passed, before D8's tests were added). D8 context also notes 907 auditable save commits in the KB's git history.</aside>
+</section>
+<section class="slide" data-tone="risk" id="slide-10" aria-label="Honest edges" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Watch</p>
+    <h2 class="slide-title">Honest edges</h2>
+    <ul class="beat-list">
+      <li>D2 &mdash; the clean-room OKF posture still awaits Brent's explicit confirmation (flagged since F2)</li>
+      <li>Extraction takes minutes, not seconds &mdash; measured and accepted (D4); a single-extractor <code>--quick</code> mode is a possible post-v1 seam</li>
+      <li>Follow-up from observations: intra-batch related-slug normalization belongs inside <code>mem extract</code></li>
+      <li>The code repo has a remote with nothing pushed &mdash; pushing is a deliberate approval gate</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: BUILD_LOG closeout caveats. Note D2 was amended 2026-07-22 as "confirmed against the official spec" per DECISION_LOG — the outstanding item is Brent's explicit sign-off flag.</aside>
+</section>
+<section class="slide slide--closing" data-tone="signal" id="slide-11" aria-label="Next: does the KB earn its keep?" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Next</p>
+    <h2 class="slide-title">Does the KB earn its keep?</h2>
+    <p class="slide-lead">Measurement shipped post-v1 (D8): every CLI call logs one line; <code>mem stats</code> reports usage by command and by day.</p>
+    <ul class="beat-list">
+      <li>Keep working normally &mdash; let ambient saves and searches accrue</li>
+      <li>Review <code>mem stats</code> in a few weeks to judge real usage</li>
+      <li>Decide: confirm D2, and whether the code repo gets pushed</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Source: DECISION_LOG D8 (usage log + mem stats, proved with 3 tests) and the closeout caveats. The ask is a decision checkpoint, not more build work.</aside>
+</section>
+      </main>
+
+      <div class="progress" id="deck-progress" role="presentation">
+        <div class="progress-fill"></div>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="ctrl-btn prev" aria-label="Previous slide">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="counter" id="deck-slide-counter"><span class="counter-current">1</span><span class="counter-sep">/</span><span class="counter-total">1</span></div>
+        <button type="button" class="ctrl-btn next" aria-label="Next slide">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="controls-spacer"></span>
+        <button type="button" class="ctrl-btn" data-action="help" aria-label="Show keyboard shortcuts" aria-haspopup="dialog">?</button>
+        <button type="button" class="ctrl-btn" data-action="fullscreen" aria-label="Toggle fullscreen">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay help-overlay" id="deck-help-overlay" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <h2 id="help-title">Keyboard shortcuts</h2>
+        <button type="button" class="overlay-close" aria-label="Close help">&times;</button>
+      </div>
+      <dl class="shortcut-list">
+        <div><dt>Right &middot; Down &middot; Space &middot; Page Down</dt><dd>Next slide</dd></div>
+        <div><dt>Left &middot; Up &middot; Page Up</dt><dd>Previous slide</dd></div>
+        <div><dt>Home &middot; End</dt><dd>First &middot; last slide</dd></div>
+        <div><dt>F</dt><dd>Toggle fullscreen</dd></div>
+        <div><dt>S</dt><dd>Open speaker notes window</dd></div>
+        <div><dt>N</dt><dd>Toggle in-deck notes drawer</dd></div>
+        <div><dt>P</dt><dd>Print / export PDF</dd></div>
+        <div><dt>?</dt><dd>Toggle this help</dd></div>
+        <div><dt>Esc</dt><dd>Close overlay</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <aside class="drawer notes-drawer" id="notes-drawer" aria-label="Speaker notes drawer" hidden>
+    <div class="drawer-head">
+      <strong>Notes</strong>
+      <span class="drawer-elapsed" id="nd-elapsed">00:00</span>
+      <button type="button" class="overlay-close" aria-label="Close notes drawer">&times;</button>
+    </div>
+    <p class="drawer-label">Now</p>
+    <p class="drawer-title" id="nd-current"></p>
+    <p class="drawer-notes" id="nd-notes"></p>
+    <p class="drawer-label">Next</p>
+    <p class="drawer-next" id="nd-next"></p>
+  </aside>
+
+  <div class="sr-only" id="sr-announcer" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- demo-gen runtime script: stable, not regenerated per deck -->
+  <script id="demo-gen-runtime">
+  (function () {
+    'use strict';
+
+    function byId(id) { return document.getElementById(id); }
+    function setText(doc, id, text) {
+      var el = doc.getElementById(id);
+      if (el) el.textContent = text;
+    }
+
+    var deckRoot = document.querySelector('main.deck');
+    var slides = Array.prototype.slice.call(deckRoot.children).filter(function (el) {
+      return el.classList && el.classList.contains('slide');
+    });
+    var total = slides.length;
+    var currentIndex = 0;
+    var startTime = Date.now();
+
+    slides.forEach(function (slide) {
+      var notes = slide.querySelector('.speaker-notes');
+      if (notes) notes.setAttribute('aria-hidden', 'true');
+    });
+
+    var progressFill = document.querySelector('.progress-fill');
+    var counterCurrent = document.querySelector('.counter-current');
+    var counterTotal = document.querySelector('.counter-total');
+    var prevBtn = document.querySelector('.ctrl-btn.prev');
+    var nextBtn = document.querySelector('.ctrl-btn.next');
+    var helpBtn = document.querySelector('[data-action="help"]');
+    var fullscreenBtn = document.querySelector('[data-action="fullscreen"]');
+    var helpOverlay = byId('deck-help-overlay');
+    var helpClose = helpOverlay.querySelector('.overlay-close');
+    var notesDrawer = byId('notes-drawer');
+    var drawerClose = notesDrawer.querySelector('.overlay-close');
+    var announcer = byId('sr-announcer');
+    var frameEl = document.querySelector('.frame');
+
+    counterTotal.textContent = String(total);
+
+    function titleOf(slide) { return (slide && slide.getAttribute('aria-label')) || ''; }
+    function notesOf(slide) {
+      var n = slide && slide.querySelector('.speaker-notes');
+      return n ? n.textContent.trim() : '';
+    }
+    function slideIdToIndex(hashFragment) {
+      var m = /^slide-(\d+)$/.exec(hashFragment || '');
+      if (!m) return -1;
+      var n = parseInt(m[1], 10) - 1;
+      return (n >= 0 && n < total) ? n : -1;
+    }
+
+    function render() {
+      slides.forEach(function (slide, i) {
+        var active = (i === currentIndex);
+        slide.classList.toggle('active', active);
+        slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+        if ('inert' in slide) slide.inert = !active;
+      });
+      var pct = total > 1 ? (currentIndex / (total - 1)) * 100 : 100;
+      progressFill.style.width = pct + '%';
+      counterCurrent.textContent = String(currentIndex + 1);
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === total - 1;
+      var title = titleOf(slides[currentIndex]);
+      announcer.textContent = 'Slide ' + (currentIndex + 1) + ' of ' + total + (title ? ': ' + title : '');
+      updatePresenterViews();
+    }
+
+    function syncFromHash() {
+      var idx = slideIdToIndex(location.hash.slice(1));
+      currentIndex = idx >= 0 ? idx : 0;
+      render();
+    }
+
+    function goTo(index) {
+      var clamped = Math.max(0, Math.min(total - 1, index));
+      var id = 'slide-' + (clamped + 1);
+      if (location.hash === '#' + id) {
+        if (clamped !== currentIndex) { currentIndex = clamped; render(); }
+        return;
+      }
+      location.hash = id;
+    }
+
+    function next() { goTo(currentIndex + 1); }
+    function prev() { goTo(currentIndex - 1); }
+    function first() { goTo(0); }
+    function last() { goTo(total - 1); }
+
+    window.addEventListener('hashchange', syncFromHash);
+    if (!location.hash) {
+      history.replaceState(null, '', '#slide-1');
+      render();
+    } else {
+      syncFromHash();
+    }
+
+    prevBtn.addEventListener('click', prev);
+    nextBtn.addEventListener('click', next);
+
+    /* --- help overlay ----------------------------------------------------- */
+    function openHelp() { helpOverlay.hidden = false; helpClose.focus(); }
+    function closeHelp() { helpOverlay.hidden = true; helpBtn.focus(); }
+    helpBtn.addEventListener('click', openHelp);
+    helpClose.addEventListener('click', closeHelp);
+    helpOverlay.addEventListener('click', function (e) { if (e.target === helpOverlay) closeHelp(); });
+
+    /* --- fullscreen --------------------------------------------------------- */
+    function toggleFullscreen() {
+      var request = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (!document.fullscreenElement) {
+        if (request) request.call(document.documentElement);
+      } else if (exit) {
+        exit.call(document);
+      }
+    }
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    /* --- touch swipe -------------------------------------------------------- */
+    var touchStartX = 0, touchStartY = 0, touchActive = false;
+    frameEl.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchActive = true;
+    }, { passive: true });
+    frameEl.addEventListener('touchend', function (e) {
+      if (!touchActive) return;
+      touchActive = false;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - touchStartX;
+      var dy = t.clientY - touchStartY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) next(); else prev();
+      }
+    }, { passive: true });
+
+    /* --- speaker notes popup + rehearsal drawer fallback -------------------- */
+    var popupWin = null;
+    var POPUP_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Speaker notes</title><style>'
+      + 'body{margin:0;background:#14171E;color:#F6F6F3;font-family:ui-sans-serif,Segoe UI,Helvetica Neue,Arial,sans-serif;padding:20px;}'
+      + '.sn-label{font-family:ui-monospace,SF Mono,Consolas,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.1em;opacity:.6;margin:14px 0 4px;}'
+      + '.sn-label:first-child{margin-top:0;}'
+      + '#sn-elapsed{font-family:ui-monospace,SF Mono,Consolas,monospace;font-size:13px;opacity:.75;float:right;}'
+      + '#sn-current{font-size:20px;margin:0;font-weight:600;}'
+      + '#sn-notes{font-size:15px;line-height:1.55;opacity:.92;white-space:pre-wrap;margin:0;}'
+      + '#sn-next{font-size:15px;opacity:.85;margin:0;}'
+      + '</style></head><body>'
+      + '<span id="sn-elapsed">00:00</span>'
+      + '<p class="sn-label">Now</p><p id="sn-current"></p>'
+      + '<p class="sn-label">Notes</p><p id="sn-notes"></p>'
+      + '<p class="sn-label">Next</p><p id="sn-next"></p>'
+      + '</body></html>';
+
+    function openSpeakerPopup() {
+      if (popupWin && !popupWin.closed) { popupWin.focus(); return; }
+      try {
+        popupWin = window.open('', 'demo-gen-speaker-notes', 'width=440,height=420,resizable=yes');
+      } catch (err) {
+        popupWin = null;
+      }
+      if (!popupWin) { toggleDrawer(true); return; }
+      popupWin.document.open();
+      popupWin.document.write(POPUP_HTML);
+      popupWin.document.close();
+      updatePresenterViews();
+    }
+
+    function toggleDrawer(forceOpen) {
+      var open = typeof forceOpen === 'boolean' ? forceOpen : notesDrawer.hidden;
+      notesDrawer.hidden = !open;
+      if (open) updatePresenterViews();
+    }
+    function closeDrawer() { notesDrawer.hidden = true; }
+    drawerClose.addEventListener('click', closeDrawer);
+
+    function updatePresenterViews() {
+      var cur = slides[currentIndex];
+      var nxt = slides[currentIndex + 1];
+      var curTitle = titleOf(cur);
+      var nextTitle = nxt ? titleOf(nxt) : '— End of deck —';
+      var notes = notesOf(cur) || '(no notes for this slide)';
+
+      if (popupWin && !popupWin.closed) {
+        setText(popupWin.document, 'sn-current', curTitle);
+        setText(popupWin.document, 'sn-next', nextTitle);
+        setText(popupWin.document, 'sn-notes', notes);
+      }
+      if (!notesDrawer.hidden) {
+        setText(document, 'nd-current', curTitle);
+        setText(document, 'nd-next', nextTitle);
+        setText(document, 'nd-notes', notes);
+      }
+    }
+
+    function formatElapsed(ms) {
+      var s = Math.floor(ms / 1000);
+      var m = Math.floor(s / 60);
+      s = s % 60;
+      return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    setInterval(function () {
+      var text = formatElapsed(Date.now() - startTime);
+      if (!notesDrawer.hidden) setText(document, 'nd-elapsed', text);
+      if (popupWin && !popupWin.closed) setText(popupWin.document, 'sn-elapsed', text);
+    }, 1000);
+
+    /* --- keyboard ------------------------------------------------------------ */
+    document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      var key = e.key;
+
+      if (!helpOverlay.hidden) {
+        if (key === 'Escape' || key === '?') { e.preventDefault(); closeHelp(); }
+        return;
+      }
+
+      switch (key) {
+        case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ':
+          e.preventDefault(); next(); break;
+        case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+          e.preventDefault(); prev(); break;
+        case 'Home':
+          e.preventDefault(); first(); break;
+        case 'End':
+          e.preventDefault(); last(); break;
+        case '?':
+          e.preventDefault(); openHelp(); break;
+        case 'f': case 'F':
+          e.preventDefault(); toggleFullscreen(); break;
+        case 's': case 'S':
+          e.preventDefault(); openSpeakerPopup(); break;
+        case 'n': case 'N':
+          e.preventDefault(); toggleDrawer(); break;
+        case 'p': case 'P':
+          e.preventDefault(); window.print(); break;
+        case 'Escape':
+          if (!notesDrawer.hidden) { e.preventDefault(); closeDrawer(); }
+          break;
+      }
+    });
+  })();
+  </script>
+</body>
+</html>

@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light" />
+<title>agent-memory: a cross-agent knowledge base</title>
+<!-- deck runtime implements demo-gen contract version 1; the generator fills the
+     slot below with the demo-gen-* <meta> tags required by deck-contract.md -->
+<meta name="demo-gen-contract" content="1" />
+<meta name="demo-gen-date" content="2026-07-24" />
+<meta name="demo-gen-target-repo" content="agent-memory" />
+<meta name="demo-gen-source-doc" content="README.md" />
+<meta name="demo-gen-source-doc" content="DECISION_LOG.md" />
+<meta name="demo-gen-source-doc" content="ARCHITECTURE.md" />
+<meta name="demo-gen-source-doc" content="~/projects/capstone-workspace/CONTEXT.md" />
+<meta name="demo-gen-source-doc" content="~/projects/learning-science/CONTEXT.md" />
+<meta name="demo-gen-source-doc" content="~/projects/learning-science/pipeline/README.md" />
+<meta name="demo-gen-source-doc" content="~/projects/learning-science/course/SPEC.md" />
+<meta name="demo-gen-design-example" content="internal-demo-style-guide.md" />
+<meta name="demo-gen-design-example" content="internal-demo-sample.html" />
+<style>
+/* ==========================================================================
+   demo-gen deck runtime — base styles
+   Stable across every generated deck. The injected theme style block below
+   may override any custom property or selector here; nothing in this block
+   reads generated content directly.
+
+   Structural helper classes a generated deck can compose with:
+     .slide[data-tone="shipped|risk|signal|neutral"]  colors the kicker + the
+       left content rail — use it to signal what kind of claim a slide makes.
+     .kicker            small bracket-styled label, e.g. <p class="kicker">Shipped</p>
+     .content            wraps a slide's body; draws the tone rail
+     .slide-title / .slide-lead / .slide-body   heading and copy scale
+     .slide--hero / .slide--closing   centered bookend treatment (title / ask)
+     .stat-row / .stat / .stat-figure / .stat-label   big-number evidence rows
+     .beat-list          unordered feature/point list with a square marker
+     .split / .panel     two-column layout with a bordered mono content panel
+   ========================================================================== */
+
+:root {
+  color-scheme: light;
+
+  /* --- color tokens ------------------------------------------------------ */
+  --ink: #14171E;          /* primary text */
+  --paper: #F6F6F3;        /* slide background */
+  --paper-raise: #FFFFFF;  /* raised surfaces: panels, overlays, controls */
+  --rule: #DBDBD4;         /* hairline borders */
+  --muted: #6B6E76;        /* secondary text */
+  --signal: #2F5CFF;       /* primary accent: progress, links, focus */
+  --shipped: #147A52;      /* status: shipped / done */
+  --risk: #B5540A;         /* status: risk / watch */
+  --tone: var(--ink);      /* current slide tone, set per data-tone below */
+
+  /* --- type tokens -------------------------------------------------------- */
+  --font-display: ui-serif, "New York", "Iowan Old Style", Georgia, "Times New Roman", serif;
+  --font-body: ui-sans-serif, -apple-system, "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "Cascadia Mono", "Consolas", "Roboto Mono", "Liberation Mono", monospace;
+
+  --text-hero: clamp(2.75rem, 5.6vw, 5.75rem);
+  --text-title: clamp(2rem, 3.8vw, 3.25rem);
+  --text-lead: clamp(1.125rem, 1.9vw, 1.625rem);
+  --text-body: clamp(0.95rem, 1.25vw, 1.1875rem);
+  --text-kicker: 0.8125rem;
+  --text-caption: 0.8125rem;
+  --text-stat: clamp(3.75rem, 8vw, 7.5rem);
+  --measure: 46ch;
+
+  /* --- layout tokens ------------------------------------------------------ */
+  --slide-margin: clamp(28px, 5.6vw, 88px);
+  --rail-width: 3px;
+  --radius: 3px;
+
+  /* --- motion tokens ------------------------------------------------------ */
+  --duration: 340ms;
+  --ease: cubic-bezier(.22, .7, .24, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration: 0ms; }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ink);
+  color: var(--ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+/* --------------------------------------------------------------------------
+   Stage: full-viewport backdrop, letterboxes a fixed 16:9 frame.
+   -------------------------------------------------------------------------- */
+.stage {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ink);
+  overflow: hidden;
+}
+
+.frame {
+  position: relative;
+  width: min(100vw, calc(100vh * 16 / 9));
+  height: min(100vh, calc(100vw * 9 / 16));
+  background: var(--paper);
+  box-shadow: 0 2px 48px rgba(0, 0, 0, .28);
+  overflow: hidden;
+}
+
+/* main.deck holds ONLY <section class="slide"> children — see deck-contract */
+.deck {
+  position: absolute;
+  inset: 0;
+}
+
+.slide {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--slide-margin);
+  background: var(--paper);
+  color: var(--ink);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translateY(6px);
+  transition: opacity var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+
+.slide.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translateY(0);
+  z-index: 1;
+}
+
+/* tone -> rail + kicker color. Meaning-bearing, not decorative: it names the
+   kind of claim a slide makes (shipped fact, open risk, live demo, context). */
+.slide[data-tone="shipped"] { --tone: var(--shipped); }
+.slide[data-tone="risk"]    { --tone: var(--risk); }
+.slide[data-tone="signal"]  { --tone: var(--signal); }
+.slide[data-tone="neutral"] { --tone: var(--muted); }
+
+.content {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.15em;
+  border-left: var(--rail-width) solid var(--tone);
+  padding-left: clamp(18px, 2.2vw, 34px);
+  min-height: 0;
+}
+
+.kicker {
+  display: inline-flex;
+  align-self: flex-start;
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--text-kicker);
+  font-weight: 600;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+  color: var(--tone);
+}
+.kicker::before { content: "[ "; }
+.kicker::after { content: " ]"; }
+
+.slide-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-title);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--ink);
+  max-width: 22ch;
+}
+
+.slide-lead {
+  font-family: var(--font-body);
+  font-size: var(--text-lead);
+  line-height: 1.45;
+  color: var(--ink);
+  max-width: var(--measure);
+  margin: 0;
+}
+
+.slide-body {
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--ink);
+  max-width: var(--measure);
+  margin: 0;
+}
+
+.muted { color: var(--muted); }
+
+.beat-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: .85em;
+  max-width: var(--measure);
+}
+.beat-list li {
+  position: relative;
+  padding-left: 1.4em;
+  font-family: var(--font-body);
+  font-size: var(--text-body);
+  line-height: 1.5;
+}
+.beat-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: .6em;
+  width: 7px;
+  height: 7px;
+  background: var(--tone);
+  border-radius: 1px;
+}
+
+.stat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: clamp(28px, 5vw, 64px);
+}
+.stat { display: flex; flex-direction: column; }
+.stat-figure {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-stat);
+  line-height: 1;
+  color: var(--tone);
+  font-variant-numeric: tabular-nums;
+}
+.stat-label {
+  margin-top: .55em;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  max-width: 22ch;
+}
+
+.split {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: clamp(24px, 4vw, 56px);
+  align-items: start;
+}
+@media (max-width: 720px) {
+  .split { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--paper-raise);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: clamp(16px, 2vw, 26px);
+  font-family: var(--font-mono);
+  font-size: .9rem;
+  line-height: 1.6;
+  color: var(--ink);
+  overflow: auto;
+}
+.panel-title {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: .75rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--muted);
+  margin-bottom: .75em;
+}
+.panel-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: .4em 0;
+  border-bottom: 1px solid var(--rule);
+}
+.panel-row:last-child { border-bottom: none; }
+.panel-row dt { color: var(--muted); font-weight: 400; margin: 0; }
+.panel-row dd { margin: 0; text-align: right; }
+
+/* --- bookend slides: title + closing/ask --------------------------------- */
+.slide--hero, .slide--closing {
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.slide--hero .eyebrow, .slide--closing .eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--text-kicker);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 1.1em;
+}
+.slide--hero .hero-title, .slide--closing .hero-title {
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: var(--text-hero);
+  line-height: 1.03;
+  letter-spacing: -0.015em;
+  margin: 0 0 .5em;
+  max-width: 20ch;
+}
+.slide--hero .hero-sub, .slide--closing .hero-sub {
+  font-family: var(--font-body);
+  font-size: var(--text-lead);
+  color: var(--muted);
+  max-width: 42ch;
+  margin: 0 auto;
+}
+.slide--hero .hero-meta, .slide--closing .hero-meta {
+  margin-top: 2.2em;
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--muted);
+  letter-spacing: .04em;
+}
+
+/* speaker notes: authoring content, never shown to the audience or in print */
+.speaker-notes {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+/* --------------------------------------------------------------------------
+   Chrome: progress bar + control cluster. Always runtime-owned.
+   -------------------------------------------------------------------------- */
+.progress {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--rule);
+  z-index: 5;
+}
+.progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--signal);
+  transition: width var(--duration) var(--ease);
+}
+
+.controls {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  background: linear-gradient(to top, rgba(20, 23, 30, .06), transparent);
+}
+.ctrl-btn {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: var(--paper-raise);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: .95rem;
+  line-height: 1;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background var(--duration) var(--ease), transform var(--duration) var(--ease);
+}
+.ctrl-btn:hover { background: var(--paper); }
+.ctrl-btn:disabled { opacity: .35; cursor: default; }
+.ctrl-btn:active:not(:disabled) { transform: scale(.92); }
+.counter {
+  font-family: var(--font-mono);
+  font-size: .85rem;
+  color: var(--muted);
+  letter-spacing: .03em;
+  min-width: 52px;
+  text-align: center;
+}
+.counter-sep { margin: 0 .25em; opacity: .5; }
+.controls-spacer { flex: 1; }
+
+:focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+.ctrl-btn:focus-visible { outline-offset: 3px; }
+
+/* --------------------------------------------------------------------------
+   Overlays: help dialog + rehearsal drawer. Fixed to viewport, not the frame.
+   -------------------------------------------------------------------------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(20, 23, 30, .55);
+  padding: 24px;
+}
+.overlay[hidden] { display: none; }
+.overlay-panel {
+  background: var(--paper-raise);
+  color: var(--ink);
+  border-radius: 6px;
+  padding: clamp(24px, 3vw, 40px);
+  max-width: 520px;
+  width: 100%;
+  max-height: 82vh;
+  overflow: auto;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, .35);
+  font-family: var(--font-body);
+}
+.overlay-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.1em;
+}
+.overlay-head h2 {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  margin: 0;
+  flex: 1;
+}
+.overlay-close {
+  appearance: none;
+  border: 1px solid var(--rule);
+  background: transparent;
+  color: inherit;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: .95rem;
+  line-height: 1;
+  flex: none;
+}
+.shortcut-list { display: grid; gap: .6em; margin: 0; }
+.shortcut-list > div { display: flex; justify-content: space-between; gap: 16px; font-size: .92rem; }
+.shortcut-list dt { font-family: var(--font-mono); color: var(--muted); font-weight: 400; margin: 0; }
+.shortcut-list dd { margin: 0; text-align: right; }
+
+.drawer {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(360px, 86vw);
+  background: var(--ink);
+  color: var(--paper);
+  z-index: 20;
+  padding: 22px 22px 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: -16px 0 40px rgba(0, 0, 0, .35);
+  font-family: var(--font-body);
+}
+.drawer[hidden] { display: none; }
+.drawer-head { display: flex; align-items: center; gap: 10px; margin-bottom: 1.2em; }
+.drawer-elapsed { font-family: var(--font-mono); font-size: .85rem; opacity: .75; margin-left: auto; }
+.drawer .overlay-close { border-color: rgba(246, 246, 243, .3); color: var(--paper); }
+.drawer-label { font-family: var(--font-mono); font-size: .7rem; text-transform: uppercase; letter-spacing: .1em; opacity: .6; margin: 1em 0 .3em; }
+.drawer-label:first-of-type { margin-top: 0; }
+.drawer-title { font-family: var(--font-display); font-size: 1.15rem; margin: 0; }
+.drawer-notes { font-size: .95rem; line-height: 1.55; opacity: .92; white-space: pre-wrap; margin: 0; }
+.drawer-next { font-size: .95rem; opacity: .85; margin: 0; }
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* --------------------------------------------------------------------------
+   Print / PDF export: every slide becomes one 16in x 9in page.
+   -------------------------------------------------------------------------- */
+@media print {
+  @page { size: 16in 9in; margin: 0; }
+
+  html, body { background: #fff; }
+
+  .stage, .frame, .deck {
+    position: static;
+    width: auto;
+    height: auto;
+    background: none;
+    box-shadow: none;
+    overflow: visible;
+  }
+
+  .slide {
+    position: static;
+    width: 16in;
+    height: 9in;
+    opacity: 1 !important;
+    visibility: visible !important;
+    transform: none !important;
+    transition: none !important;
+    break-after: page;
+    page-break-after: always;
+    box-shadow: none !important;
+  }
+  .slide:last-child { break-after: auto; page-break-after: auto; }
+
+  .progress, .controls, .overlay, .drawer, .sr-only, .speaker-notes {
+    display: none !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+}
+
+/* The generated theme is injected below and cascades after the tokens/rules
+   above, so it may override any custom property or selector by source order. */
+</style>
+<style id="demo-gen-theme">
+/* Theme derived from design-examples/internal-demo-style-guide.md and
+   internal-demo-sample.html (the README's preferred exemplars for an
+   engineering status report). The base runtime already implements this
+   system; the theme only reaffirms the palette tokens. */
+:root {
+  --ink: #14171E;
+  --paper: #F6F6F3;
+  --paper-raise: #FFFFFF;
+  --rule: #DBDBD4;
+  --muted: #6B6E76;
+  --signal: #2F5CFF;
+  --shipped: #147A52;
+  --risk: #B5540A;
+}
+
+/* figure/screenshot additions — composes with the base system, changes no
+   existing selector */
+.slide-figure {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: .4em;
+}
+.slide-figure img {
+  flex: 1 1 auto;
+  min-height: 0;
+  width: 100%;
+  object-fit: contain;
+  object-position: center top;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper-raise);
+}
+.figure-caption {
+  font-family: var(--font-mono);
+  font-size: var(--text-caption);
+  color: var(--muted);
+  margin: 0;
+}
+.split .shot {
+  margin: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--paper-raise);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.split .shot img { display: block; width: 100%; height: auto; }
+.slide-figure--fit { align-items: center; }
+.slide-figure--fit img {
+  width: auto;
+  max-width: 100%;
+  align-self: center;
+  object-position: center;
+  background: transparent;
+  border: none;
+}
+.stat-row--compact .stat-figure { font-size: clamp(2.25rem, 4.2vw, 4rem); }
+.beat-list--columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: .85em clamp(28px, 4vw, 56px);
+  max-width: none;
+}
+</style>
+</head>
+<body>
+  <div class="stage">
+    <div class="frame">
+      <main class="deck">
+<section class="slide slide--hero active" id="slide-1" aria-label="agent-memory: a cross-agent knowledge base">
+  <p class="eyebrow">Internal demo &middot; week 1</p>
+  <h1 class="hero-title">agent-memory: a cross-agent knowledge base</h1>
+  <p class="hero-sub">Concepts captured once are retrievable by any coding agent, in any project, from a fresh session. Local-first: markdown source of truth, three fused indexes, zero egress.</p>
+  <p class="hero-meta">1,346 concepts live &middot; 12/12 features proved &middot; 24 Jul 2026</p>
+  <aside class="speaker-notes">One-liner from the repo README. Week-1 scope: the memory harness itself, the learning-science knowledge base built on it, and a study course generated from that KB. Everything shown runs on this laptop.</aside>
+</section>
+<section class="slide" data-tone="neutral" id="slide-2" aria-label="From capstone harness to personal KB" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Origin</p>
+    <h2 class="slide-title">From capstone harness to personal KB</h2>
+    <ul class="beat-list">
+      <li>Gauntlet capstone (<code>agent-memory-harness</code>, 4-person team): a model-agnostic memory harness for long-running coding agents &mdash; hypothesis: a small model <em>with</em> memory beats a frontier model without, scored on public memory benchmarks</li>
+      <li>My slice there: the storage backends &mdash; markdown, sqlite-vector, graph &mdash; and the retrieval router across them</li>
+      <li>agent-memory keeps that architecture shape, rebuilt clean-room in a week (no capstone code ported; the OKF markdown format is a public spec)</li>
+      <li>Different question: not &ldquo;does memory beat parameters?&rdquo; but &ldquo;can every agent I run share one knowledge base?&rdquo;</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Capstone: github.com/kenhuangus/agent-memory-harness — benchmark-driven (SWE-Bench-CL as arbiter), explored FalkorDB, rerankers, learned routing. This repo trades all that for a minimal local-first cut. Clean-room posture is DECISION_LOG D2, amended 2026-07-22: OKF is a public standard, so the question dissolved.</aside>
+</section>
+<section class="slide" data-tone="shipped" id="slide-3" aria-label="Save path and the three indexes" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Shipped</p>
+    <h2 class="slide-title">Save path and the three indexes</h2>
+    <div class="split">
+      <ul class="beat-list">
+        <li><code>mem save</code> / <code>mem extract</code> write one OKF markdown file per concept; every save is a git commit in the KB's own history (zero remotes, for life)</li>
+        <li>Each write feeds three derived indexes &mdash; all rebuildable with <code>mem reindex</code></li>
+        <li>Retrieval: <code>mem search</code> fuses the three rankings with reciprocal-rank fusion; <code>mem get &lt;slug&gt;</code> returns the full body</li>
+        <li>Ollama down &rarr; lexical + graph still answer; embeddings queue and drain when it returns</li>
+      </ul>
+      <dl class="panel">
+        <span class="panel-title">index backends</span>
+        <div class="panel-row"><dt>lexical</dt><dd>SQLite FTS5 keyword</dd></div>
+        <div class="panel-row"><dt>semantic</dt><dd>nomic-embed-text via local Ollama, 768-d</dd></div>
+        <div class="panel-row"><dt>graph</dt><dd>wikilink / related / topic edges, JSON cache</dd></div>
+        <div class="panel-row"><dt>fusion</dt><dd>RRF &mdash; any single leg can surface a hit</dd></div>
+      </dl>
+    </div>
+  </div>
+  <aside class="speaker-notes">Source: README, FEATURES F2/F4/F5/F6. Fuse-all property is test-proved with lexical-only, semantic-only, and graph-only fixtures. Markdown is the database; the one deliberate exception is the usage log (non-derived telemetry).</aside>
+</section>
+<section class="slide" data-tone="shipped" id="slide-4" aria-label="How agents actually use it" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Shipped</p>
+    <h2 class="slide-title">How agents actually use it</h2>
+    <ul class="beat-list">
+      <li><code>mem init</code> installs managed instruction blocks into <code>CLAUDE.md</code> / <code>AGENTS.md</code> &mdash; fresh sessions search before work and save durable concepts unprompted (observed, not just claimed)</li>
+      <li>Vendor-scoped by policy: Claude and Codex do memory work; Gemini-family agents are excluded, with one scoped exception for public-source extraction that never reads KB bodies</li>
+      <li>Zero egress proved in the test suite: every command runs inside a loopback-only network namespace; the only network peer is local Ollama</li>
+      <li>Every CLI call logs one line; <code>mem stats</code> reports usage by command and day &mdash; day one recorded ~300 retrievals from real agent work</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Sources: FEATURES F11/F12, DECISION_LOG D1 (vendor scope) and D8 (usage log). The ~300 gets on day one came from question-bank generation pulling live concept bodies — batch pipelines get() by known slug; ambient sessions search() first.</aside>
+</section>
+<section class="slide" data-tone="shipped" id="slide-5" aria-label="Learning-science extraction" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Shipped</p>
+    <h2 class="slide-title">Learning-science extraction</h2>
+    <p class="slide-lead">Fixed pipeline per source: chunk &rarr; two extractor lenses per chunk &rarr; cross-vendor review with arbitration &rarr; embedding dedup gate (0.79, calibrated) &rarr; strict adjudication against the live KB &rarr; near-duplicate fold pass.</p>
+    <p class="slide-body muted">Public sources fan out across Claude, Codex, and Gemini lenses; work-tagged sources stay Claude/Codex. A census side-channel rosters every researcher any source cites.</p>
+    <div class="stat-row stat-row--compact">
+      <div class="stat"><div class="stat-figure">10</div><div class="stat-label">source corpora in 3 days</div></div>
+      <div class="stat"><div class="stat-figure">~13M</div><div class="stat-label">chars of source text</div></div>
+      <div class="stat"><div class="stat-figure">1,346</div><div class="stat-label">concepts in the KB</div></div>
+      <div class="stat"><div class="stat-figure">5,898</div><div class="stat-label">experts in the master index</div></div>
+    </div>
+  </div>
+  <aside class="speaker-notes">Corpora: 5 onboarding decks, 4 expert brain-lift exports, Theory of Instruction (742pp), The Math Academy Way (510pp), internal product docs (work-tagged), Science of Reading corpus (NRP 2000 + Reading League + Castles 2018), motivation-science corpus (10 papers, today). Every candidate faces two independent reviews; fix-conflicts go to a 3-lens arbiter. Expert index spans 8 source flags; nobody appears in all 8 — Engelmann holds 7.</aside>
+</section>
+<section class="slide" data-tone="signal" id="slide-6" aria-label="The KB in graph view" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Live KB</p>
+    <h2 class="slide-title">The KB in graph view</h2>
+    <div class="slide-figure slide-figure--fit">
+      <img src="Graph%20View.png" alt="Obsidian graph view of the knowledge base: 1,346 concept nodes with wikilink edges forming topic clusters" />
+      <p class="figure-caption">Obsidian graph view over the KB directory &mdash; edges are related-links written at save time; clusters follow topic neighborhoods (instruction, reading, motivation, assessment).</p>
+    </div>
+  </div>
+  <aside class="speaker-notes">The KB is plain markdown, so Obsidian opens it read-only as a free visualization layer (a one-way mirror on the Windows side; the canonical store never leaves WSL). Concept bodies carry [[wikilinks]] in their related field — written in Obsidian-native form at save time, so this graph needs no export step.</aside>
+</section>
+<section class="slide" data-tone="shipped" id="slide-7" aria-label="A course generated from the KB" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Shipped</p>
+    <h2 class="slide-title">A course generated from the KB</h2>
+    <ul class="beat-list">
+      <li>18 modules from an embedding-clustered concept map; 309 anchor concepts, elaborations ride their anchors</li>
+      <li>The pedagogy is the KB applied to itself: retrieval-first sessions, adaptive spacing (+1/+3/+7/+21/+60d), interleaved discrimination, mastery = two delayed independent successes</li>
+      <li>A deterministic planner + a <code>/session</code> skill drive two 45-minute sessions a day; question banks are pre-generated and cue-sweep audited (module 1: 45 items &middot; module 2: 85)</li>
+      <li>~15&plusmn;3 weeks at current cadence; session telemetry revises the estimate</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">Course repo: ~/projects/learning-science/course (SPEC.md, docs/DESIGN.md — 30 KB-cited pedagogy decisions, triple-reviewed). Banks are generated from live KB bodies via mem get, then cue-sweep audited cross-vendor (~20% drop rate both modules). First session ran today. Next slide shows what a session looks like.</aside>
+</section>
+<section class="slide" data-tone="signal" id="slide-8" aria-label="Module 1: session view" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Live course</p>
+    <h2 class="slide-title">Module 1 &mdash; session view</h2>
+    <div class="slide-figure slide-figure--fit">
+      <img src="Module%201.png" alt="Module 1 session view: a teach segment on cognitive load theory generated from the live KB" />
+      <p class="figure-caption">A <code>/session</code> teach segment (anchor 1 of 3, cognitive load theory) &mdash; lesson content is generated live from the KB concept bodies, never from static notes.</p>
+    </div>
+  </div>
+  <aside class="speaker-notes">The session driver picks today's anchors and due reviews deterministically; the agent teaches from mem get bodies. Teach segments cap at 3 anchors per DESIGN.md; checks and review queues follow in the same 45-minute block.</aside>
+</section>
+<section class="slide" data-tone="signal" id="slide-9" aria-label="What's next" aria-hidden="true">
+  <div class="content">
+    <p class="kicker">Next</p>
+    <h2 class="slide-title">What&rsquo;s next</h2>
+    <ul class="beat-list">
+      <li>Finish the motivation corpus (2 papers still unacquired); a compliance micro-corpus is queued</li>
+      <li>Team docs join the KB when access lands &mdash; work-tagged and vendor-scoped like the rest</li>
+      <li>Judge the KB on evidence: let ambient usage accrue, review <code>mem stats</code> in a few weeks</li>
+      <li>Live demo any time &mdash; everything here runs locally</li>
+    </ul>
+  </div>
+  <aside class="speaker-notes">The ask is nothing — this is a status demo. If someone wants the deep dive: the repo's DECISION_LOG reads well, and the extraction pipeline playbook lives in the learning-science repo. Happy to run mem search / mem extract live.</aside>
+</section>
+      </main>
+
+      <div class="progress" id="deck-progress" role="presentation">
+        <div class="progress-fill"></div>
+      </div>
+
+      <div class="controls">
+        <button type="button" class="ctrl-btn prev" aria-label="Previous slide">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M15 6l-6 6 6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <div class="counter" id="deck-slide-counter"><span class="counter-current">1</span><span class="counter-sep">/</span><span class="counter-total">1</span></div>
+        <button type="button" class="ctrl-btn next" aria-label="Next slide">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+        <span class="controls-spacer"></span>
+        <button type="button" class="ctrl-btn" data-action="help" aria-label="Show keyboard shortcuts" aria-haspopup="dialog">?</button>
+        <button type="button" class="ctrl-btn" data-action="fullscreen" aria-label="Toggle fullscreen">
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay help-overlay" id="deck-help-overlay" role="dialog" aria-modal="true" aria-labelledby="help-title" hidden>
+    <div class="overlay-panel">
+      <div class="overlay-head">
+        <h2 id="help-title">Keyboard shortcuts</h2>
+        <button type="button" class="overlay-close" aria-label="Close help">&times;</button>
+      </div>
+      <dl class="shortcut-list">
+        <div><dt>Right &middot; Down &middot; Space &middot; Page Down</dt><dd>Next slide</dd></div>
+        <div><dt>Left &middot; Up &middot; Page Up</dt><dd>Previous slide</dd></div>
+        <div><dt>Home &middot; End</dt><dd>First &middot; last slide</dd></div>
+        <div><dt>F</dt><dd>Toggle fullscreen</dd></div>
+        <div><dt>S</dt><dd>Open speaker notes window</dd></div>
+        <div><dt>N</dt><dd>Toggle in-deck notes drawer</dd></div>
+        <div><dt>P</dt><dd>Print / export PDF</dd></div>
+        <div><dt>?</dt><dd>Toggle this help</dd></div>
+        <div><dt>Esc</dt><dd>Close overlay</dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <aside class="drawer notes-drawer" id="notes-drawer" aria-label="Speaker notes drawer" hidden>
+    <div class="drawer-head">
+      <strong>Notes</strong>
+      <span class="drawer-elapsed" id="nd-elapsed">00:00</span>
+      <button type="button" class="overlay-close" aria-label="Close notes drawer">&times;</button>
+    </div>
+    <p class="drawer-label">Now</p>
+    <p class="drawer-title" id="nd-current"></p>
+    <p class="drawer-notes" id="nd-notes"></p>
+    <p class="drawer-label">Next</p>
+    <p class="drawer-next" id="nd-next"></p>
+  </aside>
+
+  <div class="sr-only" id="sr-announcer" aria-live="polite" aria-atomic="true"></div>
+
+  <!-- demo-gen runtime script: stable, not regenerated per deck -->
+  <script id="demo-gen-runtime">
+  (function () {
+    'use strict';
+
+    function byId(id) { return document.getElementById(id); }
+    function setText(doc, id, text) {
+      var el = doc.getElementById(id);
+      if (el) el.textContent = text;
+    }
+
+    var deckRoot = document.querySelector('main.deck');
+    var slides = Array.prototype.slice.call(deckRoot.children).filter(function (el) {
+      return el.classList && el.classList.contains('slide');
+    });
+    var total = slides.length;
+    var currentIndex = 0;
+    var startTime = Date.now();
+
+    slides.forEach(function (slide) {
+      var notes = slide.querySelector('.speaker-notes');
+      if (notes) notes.setAttribute('aria-hidden', 'true');
+    });
+
+    var progressFill = document.querySelector('.progress-fill');
+    var counterCurrent = document.querySelector('.counter-current');
+    var counterTotal = document.querySelector('.counter-total');
+    var prevBtn = document.querySelector('.ctrl-btn.prev');
+    var nextBtn = document.querySelector('.ctrl-btn.next');
+    var helpBtn = document.querySelector('[data-action="help"]');
+    var fullscreenBtn = document.querySelector('[data-action="fullscreen"]');
+    var helpOverlay = byId('deck-help-overlay');
+    var helpClose = helpOverlay.querySelector('.overlay-close');
+    var notesDrawer = byId('notes-drawer');
+    var drawerClose = notesDrawer.querySelector('.overlay-close');
+    var announcer = byId('sr-announcer');
+    var frameEl = document.querySelector('.frame');
+
+    counterTotal.textContent = String(total);
+
+    function titleOf(slide) { return (slide && slide.getAttribute('aria-label')) || ''; }
+    function notesOf(slide) {
+      var n = slide && slide.querySelector('.speaker-notes');
+      return n ? n.textContent.trim() : '';
+    }
+    function slideIdToIndex(hashFragment) {
+      var m = /^slide-(\d+)$/.exec(hashFragment || '');
+      if (!m) return -1;
+      var n = parseInt(m[1], 10) - 1;
+      return (n >= 0 && n < total) ? n : -1;
+    }
+
+    function render() {
+      slides.forEach(function (slide, i) {
+        var active = (i === currentIndex);
+        slide.classList.toggle('active', active);
+        slide.setAttribute('aria-hidden', active ? 'false' : 'true');
+        if ('inert' in slide) slide.inert = !active;
+      });
+      var pct = total > 1 ? (currentIndex / (total - 1)) * 100 : 100;
+      progressFill.style.width = pct + '%';
+      counterCurrent.textContent = String(currentIndex + 1);
+      prevBtn.disabled = currentIndex === 0;
+      nextBtn.disabled = currentIndex === total - 1;
+      var title = titleOf(slides[currentIndex]);
+      announcer.textContent = 'Slide ' + (currentIndex + 1) + ' of ' + total + (title ? ': ' + title : '');
+      updatePresenterViews();
+    }
+
+    function syncFromHash() {
+      var idx = slideIdToIndex(location.hash.slice(1));
+      currentIndex = idx >= 0 ? idx : 0;
+      render();
+    }
+
+    function goTo(index) {
+      var clamped = Math.max(0, Math.min(total - 1, index));
+      var id = 'slide-' + (clamped + 1);
+      if (location.hash === '#' + id) {
+        if (clamped !== currentIndex) { currentIndex = clamped; render(); }
+        return;
+      }
+      location.hash = id;
+    }
+
+    function next() { goTo(currentIndex + 1); }
+    function prev() { goTo(currentIndex - 1); }
+    function first() { goTo(0); }
+    function last() { goTo(total - 1); }
+
+    window.addEventListener('hashchange', syncFromHash);
+    if (!location.hash) {
+      history.replaceState(null, '', '#slide-1');
+      render();
+    } else {
+      syncFromHash();
+    }
+
+    prevBtn.addEventListener('click', prev);
+    nextBtn.addEventListener('click', next);
+
+    /* --- help overlay ----------------------------------------------------- */
+    function openHelp() { helpOverlay.hidden = false; helpClose.focus(); }
+    function closeHelp() { helpOverlay.hidden = true; helpBtn.focus(); }
+    helpBtn.addEventListener('click', openHelp);
+    helpClose.addEventListener('click', closeHelp);
+    helpOverlay.addEventListener('click', function (e) { if (e.target === helpOverlay) closeHelp(); });
+
+    /* --- fullscreen --------------------------------------------------------- */
+    function toggleFullscreen() {
+      var request = document.documentElement.requestFullscreen || document.documentElement.webkitRequestFullscreen;
+      var exit = document.exitFullscreen || document.webkitExitFullscreen;
+      if (!document.fullscreenElement) {
+        if (request) request.call(document.documentElement);
+      } else if (exit) {
+        exit.call(document);
+      }
+    }
+    fullscreenBtn.addEventListener('click', toggleFullscreen);
+
+    /* --- touch swipe -------------------------------------------------------- */
+    var touchStartX = 0, touchStartY = 0, touchActive = false;
+    frameEl.addEventListener('touchstart', function (e) {
+      if (e.touches.length !== 1) return;
+      touchStartX = e.touches[0].clientX;
+      touchStartY = e.touches[0].clientY;
+      touchActive = true;
+    }, { passive: true });
+    frameEl.addEventListener('touchend', function (e) {
+      if (!touchActive) return;
+      touchActive = false;
+      var t = e.changedTouches[0];
+      var dx = t.clientX - touchStartX;
+      var dy = t.clientY - touchStartY;
+      if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        if (dx < 0) next(); else prev();
+      }
+    }, { passive: true });
+
+    /* --- speaker notes popup + rehearsal drawer fallback -------------------- */
+    var popupWin = null;
+    var POPUP_HTML = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>Speaker notes</title><style>'
+      + 'body{margin:0;background:#14171E;color:#F6F6F3;font-family:ui-sans-serif,Segoe UI,Helvetica Neue,Arial,sans-serif;padding:20px;}'
+      + '.sn-label{font-family:ui-monospace,SF Mono,Consolas,monospace;font-size:11px;text-transform:uppercase;letter-spacing:.1em;opacity:.6;margin:14px 0 4px;}'
+      + '.sn-label:first-child{margin-top:0;}'
+      + '#sn-elapsed{font-family:ui-monospace,SF Mono,Consolas,monospace;font-size:13px;opacity:.75;float:right;}'
+      + '#sn-current{font-size:20px;margin:0;font-weight:600;}'
+      + '#sn-notes{font-size:15px;line-height:1.55;opacity:.92;white-space:pre-wrap;margin:0;}'
+      + '#sn-next{font-size:15px;opacity:.85;margin:0;}'
+      + '</style></head><body>'
+      + '<span id="sn-elapsed">00:00</span>'
+      + '<p class="sn-label">Now</p><p id="sn-current"></p>'
+      + '<p class="sn-label">Notes</p><p id="sn-notes"></p>'
+      + '<p class="sn-label">Next</p><p id="sn-next"></p>'
+      + '</body></html>';
+
+    function openSpeakerPopup() {
+      if (popupWin && !popupWin.closed) { popupWin.focus(); return; }
+      try {
+        popupWin = window.open('', 'demo-gen-speaker-notes', 'width=440,height=420,resizable=yes');
+      } catch (err) {
+        popupWin = null;
+      }
+      if (!popupWin) { toggleDrawer(true); return; }
+      popupWin.document.open();
+      popupWin.document.write(POPUP_HTML);
+      popupWin.document.close();
+      updatePresenterViews();
+    }
+
+    function toggleDrawer(forceOpen) {
+      var open = typeof forceOpen === 'boolean' ? forceOpen : notesDrawer.hidden;
+      notesDrawer.hidden = !open;
+      if (open) updatePresenterViews();
+    }
+    function closeDrawer() { notesDrawer.hidden = true; }
+    drawerClose.addEventListener('click', closeDrawer);
+
+    function updatePresenterViews() {
+      var cur = slides[currentIndex];
+      var nxt = slides[currentIndex + 1];
+      var curTitle = titleOf(cur);
+      var nextTitle = nxt ? titleOf(nxt) : '— End of deck —';
+      var notes = notesOf(cur) || '(no notes for this slide)';
+
+      if (popupWin && !popupWin.closed) {
+        setText(popupWin.document, 'sn-current', curTitle);
+        setText(popupWin.document, 'sn-next', nextTitle);
+        setText(popupWin.document, 'sn-notes', notes);
+      }
+      if (!notesDrawer.hidden) {
+        setText(document, 'nd-current', curTitle);
+        setText(document, 'nd-next', nextTitle);
+        setText(document, 'nd-notes', notes);
+      }
+    }
+
+    function formatElapsed(ms) {
+      var s = Math.floor(ms / 1000);
+      var m = Math.floor(s / 60);
+      s = s % 60;
+      return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+    setInterval(function () {
+      var text = formatElapsed(Date.now() - startTime);
+      if (!notesDrawer.hidden) setText(document, 'nd-elapsed', text);
+      if (popupWin && !popupWin.closed) setText(popupWin.document, 'sn-elapsed', text);
+    }, 1000);
+
+    /* --- keyboard ------------------------------------------------------------ */
+    document.addEventListener('keydown', function (e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      var key = e.key;
+
+      if (!helpOverlay.hidden) {
+        if (key === 'Escape' || key === '?') { e.preventDefault(); closeHelp(); }
+        return;
+      }
+
+      switch (key) {
+        case 'ArrowRight': case 'ArrowDown': case 'PageDown': case ' ':
+          e.preventDefault(); next(); break;
+        case 'ArrowLeft': case 'ArrowUp': case 'PageUp':
+          e.preventDefault(); prev(); break;
+        case 'Home':
+          e.preventDefault(); first(); break;
+        case 'End':
+          e.preventDefault(); last(); break;
+        case '?':
+          e.preventDefault(); openHelp(); break;
+        case 'f': case 'F':
+          e.preventDefault(); toggleFullscreen(); break;
+        case 's': case 'S':
+          e.preventDefault(); openSpeakerPopup(); break;
+        case 'n': case 'N':
+          e.preventDefault(); toggleDrawer(); break;
+        case 'p': case 'P':
+          e.preventDefault(); window.print(); break;
+        case 'Escape':
+          if (!notesDrawer.hidden) { e.preventDefault(); closeDrawer(); }
+          break;
+      }
+    });
+  })();
+  </script>
+</body>
+</html>
