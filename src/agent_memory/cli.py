@@ -35,6 +35,11 @@ def main(argv=None) -> int:
         help="'work' = employer-specific material (DECISION_LOG D1)",
     )
     p_save.add_argument("--related", help="comma-separated related slugs")
+    p_save.add_argument(
+        "--source",
+        help="provenance citation, e.g. a paper/book/document reference (default: kept from"
+             " the existing concept on --update, else 'ambient (<date>)')",
+    )
     p_save.add_argument("--slug", help="explicit slug (default: derived from --title)")
     p_save.add_argument(
         "--update", action="store_true",

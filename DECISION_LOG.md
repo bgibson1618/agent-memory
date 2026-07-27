@@ -199,3 +199,30 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   reindex preservation); full suite → **101 passed**.
 - **AI involvement:** parent implemented on Brent's direct request ("I want some data on
   how useful this KB actually is").
+
+## D9 — Provenance: every concept carries a `source` citation (2026-07-24)
+
+- **Context:** Brent needs to trace any concept he cites in a proposal back to its
+  source/expert. Provenance existed only as a three-hop join (KB git history → dated
+  run block → run artifacts' chunk maps) plus best-effort inline attribution; ambient
+  saves traced to nothing but a commit date, and no field surfaced in Obsidian or
+  `mem get --json`.
+- **Decision:** `Concept.source` — a free-text citation string in frontmatter, emitted
+  on every serialize. `mem save --source` sets it; a save without it gets
+  `ambient (<date>)`; **an `--update` without `--source` PRESERVES the existing
+  citation** (deliberate divergence from the other clobber-on-update fields:
+  provenance must never silently degrade — the roster-metadata clobber of 2026-07-24
+  motivated the exception). `mem extract` accepts a per-candidate `source` key and
+  stamps `extract (<date>)` when absent. Like `related` (D7), `source` is a mem key,
+  not OKF v0.1 vocabulary — spec-conformant as a free field; parse tolerates its
+  absence so externally-authored files still load. Existing concepts backfilled from
+  run artifacts (`scripts/backfill-source.py`): per-chunk citations where survivor
+  joins exist (mot/cmp), corpus-level citations for single-source runs, cohort
+  segmentation via expert-roster update commits for the brain-lift era, honest
+  `ambient (<date>)` for the rest.
+- **Proof:** `tests/test_source_field.py` (4 tests: round-trip, ambient default,
+  update-preserves + explicit-wins, extract passthrough + extract default); full
+  suite → **105 passed**.
+- **AI involvement:** parent implemented on Brent's direct request ("every concept I
+  submit in a proposal needs to be traced back to an expert"); design (preserve-on-
+  update, ambient/extract defaults) proposed by the agent, accepted by Brent.

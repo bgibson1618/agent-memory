@@ -24,6 +24,7 @@ from agent_memory import blocks, config, gitkb, lexical, okf, ollama, store, vec
 
 CANDIDATE_FIELDS = {
     "title", "body", "description", "topics", "type", "sensitivity", "related", "slug",
+    "source",
 }
 
 
@@ -98,6 +99,7 @@ def _to_concept(item) -> okf.Concept:
         created=stamp,
         updated=stamp,
         related=[okf.slugify(r) for r in _as_list(item.get("related"))],
+        source=str(item.get("source") or "").strip() or f"extract ({stamp[:10]})",
         body=body,
     ).validate()
 

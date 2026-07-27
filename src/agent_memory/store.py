@@ -133,10 +133,17 @@ def _save(args) -> int:
     if args.update:
         existing = load(root, slug)  # errors "no concept '<slug>'" if absent
         created = existing.created
+        prior_source = existing.source
     else:
         if path.exists():
             raise StoreError(f"concept '{slug}' exists - pass --update to modify it")
         created = stamp
+        prior_source = ""
+
+    # Provenance never silently degrades (D9): an update without --source keeps
+    # the existing citation; only a truly unsourced save gets the ambient stamp.
+    source = (getattr(args, "source", None) or "").strip() or prior_source \
+        or f"ambient ({stamp[:10]})"
 
     concept = okf.Concept(
         slug=slug,
@@ -148,6 +155,7 @@ def _save(args) -> int:
         created=created,
         updated=stamp,
         related=[okf.slugify(r) for r in _split_csv(args.related)],
+        source=source,
         body=body,
     )
     text = okf.serialize(concept)

@@ -86,6 +86,7 @@ class Concept:
     created: str
     updated: str
     related: list = field(default_factory=list)
+    source: str = ""  # provenance citation (D9); mem key, not in OKF v0.1 (like related)
     body: str = ""
 
     def __post_init__(self):
@@ -120,6 +121,8 @@ class Concept:
                 isinstance(i, str) and i.strip() for i in items
             ):
                 raise OKFError(f"{name} must be a list of non-empty strings")
+        if not isinstance(self.source, str):
+            raise OKFError("source must be a string")
         if not self.body.strip():
             raise OKFError("empty body")
         return self
@@ -141,6 +144,7 @@ def serialize(concept: Concept) -> str:
         "topics": list(concept.topics),
         "tags": list(concept.topics),  # OKF v0.1 recommended vocabulary (mirror of topics)
         "sensitivity": concept.sensitivity,
+        "source": concept.source,  # provenance citation (D9); "" only in legacy files
         "created": concept.created,
         "updated": concept.updated,
         "timestamp": concept.updated,  # OKF v0.1 recommended vocabulary (mirror of updated)
@@ -199,5 +203,6 @@ def parse(text: str) -> Concept:
         created=created,
         updated=updated,
         related=_as_str_list(front.get("related")),
+        source=_as_str(front.get("source")),
         body=match.group(2).lstrip("\n"),
     ).validate()
