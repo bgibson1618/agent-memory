@@ -226,3 +226,33 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** parent implemented on Brent's direct request ("every concept I
   submit in a proposal needs to be traced back to an expert"); design (preserve-on-
   update, ambient/extract defaults) proposed by the agent, accepted by Brent.
+
+## D10 — Credence axis: typed entries, non-`concept` types marked + filterable at recall (2026-07-27)
+
+- **Context:** Brent will ingest brain lifts from ~65 concurrent Superbuilders
+  projects. These are colleagues' working hypotheses, NOT scientific truth — they must
+  never be laundered into the same epistemic status as the vetted learning-science
+  `concept`s. The two existing axes don't cover this: `sensitivity` is confidentiality
+  (who may see it), `source` is provenance (where it came from), neither is credence
+  (how much to trust it). Cosine similarity is credence-blind — a fused search returns
+  hypotheses and vetted concepts interleaved by relevance alone.
+- **Decision:** credence rides the existing `type` field (free-text; was effectively
+  `concept`/`reference` only). New company-scoped vocabulary: **`sb-project`** (one
+  reference card per project — name, thesis, team, links) and **`sb-position`** (a
+  hypothesis/"spiky point of view" extracted from a project, cited as that project's
+  stance, never as fact). Retrieval stops treating type as invisible: `mem search`
+  marks any non-`concept` type `[<type>]` in text, carries `type` in every `--json`
+  hit (a contract extension — F3/F6 hit-shape tests updated), and `--type a,b`
+  restricts to an allow-list (`--type concept` grounds a proposal only in vetted
+  knowledge). Defense in depth mirrors the anti-launder discipline already used for the
+  rewards controversy and MAW: the marker protects recall, an attributed-voice
+  `description` protects the skim, an attributed body protects the quote. Company-scoped
+  names are acceptable in a local-only personal KB (a future rename is sed + reindex).
+- **Proof:** `tests/test_type_marker.py` (2 tests: text marker + json type present and
+  correct; `--type` allow-list filters); F3/F6 contract tests updated for the new key;
+  full suite → **107 passed**.
+- **AI involvement:** Brent set the requirement and chose the `sb-` vocabulary; the
+  agent proposed the credence-axis framing, the type-rides-`type` mechanism, the
+  recall-time marker/filter (from the `[work]`/`--no-work` template), and the
+  project-card-vs-position split; Brent accepted and refined (`sb-project` =
+  reference data, `sb-position` = underpinning hypotheses).

@@ -59,6 +59,12 @@ def main(argv=None) -> int:
         "--no-work", action="store_true", dest="no_work",
         help="exclude sensitivity:work items entirely",
     )
+    p_search.add_argument(
+        "--type",
+        help="comma-separated allow-list of concept types to return (e.g."
+             " 'concept' to ground only in vetted knowledge, excluding sb-position"
+             " hypotheses and other non-concept types)",
+    )
     p_search.set_defaults(func=search.cmd_search)
 
     p_get = sub.add_parser("get", help="print one concept by slug")

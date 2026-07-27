@@ -272,7 +272,7 @@ def test_hits_keep_contract_one_screen_by_default(mem, kb):
     _, hits = search_json(mem, "gadget")
     assert len(hits) == 10  # default --limit caps the list at one screen
     for hit in hits:
-        assert set(hit) == {"slug", "title", "score", "snippet"}
+        assert set(hit) == {"slug", "title", "type", "score", "snippet"}  # type added D10
         assert isinstance(hit["score"], float) and hit["score"] > 0
     scores = [hit["score"] for hit in hits]
     assert scores == sorted(scores, reverse=True)

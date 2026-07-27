@@ -20,6 +20,10 @@ whether material is employer-proprietary, tag it
 `sensitivity: work` - or don't save it. Work-tagged items appear marked `[work]` in
 results; treat that marker as a handle-with-care signal. `--no-work` excludes
 work-tagged items from search.
+**Credence (type):** search marks non-`concept` types `[<type>]`. `type: concept` is
+vetted knowledge; `type: sb-position` is a Superbuilders project's working hypothesis —
+cite it as that project's stance, never as fact; `type: sb-project` is a project
+reference card. Pass `--type concept` to ground a claim only in vetted knowledge.
 **Extract** knowledge from a document Brent supplies: `mem extract --procedure`
 prints the choreography to follow (approved-vendor subagents only).
 

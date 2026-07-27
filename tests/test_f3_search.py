@@ -74,7 +74,7 @@ def test_hits_carry_slug_title_score_snippet(mem, kb):
     seed(mem)
     hits = search_json(mem, "sourdough starter")
     top = hits[0]
-    assert set(top) == {"slug", "title", "score", "snippet"}
+    assert set(top) == {"slug", "title", "type", "score", "snippet"}  # type added D10
     assert top["slug"] == "sourdough-starter-care"
     assert top["title"] == "Sourdough Starter Care"
     assert isinstance(top["score"], float) and top["score"] > 0

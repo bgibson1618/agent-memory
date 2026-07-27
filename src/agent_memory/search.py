@@ -5,7 +5,12 @@ One query fans out to three legs - FTS5 BM25, cosine over local embeddings,
 into one ranked list (fusion.py). Hits keep the agent-parseable contract
 (slug/title/score/snippet), one screen by default; `sensitivity: work` items
 are marked `[work]` in text and carry a sensitivity field in --json, and
-`--no-work` drops them entirely. A daemon that cannot embed the query costs
+`--no-work` drops them entirely. Retrieval is credence-blind by design (cosine
+has no epistemics), so a non-`concept` type is marked `[<type>]` in text and
+carried in --json - an `sb-position` hypothesis never reads as vetted
+`concept` knowledge at recall time (D10); `--type a,b` restricts results to an
+allow-list of types (e.g. `--type concept` to ground only in vetted knowledge).
+A daemon that cannot embed the query costs
 exactly one warning line - lexical + graph still answer, exit 0: degraded,
 never broken. Empty results stay quiet - exit 0, empty list, one line.
 """
@@ -28,6 +33,7 @@ def cmd_search(args) -> int:
         return 1
 
     pool = max(args.limit, LEG_POOL)
+    type_filter = {t.strip() for t in (getattr(args, "type", None) or "").split(",") if t.strip()}
 
     try:
         conn = lexical.connect(root)
@@ -79,9 +85,12 @@ def cmd_search(args) -> int:
             continue  # deleted or unparseable since the legs ran - no ghost hits
         if args.no_work and concept.sensitivity == "work":
             continue
+        if type_filter and concept.type not in type_filter:
+            continue
         hit = {
             "slug": slug,
             "title": concept.title,
+            "type": concept.type,
             "score": round(score, 4),
             # non-lexical hits have no FTS5 snippet; the description stands in
             "snippet": snippets.get(slug) or concept.description,
@@ -98,7 +107,11 @@ def cmd_search(args) -> int:
         print(f"no matches: {args.query}")
     else:
         for hit in hits:
-            mark = "  [work]" if hit.get("sensitivity") == "work" else ""
-            print(f"{hit['slug']}  {hit['score']:.2f}  {hit['title']}{mark}")
+            marks = ""
+            if hit["type"] != okf.TYPE_DEFAULT:
+                marks += f"  [{hit['type']}]"
+            if hit.get("sensitivity") == "work":
+                marks += "  [work]"
+            print(f"{hit['slug']}  {hit['score']:.2f}  {hit['title']}{marks}")
             print(f"    {hit['snippet']}")
     return 0
