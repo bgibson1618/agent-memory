@@ -10,7 +10,9 @@ then `mem get <slug> --json` for the full concept. No relevant hit: proceed norm
 
 **Save to it** when a session yields a durable, reusable concept (a principle,
 technique, or hard-won explanation - not session trivia or project-local facts):
-`mem save`. Claude Code's built-in memory keeps operational/session facts; the KB owns
+`mem save`. Pass `--source "<citation>"` whenever the knowledge traces to a paper,
+book, doc, or person (provenance is proposal-grade; an omitted source records as
+`ambient`). Claude Code's built-in memory keeps operational/session facts; the KB owns
 durable knowledge - keep pointers between them, never duplicated content.
 
 **Extract from a document** when Brent points you at a paper, article, or doc to

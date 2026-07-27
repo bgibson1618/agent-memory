@@ -51,6 +51,7 @@ nothing else:
 > yield: 2-8 candidates. Return ONLY a JSON array of candidate objects:
 > `[{"title": "...", "body": "markdown, standalone", "description": "one
 > line", "topics": ["..."], "type": "concept", "sensitivity": "normal",
+> "source": "citation of THIS document (author/title/year as known)",
 > "related": ["existing-or-sibling-slug"]}]`
 >
 > {DOCUMENT}

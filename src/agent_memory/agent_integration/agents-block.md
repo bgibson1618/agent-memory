@@ -14,7 +14,9 @@ shared by his coding agents. Use it silently during ordinary work.
 **Search** before designing or explaining a topic Brent may have studied:
 `mem search "<topic>" --json`; `mem get <slug> --json` for the full concept.
 **Save** durable, reusable concepts (principles, techniques, findings - not session
-trivia): `mem save`. When unsure whether material is employer-proprietary, tag it
+trivia): `mem save`. Pass `--source "<citation>"` whenever the knowledge traces to a
+paper, book, doc, or person (an omitted source records as `ambient`). When unsure
+whether material is employer-proprietary, tag it
 `sensitivity: work` - or don't save it. Work-tagged items appear marked `[work]` in
 results; treat that marker as a handle-with-care signal. `--no-work` excludes
 work-tagged items from search.
