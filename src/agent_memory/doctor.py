@@ -100,7 +100,10 @@ def run_checks(mutate: bool = True) -> list[Check]:
         checks.append(Check("embed-model", "skip", "ollama unreachable"))
     else:
         try:
-            dims = ollama.probe_embed_dims(base, model)
+            # The version check above proved the daemon alive, so a slow probe
+            # here means a cold model load, not a hang: the long budget lets
+            # the load complete instead of flapping FAIL right after a restart.
+            dims = ollama.probe_embed_dims(base, model, timeout=ollama.cold_timeout())
             if dims == want_dims:
                 checks.append(Check("embed-model", "ok", f"{model} embeds at {dims} dims"))
             else:

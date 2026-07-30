@@ -10,7 +10,11 @@ has no epistemics), so a non-`concept` type is marked `[<type>]` in text and
 carried in --json - an `sb-position` hypothesis never reads as vetted
 `concept` knowledge at recall time (D10); `--type a,b` restricts results to an
 allow-list of types (e.g. `--type concept` to ground only in vetted knowledge).
-A daemon that cannot embed the query costs
+Hits the semantic leg scored also carry
+`semantic_similarity` in --json (raw cosine; absent for lexical/graph-only
+hits and on degraded searches) - RRF says which hits agree across legs, the
+cosine says how close the best semantic evidence actually is. A daemon that
+cannot embed the query costs
 exactly one warning line - lexical + graph still answer, exit 0: degraded,
 never broken. Empty results stay quiet - exit 0, empty list, one line.
 """
@@ -69,6 +73,12 @@ def cmd_search(args) -> int:
 
     lex_slugs = [hit["slug"] for hit in lex_hits]
     vec_slugs = [slug for slug, _ in vec_hits]
+    # Raw cosine per semantically-scored hit: RRF encodes rank agreement, not
+    # similarity magnitude, so downstream thresholding (is this item actually
+    # CLOSE to anything in the KB?) needs the leg's own score surfaced. Only
+    # the vector leg's pool carries cosines: a hit outside the top `pool`
+    # positive-cosine results has none, and that absence is itself signal.
+    vec_scores = dict(vec_hits)
     seeds = list(dict.fromkeys(lex_slugs + vec_slugs))
     graph_slugs = fusion.graph_leg(graph.load(root), seeds)
 
@@ -95,6 +105,8 @@ def cmd_search(args) -> int:
             # non-lexical hits have no FTS5 snippet; the description stands in
             "snippet": snippets.get(slug) or concept.description,
         }
+        if slug in vec_scores:
+            hit["semantic_similarity"] = round(vec_scores[slug], 4)
         if concept.sensitivity == "work":
             hit["sensitivity"] = "work"
         hits.append(hit)

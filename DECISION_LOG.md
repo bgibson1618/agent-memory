@@ -256,3 +256,44 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   recall-time marker/filter (from the `[work]`/`--no-work` template), and the
   project-card-vs-position split; Brent accepted and refined (`sb-project` =
   reference data, `sb-position` = underpinning hypotheses).
+
+## D11 — Cosine magnitude in search hits + cold-model embed retry (2026-07-30)
+
+- **Context:** expert-wrangler (Brent's digest-tool project) measured that
+  connected-vs-new classification cannot be thresholded on RRF scores: RRF encodes
+  rank agreement across legs, not similarity magnitude, so in a ~1,600-concept KB the
+  top hit's RRF score is nearly constant regardless of whether anything is actually
+  close (measured medians 0.0318 vs 0.0320 across hand-labeled classes; holdout
+  precision 0.375 vs a 0.90 target). Separately, it reported the cold-start class:
+  the query-embed timeout (2.5s) is shorter than a cold Ollama model load (~9-11s
+  measured), and — verified live on 2026-07-30 — an aborted request does NOT leave
+  the model loading, so after a daemon restart every search silently degrades until
+  something else warms the model; `mem doctor`'s 10s probe flapped FAIL the same way.
+- **Decision:** (1) Hits the vector leg scored carry `semantic_similarity` (raw
+  cosine, rounded like `score`) in `--json` — additive, conditional-key like
+  `sensitivity`; absent on lexical/graph-only hits, zero-evidence queries, and
+  degraded searches, where absence is itself signal. Only the leg's top
+  `max(limit,10)` positive-cosine hits carry it (documented caveat). (2) Cold-model
+  retry, health-check-gated: `ollama.embed` raises `OllamaTimeout` (subclass) on
+  timeout; the query path then proves the daemon alive via a 0.5s version check and
+  retries ONCE on `MEM_EMBED_COLD_TIMEOUT` (default 60s), holding the connection open
+  so the load completes and sticks. A dead/hung daemon fails the version check and
+  still costs ~one timeout — the original "hung daemon costs ~one timeout" invariant
+  survives (raising QUERY_TIMEOUT instead would have spent the whole budget on every
+  hung-daemon search). `mem doctor`'s embed probe rides the cold budget outright (its
+  preceding version check already proved liveness; a diagnostic must not flap on a
+  healthy-but-cold daemon). Save path and opportunistic drain deliberately untouched
+  (0.5s + durable queue is correct there). The degraded-path stderr marker
+  `semantic leg skipped` is preserved verbatim (expert-wrangler string-matches it);
+  the retry notice is a distinct line.
+- **Proof:** `tests/test_cold_retry.py` (cold search retries and recovers semantics;
+  hung daemon degrades fast with the verbatim marker; doctor survives cold model;
+  negative control pins the probe to the cold budget); `test_f6_fusion.py`
+  semantic_similarity per-leg presence/absence; full suite → **112 passed**. Live:
+  cold search 15.0s total with real results (pre-fix: degraded at 3.3s and model
+  still unloaded 20s later); cold `mem doctor` 9/9 in 10.9s on a ~11s load that the
+  old 10s probe would have flapped on.
+- **AI involvement:** requirements arrived as a written request from the
+  expert-wrangler orchestrator (repo-root note, 2026-07-29) relayed by Brent; the
+  agent proposed the conditional-key shape, the OllamaTimeout/health-check-gated
+  retry, and the doctor budget; Brent approved the batch.

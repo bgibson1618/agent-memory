@@ -18,10 +18,22 @@ import urllib.request
 VERSION_TIMEOUT = 2.0
 EMBED_TIMEOUT = 10.0
 TAGS_TIMEOUT = 2.0
+COLD_EMBED_TIMEOUT = 60.0  # one-retry budget for a cold model load (daemon restart)
 
 
 class OllamaError(Exception):
     """One-line, user-facing Ollama failure."""
+
+
+class OllamaTimeout(OllamaError):
+    """An embed that timed out - the one failure where 'daemon hung' and
+    'daemon healthy, model still loading' are indistinguishable to the caller.
+    Callers with latency headroom (query, doctor) health-check and retry on
+    this; every other OllamaError is definitive and must not be retried."""
+
+
+def cold_timeout() -> float:
+    return float(os.environ.get("MEM_EMBED_COLD_TIMEOUT", str(COLD_EMBED_TIMEOUT)))
 
 
 def _require_loopback(base_url: str) -> None:
@@ -46,6 +58,11 @@ def _reason(exc: OSError) -> str:
     if isinstance(reason, TimeoutError):
         return "timed out"
     return str(reason)
+
+
+def _is_timeout(exc: OSError) -> bool:
+    reason = exc.reason if isinstance(exc, urllib.error.URLError) else exc
+    return isinstance(reason, TimeoutError)
 
 
 def check_version(base_url: str, timeout: float = VERSION_TIMEOUT) -> str:
@@ -90,7 +107,10 @@ def embed(base_url: str, model: str, texts: list, timeout: float = EMBED_TIMEOUT
             f"embed model '{model}' unusable at {base_url}: {msg or f'HTTP {e.code}'}"
         ) from e
     except (OSError, ValueError) as e:
-        raise OllamaError(f"embed request to {base_url} failed ({_reason(e) if isinstance(e, OSError) else e})") from e
+        msg = f"embed request to {base_url} failed ({_reason(e) if isinstance(e, OSError) else e})"
+        if isinstance(e, OSError) and _is_timeout(e):
+            raise OllamaTimeout(msg) from e
+        raise OllamaError(msg) from e
     embeddings = data.get("embeddings") or []
     if len(embeddings) != len(texts) or not all(isinstance(v, list) and v for v in embeddings):
         raise OllamaError(f"no embedding returned for model '{model}'")

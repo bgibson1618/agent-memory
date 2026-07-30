@@ -25,7 +25,9 @@ FULL_DRAIN_TIMEOUT = 30.0  # doctor/reindex per-item budget, seconds
 HEALTH_TIMEOUT = 0.5       # pre-drain daemon health check budget, seconds
 QUERY_TIMEOUT = 2.5        # query-embed budget, seconds (inside NFR's <3s cold search;
                            # must survive Ollama's num_ctx-change model reload, the
-                           # wave-4 walkthrough finding - see BUILD_LOG)
+                           # wave-4 walkthrough finding - see BUILD_LOG). A cold MODEL
+                           # load (daemon restart) exceeds this: _embed_query proves
+                           # the daemon alive, then retries once on the cold budget.
 EMBED_MAX_CHARS = 32000    # ~8k tokens, the nomic num_ctx ceiling
 
 # One failed daemon contact per process is enough evidence to skip further
@@ -257,6 +259,25 @@ def query_timeout() -> float:
     return float(os.environ.get("MEM_EMBED_QUERY_TIMEOUT", str(QUERY_TIMEOUT)))
 
 
+def _embed_query(base: str, model: str, text: str, timeout: float) -> list:
+    """Embed the query, riding out a cold model load. A timeout alone cannot
+    distinguish a hung daemon from a healthy one still loading the model
+    (daemon restart), and an aborted request does not leave the model loaded -
+    so on timeout, a fast version check proves the daemon is alive, then one
+    long-budget retry holds the connection open for the load to complete. A
+    dead/hung daemon fails the version check and still costs ~one timeout."""
+    try:
+        return ollama.embed(base, model, [text], timeout=timeout)[0]
+    except ollama.OllamaTimeout:
+        ollama.check_version(base, timeout=HEALTH_TIMEOUT)
+        budget = ollama.cold_timeout()
+        print(
+            f"warning: embed model loading; retrying query embed (up to {budget:.0f}s)",
+            file=sys.stderr,
+        )
+        return ollama.embed(base, model, [text], timeout=budget)[0]
+
+
 def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> list:
     """The vector leg: brute-force cosine over stored vectors, best first.
     Returns [(slug, score), ...]; raises ollama.OllamaError when the daemon
@@ -268,11 +289,11 @@ def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> l
         meta = get_meta(con)
         if meta is None:
             return []
-        qvec = ollama.embed(
+        qvec = _embed_query(
             config.ollama_base_url(), config.embed_model(),
-            ["search_query: " + query],
-            timeout=timeout if timeout is not None else query_timeout(),
-        )[0]
+            "search_query: " + query,
+            timeout if timeout is not None else query_timeout(),
+        )
         if len(qvec) != int(meta.get("dims", 0)):
             raise VectorError(
                 f"query embedding dims {len(qvec)} != index dims {meta.get('dims')} - run: mem reindex"

@@ -245,6 +245,35 @@ def test_work_items_marked_and_no_work_excludes(mem, kb, fusion_ollama):
     assert "pipeline-hygiene-notes" in slugs
 
 
+def test_semantic_similarity_carried_per_hit(mem, kb, fusion_ollama):
+    """Raw cosine rides --json on hits the vector leg scored (RRF encodes rank
+    agreement, not magnitude - downstream connect/new thresholding needs the
+    leg's own score). Absent on graph-only hits, on zero-evidence queries, and
+    on degraded searches - absence is itself signal."""
+    env = {"MEM_OLLAMA_URL": fusion_ollama.url}
+    seed(mem, env)
+
+    _, hits = search_json(mem, "servicing schedule", env_extra=env)
+    by_slug = {hit["slug"]: hit for hit in hits}
+    # WAGON: lexical + semantic ("servicing" shares a synonym class) - exact
+    # class match, cosine 1.0. SEDAN: semantic evidence only, partial overlap.
+    assert by_slug[WAGON]["semantic_similarity"] == pytest.approx(1.0, abs=1e-3)
+    assert 0.0 < by_slug[SEDAN]["semantic_similarity"] < 1.0
+    # BRAKE surfaced by the graph leg alone: no cosine to report.
+    assert "semantic_similarity" not in by_slug[BRAKE]
+
+    # Zero-evidence query: embeds to zero, vector leg empty, field nowhere.
+    _, zero_hits = search_json(mem, "zorbofrob calibration", env_extra=env)
+    assert all("semantic_similarity" not in hit for hit in zero_hits)
+
+    # Degraded search (daemon down): field nowhere, list still valid.
+    result = mem("search", "servicing schedule", "--json")  # closed port
+    assert result.returncode == 0
+    assert all(
+        "semantic_similarity" not in hit for hit in json.loads(result.stdout)
+    )
+
+
 def test_daemon_down_degrades_to_lexical_plus_graph_one_warning(mem, kb, fusion_ollama):
     env = {"MEM_OLLAMA_URL": fusion_ollama.url}
     seed(mem, env)  # vectors + metadata stamped while the daemon is up
