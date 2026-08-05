@@ -4,7 +4,7 @@ import argparse
 import subprocess
 import sys
 
-from agent_memory import __version__, config, doctor, extract, initcmd, reindex, search, store, usage, vector
+from agent_memory import __version__, config, doctor, extract, graph, initcmd, reindex, search, store, usage, vector
 
 
 def main(argv=None) -> int:
@@ -102,6 +102,12 @@ def main(argv=None) -> int:
         " markdown; drain all queued embeddings",
     )
     p_reindex.set_defaults(func=reindex.cmd_reindex)
+
+    p_links = sub.add_parser(
+        "links", help="link health: report dangling wikilink/related targets"
+    )
+    p_links.add_argument("--json", action="store_true", help="machine-readable report")
+    p_links.set_defaults(func=graph.cmd_links)
 
     p_stats = sub.add_parser("stats", help="usage counts from the local invocation log (D8)")
     p_stats.add_argument("--days", type=int, default=30, help="window in days (default 30)")

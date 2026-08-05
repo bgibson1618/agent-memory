@@ -13,6 +13,7 @@ exactly what Obsidian links by.
 import json
 import os
 import re
+import sys
 from pathlib import Path
 
 from agent_memory import okf
@@ -129,6 +130,20 @@ class Graph:
     def _title(self, slug: str) -> str:
         return self.records[slug]["title"]
 
+    def dangling(self) -> dict:
+        """{unresolved target -> sorted referencing slugs} for every wikilink/
+        related edge whose target has no concept file. Dangling links are not
+        an error by themselves (a link to a concept worth writing later is a
+        legitimate Obsidian idiom) but they earn no graph-leg credit and they
+        spawn blank notes when clicked in a vault - so they stay visible."""
+        out = {}
+        for slug, record in self.records.items():
+            for target in record["links"] + record["related"]:
+                if target not in self.records:
+                    refs = out.setdefault(target, set())
+                    refs.add(slug)
+        return {target: sorted(refs) for target, refs in sorted(out.items())}
+
     def neighbors(self, slug: str) -> dict:
         """Link- and topic-neighbors of one concept - existing files only,
         so edges to deleted or dangling targets never surface."""
@@ -174,3 +189,31 @@ class Graph:
                     }
                 )
         return {"links": links, "topics": topics}
+
+
+def cmd_links(args) -> int:
+    """`mem links` - link-health report: dangling wikilink/related targets.
+    Always exits 0: unresolved links are a curation signal, not a failure."""
+    from agent_memory import config, store  # deferred: store imports graph
+
+    root = config.kb_root()
+    try:
+        store.require_kb(root)
+    except store.StoreError as e:
+        print(f"error: {e}", file=sys.stderr)
+        return 1
+
+    report = load(root).dangling()
+    references = sum(len(refs) for refs in report.values())
+    if getattr(args, "json", False):
+        print(json.dumps(
+            {"targets": len(report), "references": references, "dangling": report},
+            indent=2, ensure_ascii=False,
+        ))
+    elif not report:
+        print("links: every wikilink/related target resolves")
+    else:
+        for target, refs in report.items():
+            print(f"{target}  <- {', '.join(refs)}")
+        print(f"links: {len(report)} dangling target(s) across {references} reference(s)")
+    return 0

@@ -8,7 +8,7 @@ import json
 import sqlite3
 from dataclasses import asdict, dataclass
 
-from agent_memory import blocks, config, gitkb, ollama, vector
+from agent_memory import blocks, config, gitkb, graph, ollama, vector
 
 
 @dataclass
@@ -150,6 +150,29 @@ def run_checks(mutate: bool = True) -> list[Check]:
                 checks.append(
                     Check("embed-queue", "fail", f"{remaining} embedding(s) stuck: {error}")
                 )
+
+    # Link health is informational, never a failure: a dangling link can be a
+    # deliberate worth-writing-later marker. The count stays visible in every
+    # doctor run so drift cannot regrow silently (D12); `mem links` details it.
+    if not kb_ok:
+        checks.append(Check("dangling-links", "skip", "no KB home", required=False))
+    else:
+        report = graph.load(root).dangling()
+        if not report:
+            checks.append(
+                Check("dangling-links", "ok", "every wikilink/related target resolves", required=False)
+            )
+        else:
+            references = sum(len(refs) for refs in report.values())
+            checks.append(
+                Check(
+                    "dangling-links",
+                    "ok",
+                    f"{len(report)} unresolved target(s) across {references} reference(s)"
+                    " - informational; detail: mem links",
+                    required=False,
+                )
+            )
 
     return checks
 

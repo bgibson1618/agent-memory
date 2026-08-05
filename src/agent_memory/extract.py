@@ -17,10 +17,15 @@ printed by `mem extract --procedure`.
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
 from agent_memory import blocks, config, gitkb, lexical, okf, ollama, store, vector
+
+# Mirrors graph._WIKILINK_RE, but captures the |alias / #heading tail so a
+# remap preserves it: [[target]], [[target|alias]], [[target#heading]].
+_LINK_RE = re.compile(r"\[\[([^\[\]#|]+)([#|][^\[\]]*)?\]\]")
 
 CANDIDATE_FIELDS = {
     "title", "body", "description", "topics", "type", "sensitivity", "related", "slug",
@@ -154,6 +159,35 @@ def _save_novel(root: Path, concept: okf.Concept) -> tuple:
     return concept, slug != base
 
 
+def _remap_links(concept: okf.Concept, rename: dict) -> int:
+    """Rewrite the concept's wikilinks and related entries whose (slugified)
+    target is a batch-mate that landed elsewhere. Returns rewritten count."""
+    count = 0
+
+    def sub(m):
+        nonlocal count
+        try:
+            slug = okf.slugify(m.group(1))
+        except okf.OKFError:
+            return m.group(0)
+        new = rename.get(slug)
+        if not new or new == slug:
+            return m.group(0)
+        count += 1
+        return f"[[{new}{m.group(2) or ''}]]"
+
+    concept.body = _LINK_RE.sub(sub, concept.body)
+    related = []
+    for entry in concept.related:
+        new = rename.get(entry, entry)
+        if new != entry:
+            count += 1
+        if new not in related:
+            related.append(new)
+    concept.related = related
+    return count
+
+
 def _store_vector(con, slug: str, text: str, vec: list) -> None:
     """Store the candidate's already-computed embedding (meta was verified
     against the current model before the batch started)."""
@@ -248,9 +282,16 @@ def _extract(args) -> int:
 
             import numpy as np
 
+            # Links to batch-mates follow the batch-mate wherever it lands
+            # (D12): a skipped duplicate's slug remaps to its match, a
+            # suffixed save's intended slug to the actual one - so an extract
+            # can never mint a link to a slug it decided not to create.
+            rename = {}  # never-landed candidate slug -> slug carrying the concept
+            saved = []   # (result index, concept) saved this batch, for the remap
             for (i, concept), text, vec in zip(valid, texts, vecs):
                 match, similarity = _best_match(vec, entries)
                 if match is not None and similarity >= threshold:
+                    rename[concept.slug] = match
                     results[i] = {
                         "index": i,
                         "title": concept.title,
@@ -259,6 +300,7 @@ def _extract(args) -> int:
                         "similarity": round(similarity, 4),
                     }
                     continue
+                intended = concept.slug
                 concept, suffixed = _save_novel(root, concept)
                 _store_vector(con, concept.slug, text, vec)
                 q = np.asarray(vec, dtype=np.float32)
@@ -271,13 +313,49 @@ def _extract(args) -> int:
                     "path": str(store.concept_path(root, concept.slug)),
                 }
                 if suffixed:
+                    rename[intended] = concept.slug
                     results[i]["note"] = "slug taken by a distinct concept - saved under a fresh slug"
+                saved.append((i, concept))
+
+            remapped = []  # (slug, new embed text) - vectors must follow bodies
+            for i, concept in saved:
+                if not rename:
+                    break
+                changed = _remap_links(concept, rename)
+                if changed == 0:
+                    continue
+                path = store.concept_path(root, concept.slug)
+                with store.write_lock(root):
+                    store.atomic_write(path, okf.serialize(concept))
+                    gitkb.commit_path(
+                        root, f"concepts/{concept.slug}.md",
+                        f"mem extract: link remap {concept.slug}",
+                    )
+                    lexical.record_save(root, concept, path)
+                results[i]["remapped_links"] = changed
+                remapped.append((concept.slug, vector.embed_text(concept)))
+            if remapped:
+                # Re-embed rewritten bodies so stored content hashes stay
+                # true; on daemon trouble fall back to the durable queue.
+                try:
+                    revecs = ollama.embed(
+                        config.ollama_base_url(), config.embed_model(),
+                        [text for _, text in remapped],
+                        timeout=vector.FULL_DRAIN_TIMEOUT,
+                    )
+                    for (slug, text), vec in zip(remapped, revecs):
+                        _store_vector(con, slug, text, vec)
+                except ollama.OllamaError:
+                    for slug, _ in remapped:
+                        vector.enqueue(con, slug)
+                    con.commit()
         finally:
             con.close()
 
     counts = {"added": 0, "skipped-duplicate": 0, "invalid": 0}
     for r in results:
         counts[r["disposition"]] += 1
+    links_remapped = sum(r.get("remapped_links", 0) for r in results if r)
 
     if args.json:
         print(json.dumps(
@@ -286,6 +364,7 @@ def _extract(args) -> int:
                 "added": counts["added"],
                 "skipped_duplicate": counts["skipped-duplicate"],
                 "invalid": counts["invalid"],
+                "links_remapped": links_remapped,
                 "results": results,
             },
             indent=2, ensure_ascii=False,
@@ -303,8 +382,11 @@ def _extract(args) -> int:
             else:
                 who = f"candidate #{r['index'] + 1}" + (f" ({r['title']})" if r["title"] else "")
                 print(f"invalid: {who} - {r['reason']}")
-        print(
+        summary = (
             f"extract: {counts['added']} added, {counts['skipped-duplicate']}"
             f" skipped-duplicate, {counts['invalid']} invalid"
         )
+        if links_remapped:
+            summary += f", {links_remapped} link(s) remapped to dedup/suffix targets"
+        print(summary)
     return 0
