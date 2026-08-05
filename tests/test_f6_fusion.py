@@ -22,10 +22,10 @@ Single-leg fixtures:
 
 import json
 import re
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
+
+from fakes import FakeOllamaServer
 
 from agent_memory import config, lexical, vector
 
@@ -56,70 +56,10 @@ def semantic_vec(text: str, dims: int) -> list:
     return vec
 
 
-class FusionOllama:
-    """Localhost Ollama double: /api/version, /api/tags, /api/embed with the
-    zero-fallback semantic embedding above."""
-
-    def __init__(self, dims: int = DIMS, model: str = MODEL):
-        srv = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
-
-            def _send(self, code, payload):
-                body = json.dumps(payload).encode("utf-8")
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-
-            def do_GET(self):
-                if self.path == "/api/version":
-                    self._send(200, {"version": "0.0.0-fake"})
-                elif self.path == "/api/tags":
-                    self._send(
-                        200,
-                        {"models": [{"name": srv.model, "model": srv.model, "digest": DIGEST}]},
-                    )
-                else:
-                    self._send(404, {"error": "not found"})
-
-            def do_POST(self):
-                length = int(self.headers.get("Content-Length") or 0)
-                raw = self.rfile.read(length)
-                if self.path != "/api/embed":
-                    self._send(404, {"error": "not found"})
-                    return
-                try:
-                    body = json.loads(raw or b"{}")
-                except ValueError:
-                    body = {}
-                if body.get("model") != srv.model:
-                    self._send(404, {"error": f"model '{body.get('model')}' not found"})
-                    return
-                texts = body.get("input")
-                if isinstance(texts, str):
-                    texts = [texts]
-                self._send(
-                    200,
-                    {
-                        "model": srv.model,
-                        "embeddings": [semantic_vec(t, srv.dims) for t in texts or []],
-                    },
-                )
-
-        self.dims = dims
-        self.model = model
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
-        self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self._thread.start()
-
-    def stop(self):
-        self.server.shutdown()
-        self.server.server_close()
+def FusionOllama(dims: int = DIMS, model: str = MODEL) -> FakeOllamaServer:
+    """Zero-fallback semantic double (unknown words embed to the zero
+    vector - what makes a lexical-only fixture constructible)."""
+    return FakeOllamaServer(dims=dims, model=model, embed_fn=semantic_vec, digest=DIGEST)
 
 
 @pytest.fixture
@@ -309,3 +249,60 @@ def test_hits_keep_contract_one_screen_by_default(mem, kb):
     text = mem("search", "gadget")
     assert text.returncode == 0
     assert len(text.stdout.splitlines()) <= 24  # one screen by default
+
+
+def test_filters_widen_leg_pool_instead_of_starving_results(mem, kb):
+    """The 2026-08-05 quality-review recall cliff: with a filter active, the
+    top of every leg can be entirely filtered types while a real match sits
+    below the default pool depth. The pool must widen so filtering selects
+    from a deeper field."""
+    assert mem("init").returncode == 0  # daemon down: lexical leg only
+    for i in range(12):  # strong, work-tagged matches fill the default pool
+        result = mem(
+            "save", "--title", f"Gadget internals {i}",
+            "--body", f"Gadget gadget gadget deep dive number {i}.",
+            "--sensitivity", "work",
+        )
+        assert result.returncode == 0, result.stderr
+    result = mem(
+        "save", "--title", "Public teardown notes",
+        "--body", "One public gadget reference among many internal ones.",
+    )
+    assert result.returncode == 0, result.stderr
+
+    result = mem("search", "gadget", "--no-work", "--json")
+    assert result.returncode == 0, result.stderr
+    slugs = [hit["slug"] for hit in json.loads(result.stdout)]
+    assert "public-teardown-notes" in slugs, slugs
+
+
+def test_corrupt_vector_store_degrades_search_not_breaks(mem, kb, monkeypatch, fusion_ollama):
+    """A corrupt derived index is recoverable state (mem reindex) and must
+    degrade the semantic leg with the standard marker, never traceback."""
+    import io
+    import sqlite3 as _sqlite3
+    from contextlib import redirect_stderr, redirect_stdout
+    from types import SimpleNamespace
+
+    from agent_memory import search as search_mod
+    from agent_memory import vector
+
+    env = {"MEM_OLLAMA_URL": fusion_ollama.url}
+    seed(mem, env)
+    use_kb_env(monkeypatch, kb, fusion_ollama.url)
+
+    def corrupt_top_k(*a, **kw):
+        raise _sqlite3.DatabaseError("database disk image is malformed")
+
+    monkeypatch.setattr(vector, "top_k", corrupt_top_k)
+    out, err = io.StringIO(), io.StringIO()
+    with redirect_stdout(out), redirect_stderr(err):
+        rc = search_mod.cmd_search(SimpleNamespace(
+            query="servicing schedule", limit=10, json=True, no_work=False, type=None,
+        ))
+    assert rc == 0
+    warnings = [l for l in err.getvalue().splitlines() if l.startswith("warning:")]
+    assert len(warnings) == 1, err.getvalue()
+    assert warnings[0].startswith("warning: semantic leg skipped")
+    assert "mem reindex" in warnings[0]
+    assert json.loads(out.getvalue()), "lexical+graph still answer"

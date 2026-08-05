@@ -5,73 +5,20 @@ in a subprocess with a scratch HOME, and Ollama states (up / down / wrong-model 
 wrong-dims) are simulated on localhost.
 """
 
-import json
 import os
 import socket
 import subprocess
 import sys
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
 
-DEFAULT_MODEL = "nomic-embed-text:v1.5"
+from fakes import DEFAULT_MODEL, FakeOllamaServer
 
-
-class FakeOllama:
-    """Minimal localhost Ollama double: /api/version + /api/embed."""
-
-    def __init__(self, dims: int = 768, model: str = DEFAULT_MODEL):
-        self.dims = dims
-        self.model = model
-        srv = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
-
-            def _send(self, code, payload):
-                body = json.dumps(payload).encode("utf-8")
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-
-            def do_GET(self):
-                if self.path == "/api/version":
-                    self._send(200, {"version": "0.0.0-fake"})
-                else:
-                    self._send(404, {"error": "not found"})
-
-            def do_POST(self):
-                if self.path != "/api/embed":
-                    self._send(404, {"error": "not found"})
-                    return
-                length = int(self.headers.get("Content-Length") or 0)
-                try:
-                    body = json.loads(self.rfile.read(length) or b"{}")
-                except ValueError:
-                    body = {}
-                if body.get("model") != srv.model:
-                    self._send(
-                        404,
-                        {"error": f"model '{body.get('model')}' not found, try pulling it first"},
-                    )
-                    return
-                self._send(200, {"model": srv.model, "embeddings": [[0.1] * srv.dims]})
-
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
-        self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-
-    def start(self):
-        self._thread.start()
-
-    def stop(self):
-        self.server.shutdown()
-        self.server.server_close()
+class FakeOllama(FakeOllamaServer):
+    """Minimal double (flat constant embeddings, no /api/tags) - the shared
+    parameterized server in fakes.py; suites needing meaning-shaped embeddings
+    pass their own embed_fn there."""
 
 
 @pytest.fixture

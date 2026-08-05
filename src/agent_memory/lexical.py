@@ -12,9 +12,7 @@ import sqlite3
 import sys
 from pathlib import Path
 
-from agent_memory import okf
-
-DB_NAME = "mem.db"
+from agent_memory import indexdb, okf
 
 # bm25() weights per column: slug (UNINDEXED, ignored), title, description, body, topics.
 _BM25_WEIGHTS = "0.0, 4.0, 2.0, 1.0, 2.0"
@@ -36,11 +34,7 @@ def db_path(root: Path) -> Path:
 
 
 def connect(root: Path) -> sqlite3.Connection:
-    path = db_path(root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path, timeout=5.0, isolation_level=None)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    conn = indexdb.connect(root, autocommit=True)
     for statement in _SCHEMA:
         conn.execute(statement)
     return conn

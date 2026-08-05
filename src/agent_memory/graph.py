@@ -126,6 +126,17 @@ class Graph:
 
     def __init__(self, records: dict):
         self.records = records
+        # Reverse adjacency + topic membership, built in one O(N) pass:
+        # neighbors() used to rescan every record per seed (O(seeds × N) per
+        # search - fine at 1.7K concepts, dominant at 20K+), for information
+        # that never changes within a Graph's lifetime.
+        self._backlinks = {}
+        self._topic_members = {}
+        for slug, record in records.items():
+            for target in set(record["links"]) | set(record["related"]):
+                self._backlinks.setdefault(target, set()).add(slug)
+            for topic in record["topics"]:
+                self._topic_members.setdefault(topic, []).append(slug)
 
     def _title(self, slug: str) -> str:
         return self.records[slug]["title"]
@@ -164,9 +175,8 @@ class Graph:
             add(target, "wikilink")
         for target in me["related"]:
             add(target, "related")
-        for other, record in self.records.items():
-            if other != slug and (slug in record["links"] or slug in record["related"]):
-                add(other, "backlink")
+        for other in sorted(self._backlinks.get(slug, ())):
+            add(other, "backlink")
 
         links = [
             {"slug": neighbor, "title": self._title(neighbor), "via": kinds}
@@ -175,9 +185,7 @@ class Graph:
         topics = []
         for topic in me["topics"]:
             members = sorted(
-                other
-                for other, record in self.records.items()
-                if other != slug and topic in record["topics"]
+                other for other in self._topic_members.get(topic, ()) if other != slug
             )
             if members:
                 topics.append(

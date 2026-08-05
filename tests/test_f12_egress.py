@@ -200,3 +200,23 @@ def test_full_surface_inside_loopback_only_namespace(tmp_path):
     # Ollama endpoint - one loopback (host, port), nothing else, ever.
     assert len(report["up_peers"]) == 1 and report["up_peers"][0][0] == "127.0.0.1"
     assert report["remote_inet_attempts"] == 0
+
+
+def test_netns_driver_covers_full_cli_surface():
+    """The zero-egress proof must grow with the CLI (the 2026-08-05 checkpoint
+    finding): every `mem` subcommand the parser registers must appear as a
+    driver invocation, so a new command can never silently outgrow the
+    "full command surface" guarantee."""
+    import re
+
+    from agent_memory import cli
+
+    cli_src = Path(cli.__file__).read_text(encoding="utf-8")
+    commands = set(re.findall(r'add_parser\(\s*"(\w+)"', cli_src))
+    driver_src = DRIVER.read_text(encoding="utf-8")
+    exercised = set(re.findall(r'mem\(\w+, "(\w+)"', driver_src))
+    missing = commands - exercised
+    assert not missing, (
+        f"CLI subcommands missing from the netns driver: {sorted(missing)}"
+        " - extend tests/f12_netns_driver.py before shipping the new command"
+    )

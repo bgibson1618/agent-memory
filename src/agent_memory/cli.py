@@ -3,6 +3,7 @@
 import argparse
 import subprocess
 import sys
+import time
 
 from agent_memory import __version__, config, doctor, extract, graph, initcmd, reindex, search, store, usage, vector
 
@@ -114,8 +115,7 @@ def main(argv=None) -> int:
     p_stats.set_defaults(func=usage.cmd_stats)
 
     args = parser.parse_args(argv)
-    import time as _time
-    _t0 = _time.monotonic()
+    _t0 = time.monotonic()
     try:
         rc = args.func(args)
     except FileNotFoundError as e:
@@ -133,7 +133,7 @@ def main(argv=None) -> int:
 
     if args.command not in ("init", "stats"):
         usage.log_event(config.kb_root(), args.command, args, rc,
-                        int((_time.monotonic() - _t0) * 1000))
+                        int((time.monotonic() - _t0) * 1000))
 
     # Bounded opportunistic drain: any ordinary invocation moves the embed
     # queue along a little; doctor/reindex drain fully themselves.

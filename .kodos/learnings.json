@@ -4,20 +4,26 @@
     {
       "id": "L1",
       "category": "verification",
-      "applies_when": "a feature ships instruction text, docs, or installed blocks that name CLI flags or behavior owned by a later feature",
+      "applies_when": "any change that grows or shrinks the CLI/schema surface",
       "symptoms": [
-        "instruction block",
-        "AGENTS.md",
-        "CLAUDE.md",
-        "installs",
         "--no-work",
+        "AGENTS.md",
+        "ARCHITECTURE contract",
+        "CLAUDE.md",
+        "add_parser",
         "agent integration",
-        "managed block"
+        "components table",
+        "frontmatter field",
+        "installs",
+        "instruction block",
+        "managed block",
+        "new subcommand"
       ],
-      "lesson": "Check installed instruction/doc artifacts against the ACTUAL CLI surface at reconcile - a proved feature's shipped text can advertise a sibling's unbuilt flag, putting doc reality ahead of implementation.",
+      "lesson": "Doc/contract artifacts and the ACTUAL CLI surface skew in BOTH directions: shipped text can advertise an unbuilt flag (docs ahead of code), and post-closeout growth (new subcommands, new frontmatter fields) leaves component contracts stale (code ahead of docs). Re-true the contract tables in the same commit that grows the surface; a checkpoint reviewer reading only prose will find it otherwise.",
       "source": "BUILD_LOG.md wave 3 checkpoint finding 1 (kodos-sanity-w3-20260721)",
       "seam": "checkpoint",
-      "captured_at": "2026-07-21T22:45:00Z"
+      "captured_at": "2026-07-21T22:45:00Z",
+      "updated_at": "2026-08-05T19:28:30Z"
     },
     {
       "id": "L2",
@@ -143,6 +149,23 @@
       "source": "sanity 2026-07-24 finding 3 (IMPLEMENTATION.md:5 vs state F10/F11 evidence)",
       "seam": "checkpoint",
       "captured_at": "2026-07-24T16:34:27Z"
+    },
+    {
+      "id": "L9",
+      "category": "process",
+      "applies_when": "a proof or guard claims to cover 'the full surface' of an enumerable set",
+      "symptoms": [
+        "full command surface",
+        "full surface",
+        "zero-egress",
+        "netns driver",
+        "enumerated commands",
+        "coverage claim"
+      ],
+      "lesson": "A proof that enumerates its coverage by hand goes stale the day the surface grows: derive the enumeration from the source of truth or pin it with a parity test (driver coverage == subparser set), so a new element fails the suite instead of silently escaping the guarantee.",
+      "source": "2026-08-05 standalone sanity checkpoint, drift finding 2 (F12); remediation commit pending",
+      "seam": "checkpoint",
+      "captured_at": "2026-08-05T19:28:30Z"
     }
   ]
 }

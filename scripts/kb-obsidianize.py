@@ -5,8 +5,9 @@ Bodies are never touched; only lines inside the leading --- block.
 """
 import glob, re, sys
 
+if len(sys.argv) != 2 or sys.argv[1] not in ("links", "kebab"):
+    sys.exit("usage: kb-obsidianize.py links|kebab")
 MODE = sys.argv[1]
-assert MODE in ("links", "kebab")
 
 def kebab(s):
     s = s.strip().strip('"').strip("'").lower()

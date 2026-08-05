@@ -308,3 +308,26 @@ confirmation" was resolved 2026-07-22 — see DECISION_LOG "D2 — Amended: conf
 against the official spec" (the question dissolved; OKF is a public standard). An external
 doc-sweep on 2026-07-24 was misled by the stale caveat, which is what triggered this checkpoint.
 Learnings L7-L8 captured at the checkpoint seam; `run.needs_you` cleared.
+
+## 2026-08-05 — standalone sanity checkpoint (post-D13) + full remediation
+
+Checkpoint (tree scope, roster verifiers): deterministic validators clean; drift
+reviewer returned 2 CONFIRMED findings, both independently VALIDATED → needs_you
+tripped. Findings: (1) ARCHITECTURE component contracts stale vs D8–D13 code (cli
+listed 8 of 10 commands; okf row lacked `source`); (2) the F12 "full `mem` surface"
+zero-egress enumeration no longer covered `links`/`stats`. Quality reviewer: 0
+hazards ("unusually healthy"), 6 improvements + 6 nits — all promoted by Brent
+("fix it all").
+
+Remediation (same session): ARCHITECTURE re-trued (10 commands, `source` field);
+netns driver extended to the full 10-command surface + a parity test pinning driver
+coverage == subparser set (kills the recurrence class); filter-aware leg-pool
+widening (recall cliff) + test; backup sweep now under the KB write lock (F7 race);
+Graph precomputes reverse adjacency (O(N) once vs O(seeds×N) per search); six
+fake-Ollama doubles consolidated into tests/fakes.py; get/list --json report the
+resolved file stem; corrupt vector DB degrades the semantic leg with the standard
+marker + test; nits (module-level time import, shared indexdb seam, vector.check_meta,
+initcmd reuses warn_if_remote, kb-obsidianize usage guard, scripts/one-shots/,
+backup stderr no longer discarded). Suite 116 → **119 passed** (incl. the netns leg
+live). Learnings: L1 updated (doc↔surface skew, both directions), L9 added (pin
+proof enumerations with parity tests). needs_you cleared.

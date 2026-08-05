@@ -27,14 +27,20 @@ DEST="/mnt/c/Users/bgibs/Backups/agent-memory"
 mkdir -p "$DEST"
 
 # Sweep external edits (e.g. Obsidian) into a commit so the bundle captures them.
+# Under the KB's write lock: `mem save` serializes write+commit under this same
+# flock, and an unattended `git add -A` racing a live save could commit a
+# .tmp mid-rename or fail the save's own commit on index.lock contention.
+exec 9>"$KB/.index/write.lock"
+flock 9
 if [ -n "$(git -C "$KB" status --porcelain)" ]; then
     git -C "$KB" add -A
     git -C "$KB" commit -q -m "backup sweep: external edits"
 fi
 
 TMP="$DEST/.bundle.tmp"
-git -C "$KB" bundle create "$TMP" --all 2>/dev/null
+git -C "$KB" bundle create "$TMP" --all
 git -C "$KB" bundle verify "$TMP" > /dev/null 2>&1
+flock -u 9
 
 cp "$TMP" "$DEST/agent-memory-$(date +%a).bundle"   # 7-generation weekday ring
 mv "$TMP" "$DEST/agent-memory-latest.bundle"

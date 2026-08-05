@@ -36,8 +36,12 @@ def cmd_search(args) -> int:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
-    pool = max(args.limit, LEG_POOL)
     type_filter = {t.strip() for t in (getattr(args, "type", None) or "").split(",") if t.strip()}
+    # Post-fusion filters eat leg candidates: with a filter active, the top of
+    # every leg can be entirely filtered types while real matches sit at rank
+    # 11+ (the 2026-08-05 quality-review recall cliff). Widen the pools so
+    # filtering selects from a deeper field instead of starving the result.
+    pool = max(args.limit, LEG_POOL) * (3 if type_filter or args.no_work else 1)
 
     try:
         conn = lexical.connect(root)
@@ -70,6 +74,13 @@ def cmd_search(args) -> int:
         print(f"warning: semantic leg skipped ({e})", file=sys.stderr)
     except vector.VectorError as e:
         print(f"warning: semantic leg skipped ({e})", file=sys.stderr)
+    except sqlite3.Error as e:
+        # a corrupt/locked derived index must degrade like a dead daemon, not
+        # traceback: it is recoverable state (mem reindex), same contract
+        print(
+            f"warning: semantic leg skipped (vector index unreadable: {e} - run: mem reindex)",
+            file=sys.stderr,
+        )
 
     lex_slugs = [hit["slug"] for hit in lex_hits]
     vec_slugs = [slug for slug, _ in vec_hits]

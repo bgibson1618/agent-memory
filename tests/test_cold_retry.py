@@ -16,11 +16,11 @@ before it expires blocks until it does, then answers normally.
 """
 
 import json
-import threading
 import time
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
+
+from fakes import FakeOllamaServer
 
 from test_f4_semantic import (  # noqa: F401  (fixture pulled in by import)
     DIGEST,
@@ -34,91 +34,11 @@ QUERY = "vehicle repairs"
 SLUG = "sedan-upkeep"
 
 
-class _QuietServer(ThreadingHTTPServer):
-    daemon_threads = True
-
-    def handle_error(self, request, client_address):
-        pass  # aborted-client BrokenPipes are the point of these tests
-
-
-class ColdStartOllama:
-    """Ollama double with a cold model: /api/version answers instantly, the
-    first /api/embed contact starts `load_delay` seconds of loading, embeds
-    arriving before the load completes block until it does."""
-
-    def __init__(self, dims: int = DIMS, model: str = MODEL, load_delay: float = 1.0):
-        srv = self
-        self.dims = dims
-        self.model = model
-        self.load_delay = load_delay
-        self.embed_requests = 0
-        self.warm_at: float | None = None
-        self._lock = threading.Lock()
-
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
-
-            def _send(self, code, payload):
-                body = json.dumps(payload).encode("utf-8")
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-
-            def do_GET(self):
-                if self.path == "/api/version":
-                    self._send(200, {"version": "0.0.0-fake"})
-                elif self.path == "/api/tags":
-                    self._send(
-                        200,
-                        {"models": [{"name": srv.model, "model": srv.model, "digest": DIGEST}]},
-                    )
-                else:
-                    self._send(404, {"error": "not found"})
-
-            def do_POST(self):
-                length = int(self.headers.get("Content-Length") or 0)
-                raw = self.rfile.read(length)
-                if self.path != "/api/embed":
-                    self._send(404, {"error": "not found"})
-                    return
-                now = time.monotonic()
-                with srv._lock:
-                    srv.embed_requests += 1
-                    if srv.warm_at is None:
-                        srv.warm_at = now + srv.load_delay
-                    wait = srv.warm_at - now
-                if wait > 0:
-                    time.sleep(wait)
-                try:
-                    body = json.loads(raw or b"{}")
-                except ValueError:
-                    body = {}
-                if body.get("model") != srv.model:
-                    self._send(404, {"error": f"model '{body.get('model')}' not found"})
-                    return
-                texts = body.get("input")
-                if isinstance(texts, str):
-                    texts = [texts]
-                self._send(
-                    200,
-                    {
-                        "model": srv.model,
-                        "embeddings": [semantic_vec(t, srv.dims) for t in texts or []],
-                    },
-                )
-
-        self.server = _QuietServer(("127.0.0.1", 0), Handler)
-        self.server.block_on_close = False
-        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
-        self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self._thread.start()
-
-    def stop(self):
-        self.server.shutdown()
-        self.server.server_close()
+def ColdStartOllama(dims: int = DIMS, model: str = MODEL,
+                    load_delay: float = 1.0) -> FakeOllamaServer:
+    """Cold-model double: first embed contact starts the load clock (fakes.py)."""
+    return FakeOllamaServer(dims=dims, model=model, embed_fn=semantic_vec,
+                            load_delay=load_delay, digest=DIGEST)
 
 
 @pytest.fixture

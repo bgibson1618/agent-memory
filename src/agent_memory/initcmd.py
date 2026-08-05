@@ -8,7 +8,7 @@ must be creatable offline; `mem doctor` is the failing diagnosis.
 
 import sys
 
-from agent_memory import blocks, config, doctor, gitkb
+from agent_memory import blocks, config, doctor, gitkb, store
 
 
 def cmd_init(args) -> int:
@@ -26,13 +26,7 @@ def cmd_init(args) -> int:
         gitkb.init_repo(root)
         gitkb.commit_all(root, "mem init: create KB home")
 
-    remote_names = gitkb.remotes(root)
-    if remote_names:
-        print(
-            f"warning: KB git repo has remote(s): {', '.join(remote_names)}"
-            f" - the KB must stay local-only; remove: git -C {root} remote remove {remote_names[0]}",
-            file=sys.stderr,
-        )
+    store.warn_if_remote(root)  # one wording for the local-only warning (D12 nit)
 
     results = []
     for path, name in (

@@ -6,7 +6,9 @@ Python, git, anything - can reach a non-localhost peer, and every syscall-level
 escape attempt fails with ENETUNREACH. Inside, the driver brings `lo` up,
 verifies the airgap, starts a deterministic fake Ollama on loopback, and runs
 the full `mem` surface (init / doctor / save / search / get / list / extract /
-reindex) three ways:
+reindex / links / stats — parity with the CLI's subcommand set is asserted by
+test_f12_egress.py, so a new command cannot silently outgrow this proof) three
+ways:
 
   up-leg      fake daemon reachable: every command succeeds fully, and the
               in-process guard log proves the only network peer across all
@@ -28,9 +30,9 @@ import socket
 import struct
 import subprocess
 import sys
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+
+from fakes import FakeOllamaServer
 
 DIMS = 32
 MODEL = "nomic-embed-text:v1.5"
@@ -79,70 +81,10 @@ def semantic_vec(text: str, dims: int) -> list:
     return vec
 
 
-class SemanticOllama:
-    """Loopback Ollama double: /api/version, /api/tags, /api/embed."""
-
-    def __init__(self, dims: int = DIMS, model: str = MODEL):
-        srv = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
-
-            def _send(self, code, payload):
-                body = json.dumps(payload).encode("utf-8")
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-
-            def do_GET(self):
-                if self.path == "/api/version":
-                    self._send(200, {"version": "0.0.0-netns-fake"})
-                elif self.path == "/api/tags":
-                    self._send(
-                        200,
-                        {"models": [{"name": srv.model, "model": srv.model, "digest": DIGEST}]},
-                    )
-                else:
-                    self._send(404, {"error": "not found"})
-
-            def do_POST(self):
-                length = int(self.headers.get("Content-Length") or 0)
-                raw = self.rfile.read(length)
-                if self.path != "/api/embed":
-                    self._send(404, {"error": "not found"})
-                    return
-                try:
-                    body = json.loads(raw or b"{}")
-                except ValueError:
-                    body = {}
-                if body.get("model") != srv.model:
-                    self._send(404, {"error": f"model '{body.get('model')}' not found"})
-                    return
-                texts = body.get("input")
-                if isinstance(texts, str):
-                    texts = [texts]
-                self._send(
-                    200,
-                    {
-                        "model": srv.model,
-                        "embeddings": [semantic_vec(t, srv.dims) for t in texts or []],
-                    },
-                )
-
-        self.dims = dims
-        self.model = model
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.port = self.server.server_address[1]
-        self.url = f"http://127.0.0.1:{self.port}"
-        self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self._thread.start()
-
-    def stop(self):
-        self.server.shutdown()
-        self.server.server_close()
+def SemanticOllama(dims: int = DIMS, model: str = MODEL) -> FakeOllamaServer:
+    """Meaning-shaped double on the shared parameterized server (fakes.py -
+    importable here because this script lives in, and runs from, tests/)."""
+    return FakeOllamaServer(dims=dims, model=model, embed_fn=semantic_vec, digest=DIGEST)
 
 
 def bring_lo_up() -> None:
@@ -300,6 +242,20 @@ def main(config_json: str) -> int:
 
     r = mem(up, "list")
     rep.check("up-list", r.returncode == 0 and SEED_SLUG in r.stdout, r.stdout + r.stderr)
+
+    r = mem(up, "links")
+    rep.check(
+        "up-links",
+        r.returncode == 0 and "target" in r.stdout.lower(),
+        r.stdout + r.stderr,
+    )
+
+    r = mem(up, "stats")
+    rep.check(
+        "up-stats",
+        r.returncode == 0 and "usage over the last" in r.stdout,
+        r.stdout + r.stderr,
+    )
 
     r = mem(up, "get", SEED_SLUG, "--json")
     try:

@@ -197,7 +197,11 @@ def cmd_get(args) -> int:
 
     if args.json:
         data = concept.to_dict()
-        data["path"] = str(concept_path(root, concept.slug or args.slug))
+        # Report the key that actually resolved: lookup, every index, and
+        # Obsidian all go by file stem - after an external rename, frontmatter
+        # slug can disagree and would point consumers at a ghost path.
+        data["slug"] = data["id"] = args.slug
+        data["path"] = str(concept_path(root, args.slug))
         if neighbors is not None:
             data["neighbors"] = neighbors
         print(json.dumps(data, indent=2, ensure_ascii=False))
@@ -237,19 +241,21 @@ def cmd_list(args) -> int:
     concepts = []
     for path in sorted(concepts_dir(root).glob("*.md")):
         try:
-            concepts.append(okf.parse(path.read_text(encoding="utf-8")))
+            concepts.append((path.stem, okf.parse(path.read_text(encoding="utf-8"))))
         except okf.OKFError as e:
             print(f"warning: skipping {path}: {e}", file=sys.stderr)
 
     if args.json:
         summaries = []
-        for concept in concepts:
+        for stem, concept in concepts:
             data = concept.to_dict()
             del data["body"]
-            data["path"] = str(concept_path(root, concept.slug))
+            # stem is the resolved key (see cmd_get) - frontmatter can lag a rename
+            data["slug"] = data["id"] = stem
+            data["path"] = str(concept_path(root, stem))
             summaries.append(data)
         print(json.dumps(summaries, indent=2, ensure_ascii=False))
     else:
-        for concept in concepts:
-            print(f"{concept.slug}  [{', '.join(concept.topics)}]  {concept.title}")
+        for stem, concept in concepts:
+            print(f"{stem}  [{', '.join(concept.topics)}]  {concept.title}")
     return 0

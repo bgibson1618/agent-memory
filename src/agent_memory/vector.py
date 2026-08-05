@@ -17,7 +17,7 @@ import sys
 from array import array
 from pathlib import Path
 
-from agent_memory import config, okf, ollama
+from agent_memory import config, indexdb, okf, ollama
 
 DRAIN_LIMIT = 3            # bounded opportunistic drain: ~3 items per invocation
 STRICT_TIMEOUT = 0.5       # save-path / opportunistic embed budget, seconds
@@ -51,15 +51,11 @@ def strict_timeout() -> float:
 
 
 def db_path(root: Path) -> Path:
-    return root / ".index" / "mem.db"
+    return indexdb.db_path(root)
 
 
 def connect(root: Path) -> sqlite3.Connection:
-    path = db_path(root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    con = sqlite3.connect(path, timeout=5)
-    con.execute("PRAGMA journal_mode=WAL")
-    con.execute("PRAGMA busy_timeout=5000")
+    con = indexdb.connect(root)
     con.execute(
         "CREATE TABLE IF NOT EXISTS vectors ("
         " slug TEXT PRIMARY KEY, model TEXT NOT NULL, dims INTEGER NOT NULL,"
@@ -94,6 +90,23 @@ def _stamp_meta(con: sqlite3.Connection, model: str, digest: str, dims: int) -> 
         con.execute("INSERT OR REPLACE INTO vector_meta(key, value) VALUES(?, ?)", (key, value))
 
 
+def check_meta(meta: dict | None, model: str, dims: int, refusal: str) -> None:
+    """Refuse a (model, dims) pair that disagrees with the stamped index
+    metadata - one wording for the write path and extract's batch gate."""
+    if meta is None:
+        return
+    if meta.get("model") != model:
+        raise VectorError(
+            f"index built with model {meta.get('model')}, current model is {model}"
+            f" - {refusal}; run: mem reindex"
+        )
+    if int(meta.get("dims", 0)) != dims:
+        raise VectorError(
+            f"embedding dims {dims} != index dims {meta.get('dims')}"
+            f" - {refusal}; run: mem reindex"
+        )
+
+
 def enqueue(con: sqlite3.Connection, slug: str) -> None:
     con.execute(
         "INSERT INTO embed_queue(slug, enqueued) VALUES(?, ?) ON CONFLICT(slug) DO NOTHING",
@@ -122,16 +135,8 @@ def _embed_one(con: sqlite3.Connection, slug: str, concept: okf.Concept, timeout
     meta = get_meta(con)
     if meta is None:
         _stamp_meta(con, model, ollama.model_digest(base, model), len(vec))
-    elif meta.get("model") != model:
-        raise VectorError(
-            f"index built with model {meta.get('model')}, current model is {model}"
-            " - vector write refused; run: mem reindex"
-        )
-    elif int(meta.get("dims", 0)) != len(vec):
-        raise VectorError(
-            f"embedding dims {len(vec)} != index dims {meta.get('dims')}"
-            " - vector write refused; run: mem reindex"
-        )
+    else:
+        check_meta(meta, model, len(vec), "vector write refused")
 
     con.execute(
         "INSERT OR REPLACE INTO vectors(slug, model, dims, content_hash, vec, updated)"

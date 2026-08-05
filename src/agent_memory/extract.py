@@ -266,18 +266,9 @@ def _extract(args) -> int:
 
         con = vector.connect(root)
         try:
-            meta = vector.get_meta(con)
-            model = config.embed_model()
-            if meta is not None and meta.get("model") != model:
-                raise vector.VectorError(
-                    f"index built with model {meta.get('model')}, current model is {model}"
-                    " - cannot dedup; run: mem reindex"
-                )
-            if meta is not None and int(meta.get("dims", 0)) != len(vecs[0]):
-                raise vector.VectorError(
-                    f"embedding dims {len(vecs[0])} != index dims {meta.get('dims')}"
-                    " - cannot dedup; run: mem reindex"
-                )
+            vector.check_meta(
+                vector.get_meta(con), config.embed_model(), len(vecs[0]), "cannot dedup"
+            )
             entries = _kb_vectors(con, len(vecs[0]))
 
             import numpy as np

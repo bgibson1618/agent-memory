@@ -16,11 +16,11 @@ import json
 import re
 import sqlite3
 import subprocess
-import threading
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 import pytest
+
+from fakes import FakeOllamaServer
 
 from agent_memory import config
 
@@ -52,70 +52,9 @@ def semantic_vec(text: str, dims: int) -> list:
     return vec
 
 
-class SemanticOllama:
-    """Localhost Ollama double: deterministic meaning-shaped embeddings plus
-    /api/tags (extract stamps the model digest on a fresh index)."""
-
-    def __init__(self, dims: int = DIMS, model: str = MODEL):
-        srv = self
-
-        class Handler(BaseHTTPRequestHandler):
-            def log_message(self, *args):
-                pass
-
-            def _send(self, code, payload):
-                body = json.dumps(payload).encode("utf-8")
-                self.send_response(code)
-                self.send_header("Content-Type", "application/json")
-                self.send_header("Content-Length", str(len(body)))
-                self.end_headers()
-                self.wfile.write(body)
-
-            def do_GET(self):
-                if self.path == "/api/version":
-                    self._send(200, {"version": "0.0.0-fake"})
-                elif self.path == "/api/tags":
-                    self._send(
-                        200,
-                        {"models": [{"name": srv.model, "model": srv.model, "digest": DIGEST}]},
-                    )
-                else:
-                    self._send(404, {"error": "not found"})
-
-            def do_POST(self):
-                length = int(self.headers.get("Content-Length") or 0)
-                raw = self.rfile.read(length)
-                if self.path != "/api/embed":
-                    self._send(404, {"error": "not found"})
-                    return
-                try:
-                    body = json.loads(raw or b"{}")
-                except ValueError:
-                    body = {}
-                if body.get("model") != srv.model:
-                    self._send(404, {"error": f"model '{body.get('model')}' not found"})
-                    return
-                texts = body.get("input")
-                if isinstance(texts, str):
-                    texts = [texts]
-                self._send(
-                    200,
-                    {
-                        "model": srv.model,
-                        "embeddings": [semantic_vec(t, srv.dims) for t in texts or []],
-                    },
-                )
-
-        self.dims = dims
-        self.model = model
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
-        self.url = f"http://127.0.0.1:{self.server.server_address[1]}"
-        self._thread = threading.Thread(target=self.server.serve_forever, daemon=True)
-        self._thread.start()
-
-    def stop(self):
-        self.server.shutdown()
-        self.server.server_close()
+def SemanticOllama(dims: int = DIMS, model: str = MODEL) -> FakeOllamaServer:
+    """Meaning-shaped double + /api/tags (extract stamps the digest)."""
+    return FakeOllamaServer(dims=dims, model=model, embed_fn=semantic_vec, digest=DIGEST)
 
 
 @pytest.fixture
