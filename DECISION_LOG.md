@@ -336,3 +336,31 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   the root-cause question; the agent diagnosed the four sources, proposed the
   three-element shape (Brent approved verbatim), and calibrated the backfill floor
   from sampled bands.
+
+## D13 — `position`: general credence type for attributed, non-empirical stances (2026-08-05)
+
+- **Context:** the Fish (2011) writing-craft extraction surfaces material with two
+  distinct credences: structural/conventional claims about how sentences work
+  (reference-book epistemics → `concept`) and normative/aesthetic judgments resting
+  on the author's authority — taste rankings, "should"s, method-efficacy claims with
+  no cited evidence. Typing those `concept` would launder stance into "what's known"
+  (`--type concept` grounding); `sb-position` is wrong (that's a colleague's untested
+  working bet, company-scoped).
+- **Decision:** new general type **`position`** — a named expert's or school's
+  considered stance, quotable only in attributed voice ("Fish holds…"), never as
+  fact. Generalizes the sb-position family: `sb-position` = a Superbuilders
+  project's stance; bare `position` = anyone else's. Attribution rides `source`
+  (D9). Zero mem code: D10's machinery is type-agnostic (`[position]` search marker,
+  `--type` allow-list exclusion, attributed description/body defense-in-depth all
+  already fire). Extraction boundary rule: how-it-works/convention claims →
+  `concept`; valuations, shoulds, and authority-resting method claims → `position`;
+  method claims independently corroborated by existing vetted concepts may be
+  promoted to `concept` by review lanes; default `position` when in doubt
+  (promotion later is a one-field edit; demotion after a proposal cites it is too
+  late).
+- **Proof:** no code change to prove; the D10 tests already pin marker + filter
+  behavior for arbitrary non-`concept` types. Managed agent blocks updated to teach
+  the extended credence rule; first corpus applying the split: fish-2026-08-05.
+- **AI involvement:** Brent spotted the standards-vs-style split and asked whether a
+  new tag was needed; the agent drew the works/authority boundary, proposed the
+  `position` name for family symmetry, and Brent approved.

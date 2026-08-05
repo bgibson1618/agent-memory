@@ -21,9 +21,10 @@ whether material is employer-proprietary, tag it
 results; treat that marker as a handle-with-care signal. `--no-work` excludes
 work-tagged items from search.
 **Credence (type):** search marks non-`concept` types `[<type>]`. `type: concept` is
-vetted knowledge; `type: sb-position` is a Superbuilders project's working hypothesis —
-cite it as that project's stance, never as fact; `type: sb-project` is a project
-reference card. Pass `--type concept` to ground a claim only in vetted knowledge.
+vetted knowledge; `type: position` is a named expert's/school's stance — cite it in
+attributed voice ("Fish holds…"), never as fact; `type: sb-position` is a Superbuilders
+project's working hypothesis — cite it as that project's stance; `type: sb-project` is a
+project reference card. Pass `--type concept` to ground a claim only in vetted knowledge.
 **Extract** knowledge from a document Brent supplies: `mem extract --procedure`
 prints the choreography to follow (approved-vendor subagents only).
 

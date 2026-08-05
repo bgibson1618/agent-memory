@@ -15,12 +15,15 @@ book, doc, or person (provenance is proposal-grade; an omitted source records as
 `ambient`). Claude Code's built-in memory keeps operational/session facts; the KB owns
 durable knowledge - keep pointers between them, never duplicated content.
 
-**Credence (type) — do not conflate a hypothesis with vetted knowledge.** Search marks
+**Credence (type) — do not conflate a stance with vetted knowledge.** Search marks
 non-`concept` types `[<type>]`. `type: concept` is established/vetted knowledge;
-`type: sb-position` is a Superbuilders project's working hypothesis and MUST be cited as
-that project's stance ("Project Y's lift argues…"), never as fact; `type: sb-project`
-is a project reference card. When grounding a proposal or claim in "what's known," pass
-`--type concept` to exclude hypotheses. Never present an `sb-position` as settled.
+`type: position` is a named expert's or school's stance (taste, "should"s, method
+claims resting on authority) and MUST be cited in attributed voice ("Fish holds…"),
+never as fact; `type: sb-position` is a Superbuilders project's working hypothesis,
+cited as that project's stance ("Project Y's lift argues…"); `type: sb-project` is a
+project reference card. When grounding a proposal or claim in "what's known," pass
+`--type concept` to exclude stances and hypotheses. Never present a `position` or
+`sb-position` as settled.
 
 **Extract from a document** when Brent points you at a paper, article, or doc to
 mine for the KB: run `mem extract --procedure` and follow the printed choreography
