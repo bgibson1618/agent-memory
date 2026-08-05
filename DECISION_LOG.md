@@ -297,3 +297,42 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   expert-wrangler orchestrator (repo-root note, 2026-07-29) relayed by Brent; the
   agent proposed the conditional-key shape, the OllamaTimeout/health-check-gated
   retry, and the doctor budget; Brent approved the batch.
+
+## D12 — Link integrity: batch-mate remap at extract, visible lint, calibrated backfill (2026-08-05)
+
+- **Context:** Brent clicked two links in Obsidian that silently created blank notes;
+  the trail led to a systemic gap: 1,238 dangling wikilink/related references across
+  602 concepts (37% of the KB), pointing at 851 nonexistent targets. Four sources:
+  dedup-skipped candidates whose batch-mates kept linking their never-created slug
+  (the dedup pass knows the match and threw it away), suffixed saves breaking sibling
+  links the same way, aspirational links to never-candidates, and wikified citation
+  numbers ([[91]]). Cost: lost graph-leg recall (edges to real concepts earning no
+  RRF credit) and the Obsidian blank-note/dirty-mirror trap.
+- **Decision:** (1) Extract remaps links to batch-mates wherever they land — skipped
+  duplicate → its match, suffixed save → the actual slug — rewriting bodies AND
+  `related`, then re-embedding rewritten concepts so content hashes stay true; an
+  extract can no longer mint a link to a slug it declined to create. (2) `mem links`
+  reports {dangling target ← referrers} (text/--json, always exit 0) and doctor
+  carries an informational, never-failing dangling-links count — a dangling link can
+  be a legitimate worth-writing-later marker, so any nonzero count must not gate.
+  (3) One-shot backfill (`scripts/repair-dangling-links.py`, report in
+  learning-science pipeline/runs/link-repair-2026-08-05/): de-kebabed targets embed
+  as queries against a pool restricted to `concept`/`reference` types (the D10
+  credence boundary applies to edges — vetted material never gets repointed at an
+  sb-position), floor/margin picked from the measured distribution (0.78/0.02 —
+  every sampled match above it correct, including all 27 smallest-gap cases; the
+  0.72–0.78 band mixed generic one-word targets with narrower claims and stays
+  manual). Body rewrites preserve display text via alias ([[match|original]]);
+  `updated:` stamps preserved (backfill-source precedent).
+- **Proof:** `tests/test_link_health.py` (4 tests: dedup remap incl. alias tail +
+  vector hash follows body; suffix remap ends with zero dangling; `mem links`
+  text+json contract; doctor check informational both ways); full suite →
+  **116 passed**. Live: 169 targets auto-repaired + 2 delinked = 266 references in
+  223 concepts (KB commit 7630554), 851→680 targets / 1,238→972 refs; every repaired
+  reference proved to be a `related:` entry (Obsidian Properties links — matching how
+  the blank notes got created); duplicate shorthand+real pairs folded by the rewrite
+  dedupe. 680 review-tail targets listed in repair-report.json for future curation.
+- **AI involvement:** Brent spotted the phenomenon (blank Obsidian notes) and asked
+  the root-cause question; the agent diagnosed the four sources, proposed the
+  three-element shape (Brent approved verbatim), and calibrated the backfill floor
+  from sampled bands.
