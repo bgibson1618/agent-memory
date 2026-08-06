@@ -364,3 +364,33 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** Brent spotted the standards-vs-style split and asked whether a
   new tag was needed; the agent drew the works/authority boundary, proposed the
   `position` name for family symmetry, and Brent approved.
+
+## D14 — `reference` generalized: descriptor of an artifact, standard, or index (2026-08-06)
+
+- **Context:** the College Board AP Business with Personal Finance CED (Effective
+  Fall 2026) is the first corpus that is neither vetted knowledge nor anyone's
+  stance — it *describes a designed thing*: exam structure, unit weightings, task
+  verbs, scoring rules, and required content. Typing such facts `concept` would rot
+  the `--type concept` grounding lane with expirable artifact facts (CEDs get
+  revised) — the same laundering D10 exists to prevent, on a different axis:
+  not authority-stance but artifact-description. The `reference` type already
+  existed with one instance (expert-master-index, a generated lookup).
+- **Decision:** generalize **`reference`** — a descriptor of an artifact, standard,
+  or index (an exam spec, a CED, a generated roster), quotable only as what the
+  artifact specifies WITH its version/date ("the CED (Fall 2026) requires…"), never
+  as vetted knowledge; the described thing can change, so the D9 `source` carries
+  issuer + version. Extraction boundary: framework content statements extract as
+  "the exam requires X" reference cards (the KB records the requirement without
+  asserting unvetted domain content); clearly general established knowledge may
+  still be typed `concept`; default `reference` for anything from a descriptor
+  document when in doubt. Zero mem code: D10's machinery is type-agnostic
+  (`[reference]` marker, `--type` filtering already fire). Credence family is now:
+  concept ("is this true?"), position/sb-position ("who holds this?"), reference/
+  sb-project ("what does the thing specify, as of when?").
+- **Proof:** no code change to prove; D10 tests pin marker + filter behavior for
+  arbitrary non-`concept` types. Managed agent blocks updated to teach the extended
+  rule; first corpus applying it: apbpf-2026-08-06 (learning-science pipeline).
+- **AI involvement:** Brent spotted that a CED is "just describing a thing" and
+  asked whether a new tag was needed; the agent inventoried the type census, argued
+  generalize-don't-mint from the D13 precedent (and the versioned-artifact rot risk
+  for `concept` grounding), and Brent approved.

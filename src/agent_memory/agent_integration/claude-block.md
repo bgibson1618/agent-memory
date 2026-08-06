@@ -21,9 +21,12 @@ non-`concept` types `[<type>]`. `type: concept` is established/vetted knowledge;
 claims resting on authority) and MUST be cited in attributed voice ("Fish holds…"),
 never as fact; `type: sb-position` is a Superbuilders project's working hypothesis,
 cited as that project's stance ("Project Y's lift argues…"); `type: sb-project` is a
-project reference card. When grounding a proposal or claim in "what's known," pass
-`--type concept` to exclude stances and hypotheses. Never present a `position` or
-`sb-position` as settled.
+project reference card; `type: reference` is a descriptor of an artifact, standard, or
+index (an exam spec, a CED, a generated roster) — quote it as what the artifact
+specifies WITH its version/date ("the CED (Fall 2026) requires…"), never as vetted
+knowledge; the thing it describes can change. When grounding a proposal or claim in
+"what's known," pass `--type concept` to exclude stances, hypotheses, and descriptors.
+Never present a `position` or `sb-position` as settled.
 
 **Extract from a document** when Brent points you at a paper, article, or doc to
 mine for the KB: run `mem extract --procedure` and follow the printed choreography

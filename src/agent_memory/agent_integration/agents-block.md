@@ -24,7 +24,9 @@ work-tagged items from search.
 vetted knowledge; `type: position` is a named expert's/school's stance — cite it in
 attributed voice ("Fish holds…"), never as fact; `type: sb-position` is a Superbuilders
 project's working hypothesis — cite it as that project's stance; `type: sb-project` is a
-project reference card. Pass `--type concept` to ground a claim only in vetted knowledge.
+project reference card; `type: reference` is a descriptor of an artifact/standard/index —
+quote it as what the artifact specifies with its version/date, never as vetted knowledge.
+Pass `--type concept` to ground a claim only in vetted knowledge.
 **Extract** knowledge from a document Brent supplies: `mem extract --procedure`
 prints the choreography to follow (approved-vendor subagents only).
 
