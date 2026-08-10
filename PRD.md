@@ -111,4 +111,6 @@ session is effectively lost to every other agent and project.
 - Flag grammar — ✅ finalized at build: `--json`, `--update`, `--related`, `--no-work`,
   `--candidates`, plus `--title/--body/--description/--topics/--type/--sensitivity/--slug`
   (save), `--limit` (search), `--procedure` (extract); the subcommand surface shipped as
-  settled in ARCHITECTURE (`init · save · search · get · list · extract · reindex · doctor`).
+  settled in ARCHITECTURE (v1: `init · save · search · get · list · extract · reindex ·
+  doctor`; post-v1 growth: + `links · stats` per D12/D8 — ARCHITECTURE carries the current
+  10-command surface, pinned to the CLI by the F12 parity test).
