@@ -331,3 +331,25 @@ initcmd reuses warn_if_remote, kb-obsidianize usage guard, scripts/one-shots/,
 backup stderr no longer discarded). Suite 116 → **119 passed** (incl. the netns leg
 live). Learnings: L1 updated (doc↔surface skew, both directions), L9 added (pin
 proof enumerations with parity tests). needs_you cleared.
+
+## 2026-08-10 — standalone sanity checkpoint (post-D14) + remediation
+
+Checkpoint (tree scope, roster verifiers): deterministic validators clean; drift
+reviewer returned 1 CONFIRMED finding, independently VALIDATED → needs_you tripped.
+Finding: PRD.md:113 §9 flag-grammar parenthetical quoted the v1 8-command surface
+while citing ARCHITECTURE (10 commands, matching cli.py) as the settled record —
+the PRD instance of the L1 skew class that survived the 2026-08-05 ARCHITECTURE
+remediation. Drift reviewer also re-ran the suite live: 119 passed (netns leg
+running); all state evidence refs verified on disk; KB zero-remote invariant
+confirmed. Quality reviewer: 0 hazards ("unusually healthy"), 5 improvements
+(incl. a reproduced NameError in dead lexical.db_path; embed batching x2; repair
+script unlocked writes; wikilink regex triplication) + 5 nits — all advisory,
+surfaced in chat, none promoted yet.
+
+Remediation (same session, Brent: "fix the prd to match reality"): PRD
+parenthetical re-trued as dated version history (v1 8 commands; post-v1 + links ·
+stats per D12/D8, current surface pinned by the F12 parity test). L1 learning
+updated (F27 checkpoint seam): the skew class hides in EVERY surface-quoting doc,
+not just the contract doc — sweep PRD/NFR resolutions too. needs_you cleared;
+state + learnings validated. Last-CLEAN marker NOT advanced (post-fix tree awaits
+its own adjudication). Commit 1d9b210.
