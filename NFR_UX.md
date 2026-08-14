@@ -30,8 +30,9 @@
 - **Sensitive data:** personal learning notes; some may derive from employer context. A
   per-memory `sensitivity` field marks `work` items.
 - **AuthN / AuthZ:** n/a — single local user on a personal machine.
-- **Data handling:** all data at rest as plain files under `~/.agent-memory/` (a local git repo
-  with **no remote**). **Zero network egress on the storage/index/search path** except localhost
+- **Data handling:** all data at rest as plain files under the selected instance root —
+  default `~/.agent-memory/`; `MEM_KB_ROOT` selects an alternate instance (D15) — each a
+  local git repo with **no remote**. **Zero network egress on the storage/index/search path** except localhost
   Ollama — provable by the offline test (PRD criterion 5). No encryption at rest (OS/disk
   encryption is the platform's job). Memories persist until deleted; no auto-expiry.
 - **Sensitivity semantics (confirmed; revised after the pre-build review, 2026-07-21):**

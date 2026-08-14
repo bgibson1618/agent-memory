@@ -11,8 +11,9 @@ resolve during the build.
 agent-memory is a **local-first Python monolith** whose single organizing idea is: **markdown is
 the database; everything else is a rebuildable index** (one deliberate post-v1 exception: the D8
 usage log `.index/usage.jsonl` is non-derived telemetry — see Storage). One `agent_memory` package (installed
-via `uv tool install`, entry point `mem`) owns OKF markdown files under `~/.agent-memory/` as
-the sole source of truth; three derived indexes — lexical (FTS5), vector (local Ollama
+via `uv tool install`, entry point `mem`) owns OKF markdown files under the selected instance
+root — default `~/.agent-memory/`, alternate via `MEM_KB_ROOT` (D15) — as that instance's sole
+source of truth; three derived indexes — lexical (FTS5), vector (local Ollama
 embeddings), graph (wikilink edges) — serve every read through RRF fusion. **No resident
 process of ours, ever**: all work happens in-process at CLI invocation time (pending embeddings
 retry on the next call); the only daemon on the machine is Ollama. The primary caller is an
@@ -74,7 +75,12 @@ cache rebuilt lazily on the next load.
   The namespace covers subprocess egress (git) that an in-process socket guard is
   structurally blind to; the in-process guard remains the fast inner layer.
 
-Source of truth: `~/.agent-memory/concepts/*.md`. The derived stores — `.index/mem.db` (FTS5 +
+Source of truth: `~/.agent-memory/concepts/*.md`. Since D15 the root is an env seam:
+**`MEM_KB_ROOT`** points the whole CLI (init through stats) at an alternate KB *instance* —
+a second, fully isolated store with its own git repo, indexes, and recall scope (first
+consumer: the personal KB, kept out of work-session ambient recall); unset, the default
+`~/.agent-memory` is unchanged, and every invariant (local-only, no remote, OKF) applies
+per-instance. The derived stores — `.index/mem.db` (FTS5 +
 vectors + embed-queue + metadata, one SQLite file) and `.index/graph.json` (the mtime/size-keyed
 graph edge cache) — are disposable: `mem reindex` rebuilds both from the markdown. One deliberate
 exception since D8: `.index/usage.jsonl` (the per-invocation usage log) is NOT derived — reindex

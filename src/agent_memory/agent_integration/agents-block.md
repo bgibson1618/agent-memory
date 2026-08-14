@@ -1,7 +1,8 @@
 <!-- BEGIN AGENT-MEMORY BLOCK v1 - managed by `mem init`; edits inside will be overwritten -->
 ## agent-memory - persistent cross-agent knowledge base
 
-`mem` is Brent's durable knowledge base (OKF markdown at `~/.agent-memory/`, local-only),
+`mem` is Brent's durable knowledge base (OKF markdown, local-only; the project's
+configured instance — default root `~/.agent-memory/`),
 shared by his coding agents. Use it silently during ordinary work.
 
 **Vendor policy (non-negotiable, DECISION_LOG D1):**
@@ -30,6 +31,12 @@ Pass `--type concept` to ground a claim only in vetted knowledge.
 **Extract** knowledge from a document Brent supplies: `mem extract --procedure`
 prints the choreography to follow (approved-vendor subagents only).
 
-The KB is local-only: never add a git remote to `~/.agent-memory`; its content goes
-nowhere but localhost Ollama. `mem doctor` diagnoses the setup.
+Instances (D15): `MEM_KB_ROOT` points `mem` at an alternate KB instance (personal
+projects set it in their env to route at the personal KB); unset = the default
+work-adjacent KB. Never mix instances in one task; every rule here applies
+per-instance.
+
+The KB is local-only: never add a git remote to `~/.agent-memory` (or to any other
+instance's root); its content goes nowhere but localhost Ollama. `mem doctor`
+diagnoses the setup.
 <!-- END AGENT-MEMORY BLOCK -->

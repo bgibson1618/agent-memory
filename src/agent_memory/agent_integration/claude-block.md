@@ -1,7 +1,8 @@
 <!-- BEGIN AGENT-MEMORY BLOCK v1 - managed by `mem init`; edits inside will be overwritten -->
 ## agent-memory - persistent cross-agent knowledge base
 
-`mem` is Brent's durable knowledge base (OKF markdown at `~/.agent-memory/`, local-only).
+`mem` is Brent's durable knowledge base (OKF markdown, local-only; the project's
+configured instance — default root `~/.agent-memory/`).
 Use it silently during ordinary work; never narrate it or ask permission.
 
 **Search it** when a task touches a concept Brent may have studied before (design
@@ -33,6 +34,12 @@ mine for the KB: run `mem extract --procedure` and follow the printed choreograp
 (fresh-eyed extractor fan-out, fresh-eyed review, then `mem extract`).
 
 **Confidentiality (non-negotiable):**
+- **Instances (D15):** `MEM_KB_ROOT` points `mem` at an alternate KB instance (personal
+  projects set it in their env to route at the personal KB); unset = the default
+  work-adjacent KB at `~/.agent-memory`. Never mix instances in one task: keep recall
+  and saves on the project's configured instance, and do not bring personal-KB content
+  into work sessions (nor vice versa) — the boundary holds only through this configured
+  routing. Every rule in this block applies per-instance.
 - `sensitivity: work` marks employer-specific material ONLY; general knowledge learned
   on the job is normal sensitivity. When unsure whether material is
   employer-proprietary, tag it `work` - or don't save it.

@@ -5,7 +5,8 @@ description: Run the extract-knowledge choreography on a document — fresh-eyed
 # /mem:extract
 
 You run **extract-knowledge**: Brent has pointed you at a document and wants its durable
-knowledge in his KB (`~/.agent-memory`, local-only). This skill is a deterministic entry
+knowledge in his KB (the project's configured instance — default `~/.agent-memory`,
+alternate via `MEM_KB_ROOT` (D15); local-only either way). This skill is a deterministic entry
 point; **the choreography itself is owned by the CLI** — you will print it and follow it,
 not improvise it.
 

@@ -98,7 +98,9 @@ session is effectively lost to every other agent and project.
 - Graph is **derived** from wikilinks/frontmatter, traversed in-process — no graph daemon.
 - **KB data lives at `~/.agent-memory/`** — a dedicated directory that is itself a git repo with
   **no remote** (free history/diffs/recovery; backup remains a local concern). Never inside this
-  code repo; never pushed to a personal remote.
+  code repo; never pushed to a personal remote. (v1 stated a single root; since D15,
+  2026-08-14, `~/.agent-memory/` is the *default instance* — `MEM_KB_ROOT` selects an
+  alternate instance, and every constraint here applies per-instance.)
 - CLI name: **`mem`**.
 - Write-to-all + RRF fusion is settled design; a rerank seam may be added later.
 

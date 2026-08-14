@@ -394,3 +394,35 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   asked whether a new tag was needed; the agent inventoried the type census, argued
   generalize-don't-mint from the D13 precedent (and the versioned-artifact rot risk
   for `concept` grounding), and Brent approved.
+
+## D15 — `MEM_KB_ROOT`: multi-instance KB routing (2026-08-14)
+
+- **Context:** Brent is standing up a second, personal KB (rare-cancer research
+  for his mom's conditions, SCOTUS rulings) that must never surface in
+  work-session ambient recall — a privacy/recall-scope boundary, not a topic
+  tag. The store was single-rooted: `config.kb_root()` hardcoded
+  `~/.agent-memory`; tests isolated via scratch `$HOME`, so no seam existed for
+  a second live instance.
+- **Decision:** add **`MEM_KB_ROOT`** — an env seam (consistent with the
+  `MEM_*` family) that points the entire CLI at an alternate KB instance;
+  `~` expands; unset keeps the default. Instances are fully isolated: own git
+  repo, own indexes, own usage log; every invariant (local-only/no-remote, OKF,
+  sensitivity semantics, D9 provenance, D10/D13/D14 credence) applies
+  per-instance. Partition doctrine: work↔personal splits at the *instance*
+  (recall context + confidentiality); subjects within an instance split by
+  topics. Projects route via env (personal projects set `MEM_KB_ROOT`);
+  the managed blocks teach the rule.
+- **Proof:** `tests/test_d15_kb_root.py` — two live instances each resolve their
+  own content and NOT the other's with both KB homes present (isolation both
+  ways, both directions exercised), blank/whitespace override falls back to the
+  default root, `~` expansion honored; full suite green
+  (`MEM_REQUIRE_NETNS=1 uv run pytest`). Codex gate (verifier-9bnu) FAILed the
+  first cut — one-way-only isolation proof, five single-root doc statements
+  (the L1 doc↔surface skew class, again), default-only backup tooling — all
+  three remediated: docs now speak per-instance (FEATURES.md untouched as
+  read-only history), `agent-memory-backup` takes `MEM_BACKUP_KB_ROOT`/`_DEST`/
+  `_MIRROR` for one-instance-per-job scheduling.
+- **AI involvement:** Brent asked how to partition personal knowledge (cancer
+  research + SCOTUS in one place?); the agent argued instance-split-by-recall-
+  context over per-subject KBs, identified the hardcoded root, and Brent
+  approved the seam.

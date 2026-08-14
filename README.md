@@ -12,13 +12,17 @@ Brent's coding agents each start every session cold — knowledge learned in one
 
 **Vendor scope (DECISION_LOG D1):** memory work is restricted to approved vendors — Claude (Anthropic) and Codex (OpenAI). Ambient behavior (unprompted save/search) is claimed and proved on Claude; for codex/agy the v1 claim is installation of the AGENTS.md instruction block only. Antigravity/Gemini-backed agents are excluded from memory work entirely.
 
-This repo holds code only — KB data lives in `~/.agent-memory` (a local git repo with **no remote**, a hard confidentiality line) and is never pushed.
+This repo holds code only — KB data lives in the selected instance root (default
+`~/.agent-memory`; `MEM_KB_ROOT` selects an alternate instance, D15), each a local git repo
+with **no remote**, a hard confidentiality line, and never pushed.
 
 ## Using it
 
 ```bash
 uv tool install --editable .   # installs `mem`
-mem init                       # creates ~/.agent-memory, verifies Ollama, installs agent blocks
+mem init                       # creates the instance root (default ~/.agent-memory;
+                               # MEM_KB_ROOT=<path> for an alternate), verifies Ollama,
+                               # installs agent blocks
 mem doctor                     # re-checks everything
 mem save --title "..." --topics "..."   # capture (reads body from stdin)
 mem search "anything"          # fused lexical + semantic + graph search
@@ -47,7 +51,9 @@ Run `/kodos:go` to resume the workflow.
 `scripts/agent-memory-backup` (cron: daily + on WSL boot) sweeps external edits into a KB
 commit, writes verified full-history git bundles to the Windows-side disk (7-day ring +
 latest), and one-way-syncs a Windows-native read-only mirror for Obsidian viewing. Machine-
-specific; deploy wiring documented in the script header.
+specific; deploy wiring documented in the script header. Backup covers ONE instance per
+job (`MEM_BACKUP_KB_ROOT`/`MEM_BACKUP_DEST`/`MEM_BACKUP_MIRROR` override the defaults) —
+an alternate instance needs its own scheduled job with its own destinations.
 
 ## Environment
 

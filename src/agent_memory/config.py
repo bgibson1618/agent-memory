@@ -2,6 +2,8 @@
 
 Everything user-visible hangs off $HOME so tests can isolate a KB with a scratch
 HOME; MEM_OLLAMA_URL is the sanctioned seam for daemon up/down/hung states.
+MEM_KB_ROOT (D15) points the whole CLI at an alternate KB instance — every rule
+(local-only, no remote, OKF, sensitivity) applies per-instance.
 """
 
 import os
@@ -26,6 +28,9 @@ def _home() -> Path:
 
 
 def kb_root() -> Path:
+    override = os.environ.get("MEM_KB_ROOT", "").strip()
+    if override:
+        return Path(os.path.expanduser(override))
     return _home() / KB_DIRNAME
 
 
