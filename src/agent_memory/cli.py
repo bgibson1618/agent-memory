@@ -32,8 +32,9 @@ def main(argv=None) -> int:
     p_save.add_argument("--topics", help="comma-separated topics")
     p_save.add_argument("--type", default="concept", help="concept type (default: concept)")
     p_save.add_argument(
-        "--sensitivity", choices=["normal", "work"], default="normal",
-        help="'work' = employer-specific material (DECISION_LOG D1)",
+        "--sensitivity", choices=["normal", "work", "sensitive"], default="normal",
+        help="'work' = employer-specific material (DECISION_LOG D1); "
+             "'sensitive' = PII/PHI (D16)",
     )
     p_save.add_argument("--related", help="comma-separated related slugs")
     p_save.add_argument(
@@ -59,6 +60,10 @@ def main(argv=None) -> int:
     p_search.add_argument(
         "--no-work", action="store_true", dest="no_work",
         help="exclude sensitivity:work items entirely",
+    )
+    p_search.add_argument(
+        "--no-sensitive", action="store_true", dest="no_sensitive",
+        help="exclude sensitivity:sensitive (PII/PHI, D16) items entirely",
     )
     p_search.add_argument(
         "--type",

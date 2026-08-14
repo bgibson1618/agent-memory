@@ -3,9 +3,9 @@
 One query fans out to three legs - FTS5 BM25, cosine over local embeddings,
 1-hop graph expansion seeded from the lexical∪vector hits - and RRF fuses them
 into one ranked list (fusion.py). Hits keep the agent-parseable contract
-(slug/title/score/snippet), one screen by default; `sensitivity: work` items
-are marked `[work]` in text and carry a sensitivity field in --json, and
-`--no-work` drops them entirely. Retrieval is credence-blind by design (cosine
+(slug/title/score/snippet), one screen by default; non-`normal` sensitivities
+are marked `[work]`/`[sensitive]` in text and carry a sensitivity field in
+--json; `--no-work` / `--no-sensitive` drop their tier entirely (D16). Retrieval is credence-blind by design (cosine
 has no epistemics), so a non-`concept` type is marked `[<type>]` in text and
 carried in --json - an `sb-position` hypothesis never reads as vetted
 `concept` knowledge at recall time (D10); `--type a,b` restricts results to an
@@ -41,7 +41,9 @@ def cmd_search(args) -> int:
     # every leg can be entirely filtered types while real matches sit at rank
     # 11+ (the 2026-08-05 quality-review recall cliff). Widen the pools so
     # filtering selects from a deeper field instead of starving the result.
-    pool = max(args.limit, LEG_POOL) * (3 if type_filter or args.no_work else 1)
+    no_sensitive = getattr(args, "no_sensitive", False)  # same tolerance as `type`
+    pool = max(args.limit, LEG_POOL) * (
+        3 if type_filter or args.no_work or no_sensitive else 1)
 
     try:
         conn = lexical.connect(root)
@@ -106,6 +108,8 @@ def cmd_search(args) -> int:
             continue  # deleted or unparseable since the legs ran - no ghost hits
         if args.no_work and concept.sensitivity == "work":
             continue
+        if no_sensitive and concept.sensitivity == "sensitive":
+            continue
         if type_filter and concept.type not in type_filter:
             continue
         hit = {
@@ -118,8 +122,8 @@ def cmd_search(args) -> int:
         }
         if slug in vec_scores:
             hit["semantic_similarity"] = round(vec_scores[slug], 4)
-        if concept.sensitivity == "work":
-            hit["sensitivity"] = "work"
+        if concept.sensitivity != "normal":
+            hit["sensitivity"] = concept.sensitivity
         hits.append(hit)
 
     if args.json:
@@ -133,8 +137,8 @@ def cmd_search(args) -> int:
             marks = ""
             if hit["type"] != okf.TYPE_DEFAULT:
                 marks += f"  [{hit['type']}]"
-            if hit.get("sensitivity") == "work":
-                marks += "  [work]"
+            if hit.get("sensitivity"):
+                marks += f"  [{hit['sensitivity']}]"
             print(f"{hit['slug']}  {hit['score']:.2f}  {hit['title']}{marks}")
             print(f"    {hit['snippet']}")
     return 0

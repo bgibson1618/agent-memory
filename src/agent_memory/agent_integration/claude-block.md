@@ -43,6 +43,11 @@ mine for the KB: run `mem extract --procedure` and follow the printed choreograp
 - `sensitivity: work` marks employer-specific material ONLY; general knowledge learned
   on the job is normal sensitivity. When unsure whether material is
   employer-proprietary, tag it `work` - or don't save it.
+- `sensitivity: sensitive` (D16) marks PII/PHI — personally identifying or health
+  information about real people. Prefer NOT saving such details at all (distill the
+  knowledge, drop the identifiers); tag `sensitive` when they must be kept. Marked
+  `[sensitive]` in results; `--no-sensitive` excludes; treat the marker as
+  do-not-quote-onward.
 - The KB is local-only: never add a git remote to `~/.agent-memory`; its content goes
   nowhere but localhost (Ollama embeddings). `[work]`-marked results may be used in
   Claude and Codex contexts only (approved vendors: Anthropic, OpenAI).

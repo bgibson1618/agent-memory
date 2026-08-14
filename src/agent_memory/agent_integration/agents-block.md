@@ -20,7 +20,9 @@ paper, book, doc, or person (an omitted source records as `ambient`). When unsur
 whether material is employer-proprietary, tag it
 `sensitivity: work` - or don't save it. Work-tagged items appear marked `[work]` in
 results; treat that marker as a handle-with-care signal. `--no-work` excludes
-work-tagged items from search.
+work-tagged items from search. `sensitivity: sensitive` (D16) marks PII/PHI: prefer
+not saving identifying details at all; when kept, items are marked `[sensitive]`
+(`--no-sensitive` excludes) - do not quote them onward.
 **Credence (type):** search marks non-`concept` types `[<type>]`. `type: concept` is
 vetted knowledge; `type: position` is a named expert's/school's stance — cite it in
 attributed voice ("Fish holds…"), never as fact; `type: sb-position` is a Superbuilders

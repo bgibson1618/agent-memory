@@ -426,3 +426,28 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   research + SCOTUS in one place?); the agent argued instance-split-by-recall-
   context over per-subject KBs, identified the hardcoded root, and Brent
   approved the seam.
+
+## D16 — `sensitive` sensitivity tier for PII/PHI (2026-08-14)
+
+- **Context:** the personal KB (D15) will hold rare-cancer research and SCOTUS
+  material. Brent will NOT pull his mom's actual medical records into the KB,
+  but wants a marking for any PII/PHI that does need keeping — the existing
+  enum was `{normal, work}`, whose `work` semantics (employer-specific) don't
+  fit personally-identifying or health information.
+- **Decision:** add **`sensitive`** as a third `sensitivity` value: PII/PHI —
+  personally identifying or health information about real people. Semantics are
+  symmetric with `work`: included in recall and marked `[sensitive]` in text
+  (carried in `--json`), `--no-sensitive` excludes the tier; recall marking
+  generalized to any non-`normal` sensitivity. Capture guidance (taught in the
+  managed blocks and extract procedure): prefer NOT saving identifying details
+  at all — distill the knowledge, drop the identifiers; tag `sensitive` when
+  they must be kept, and never quote `[sensitive]` content onward. Applies
+  per-instance like everything else (D15).
+- **Proof:** `tests/test_d16_sensitive.py` — save/get roundtrip, `[sensitive]`
+  text marker + `--json` field, `--no-sensitive` excludes exactly its tier
+  (`--no-work` leaves sensitive items in, and vice versa), invalid values still
+  refused; full suite green (`MEM_REQUIRE_NETNS=1 uv run pytest`).
+- **AI involvement:** the agent flagged the enum gap while standing up the
+  personal KB; Brent ruled out storing family medical records and asked for the
+  tag; the agent implemented with symmetric-to-`work` semantics and the
+  drop-identifiers-first capture default.

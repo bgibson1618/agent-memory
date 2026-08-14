@@ -28,7 +28,8 @@
 
 ### Security & Privacy
 - **Sensitive data:** personal learning notes; some may derive from employer context. A
-  per-memory `sensitivity` field marks `work` items.
+  per-memory `sensitivity` field marks `work` (employer-specific) and — since D16,
+  2026-08-14 — `sensitive` (PII/PHI) items.
 - **AuthN / AuthZ:** n/a — single local user on a personal machine.
 - **Data handling:** all data at rest as plain files under the selected instance root —
   default `~/.agent-memory/`; `MEM_KB_ROOT` selects an alternate instance (D15) — each a
@@ -40,7 +41,10 @@
   job is normal sensitivity and fully ambient-visible (the KB's core content). CLI default:
   search **includes** `work`-tagged items with a visible `[work]` marker; `--no-work` excludes.
   Capture guidance (carried in the instruction blocks): when in doubt whether material is
-  employer-proprietary, tag it `work` — or don't save it.
+  employer-proprietary, tag it `work` — or don't save it. (Since D16, 2026-08-14, a third
+  tier exists: `sensitive` marks PII/PHI, symmetric semantics — included and marked
+  `[sensitive]` by default, `--no-sensitive` excludes; capture guidance: prefer not saving
+  PII/PHI at all, tag `sensitive` when it must be kept.)
 - **Vendor policy (Brent, 2026-07-21 — DECISION_LOG D1):** Anthropic and OpenAI are approved
   vendors; Google is not confirmed. Work-tagged recall — ambient included — is permitted in
   Claude and Codex contexts. **Antigravity/Gemini-backed agents are excluded from memory work

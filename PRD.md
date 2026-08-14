@@ -109,10 +109,13 @@ session is effectively lost to every other agent and project.
 - Dedup similarity thresholds for extract-knowledge — ✅ resolved at build: **0.79** measured
   (DECISION_LOG D3, `research/dedup-calibration.md`).
 - Sensitivity-tag recall semantics — ✅ resolved (NFR working session): work-tagged items are
-  **included and marked `[work]`** by default; `--no-work` excludes them entirely.
+  **included and marked `[work]`** by default; `--no-work` excludes them entirely. (Since
+  D16, 2026-08-14: a third value `sensitive` marks PII/PHI with the same include+mark
+  default and `--no-sensitive` exclusion.)
 - Flag grammar — ✅ finalized at build: `--json`, `--update`, `--related`, `--no-work`,
   `--candidates`, plus `--title/--body/--description/--topics/--type/--sensitivity/--slug`
-  (save), `--limit` (search), `--procedure` (extract); the subcommand surface shipped as
+  (save), `--limit` (search), `--procedure` (extract) — since D16 (2026-08-14) also
+  `--no-sensitive` (search); the subcommand surface shipped as
   settled in ARCHITECTURE (v1: `init · save · search · get · list · extract · reindex ·
   doctor`; post-v1 growth: + `links · stats` per D12/D8 — ARCHITECTURE carries the current
   10-command surface, pinned to the CLI by the F12 parity test).

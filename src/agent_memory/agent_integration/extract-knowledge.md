@@ -19,7 +19,9 @@ Non-negotiables:
   backends only. Gemini-backed agents (Antigravity) take no part in memory
   work - not as extractor, not as reviewer.
 - **Confidentiality.** If the document is employer material, candidates default
-  to `sensitivity: work`; only clearly general knowledge stays `normal`. When
+  to `sensitivity: work`; only clearly general knowledge stays `normal`; PII/PHI
+  about real people defaults to dropping the identifiers - `sensitivity: sensitive`
+  (D16) only when they must be kept. When
   unsure, tag `work` - or drop the candidate.
 
 ## 0. Preflight
@@ -47,7 +49,10 @@ nothing else:
 > Read the document below. Propose the durable, reusable concepts it teaches -
 > principles, techniques, hard-won explanations - not document trivia, section
 > summaries, or project-local facts. Lens: {LENS}. Each concept's body must
-> stand alone: teachable to someone who never sees this document. Typical
+> stand alone: teachable to someone who never sees this document. PII/PHI
+> (identifying or health details about real people): distill the knowledge and
+> DROP the identifiers; if an identifier is essential, set "sensitivity":
+> "sensitive". Typical
 > yield: 2-8 candidates. Return ONLY a JSON array of candidate objects:
 > `[{"title": "...", "body": "markdown, standalone", "description": "one
 > line", "topics": ["..."], "type": "concept", "sensitivity": "normal",
@@ -76,7 +81,9 @@ Reviewer prompt template:
 > Below: a source document and numbered candidate concepts extracted from it.
 > For EACH candidate, judge: accurate (faithful to the document)? durable
 > (reusable beyond this document)? well-formed (clear title, standalone body)?
-> correctly tagged (sensible topics; sensitivity "work" iff employer-specific)?
+> correctly tagged (sensible topics; sensitivity "work" iff employer-specific,
+> "sensitive" iff it carries PII/PHI - and prefer a fix that drops the
+> identifiers over keeping them)?
 > Return ONLY a JSON array:
 > `[{"index": 0, "verdict": "approve" | "reject" | "fix", "reason": "one
 > line", "fix": {only-the-changed-fields}}]`
@@ -101,7 +108,7 @@ mem extract --candidates /tmp/candidates.json --json
 
 Candidate schema (the CLI rejects unknown fields item-wise): `title` and
 `body` required; `description`, `topics`, `type` (default "concept"),
-`sensitivity` ("normal" | "work"), `related` (slugs), `slug` (default: derived
+`sensitivity` ("normal" | "work" | "sensitive"), `related` (slugs), `slug` (default: derived
 from title) optional. Invalid candidates are reported individually; valid
 siblings still land.
 

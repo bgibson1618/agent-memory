@@ -27,7 +27,7 @@ from datetime import datetime, timezone
 import yaml
 
 TYPE_DEFAULT = "concept"
-SENSITIVITIES = ("normal", "work")
+SENSITIVITIES = ("normal", "work", "sensitive")
 RESERVED_SLUGS = ("index", "log")  # OKF v0.1 §3.1: reserved filenames, never concept documents
 
 _FRONTMATTER_RE = re.compile(r"\A---\n(.*?)\n---\n(.*)\Z", re.DOTALL)
