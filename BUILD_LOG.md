@@ -353,3 +353,23 @@ updated (F27 checkpoint seam): the skew class hides in EVERY surface-quoting doc
 not just the contract doc — sweep PRD/NFR resolutions too. needs_you cleared;
 state + learnings validated. Last-CLEAN marker NOT advanced (post-fix tree awaits
 its own adjudication). Commit 1d9b210.
+
+## 2026-08-14 — standalone sanity checkpoint (post-D15/D16) — CLEAN
+
+Deterministic: ledger OK, state + bidirectional join OK, scheduler coherent (12/12
+proved, next: done). Judgment (tree scope, roster executors, paths-only): drift
+reviewer verifier-eo81 → **CLEAN** — every state evidence ref real on disk, suite
+re-run live 124 passed with netns leg required, live KB zero remotes (2,521
+concepts), D15/D16 coherent docs↔state↔code both directions, managed blocks
+verbatim-current in the installed CLAUDE.md/AGENTS.md; two advisory observations
+(D15/D16 journal cadence — this entry closes it; FEATURES.md frozen single-root
+language — documented read-only history, not drift). Quality reviewer
+verifier-qair → **no HAZARDs**; advisory: 4 IMPROVEMENTs (lexical.db_path
+NameError dead code + no linter [repeat from 2026-08-10]; extract dedup blind to
+un-searched external edits — reconcile before drain_fully [NEW, most
+consequential]; unchunked batch embed under flat 30s timeout [repeat];
+mem list full-KB reparse + pure-Python yaml loader despite libyaml present
+[NEW, CSafeLoader is a one-liner]) + 6 NITs (incl. kb-obsidianize bypassing the
+D15 instance seam). Advisory only — the loop never self-assigns; Brent promotes
+what he wants. **Last-CLEAN marker advanced to 8d349bd** (.kodos/sanity.last-clean,
+now gitignored with handoff.latch under the F23 machine-state block).

@@ -14,3 +14,6 @@ __pycache__/
 .kodos/runtime.json
 .kodos/ctx-*.json
 .kodos/hook-fire.log
+# KodOS checkpoint machine state (F23 last-CLEAN marker); never committed
+.kodos/sanity.last-clean
+.kodos/handoff.latch
