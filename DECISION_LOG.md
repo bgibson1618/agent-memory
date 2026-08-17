@@ -451,3 +451,78 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   personal KB; Brent ruled out storing family medical records and asked for the
   tag; the agent implemented with symmetric-to-`work` semantics and the
   drop-identifiers-first capture default.
+
+## D17 — Two-band dedup thresholds: `dedup_low` / `dedup_high` (2026-08-17)
+
+- **Context:** D3's single threshold (0.79) was measured on a 26-pair,
+  clean-separation corpus. The personal instance's cancer-research corpus
+  (`research/dedup-calibration-personal-2026-08-17.md`, n=381: 330 distinct,
+  51 true-dup) has dense shared vocabulary that compresses embedding space:
+  the classes overlap from 0.84 to 0.96, so no single line separates them, and
+  at 0.79 the threshold did almost no discriminative work (81-100% flag rates,
+  87-95% false-positive) — every candidate cost a full-body D3 read. The study
+  also found the bottom band clean (zero true-dups below 0.8413) and the top
+  band not worth auto-skipping by default (0.94 would falsely drop 2 distinct
+  entries to save 1 read).
+- **Decision:** replace the single threshold with two calibrated bands. `s` =
+  candidate's max cosine similarity to an existing entry: `s < dedup_low` →
+  `added` (unchanged auto-add path); `dedup_low ≤ s < dedup_high` →
+  `skipped-duplicate` (unchanged string, still the D3-reviewable band);
+  `s ≥ dedup_high` → new disposition `skipped-duplicate-confident`, accepted
+  by the extract procedure without a full-body D3 read (still reports
+  match + similarity for a spot-check). Config: env seams `MEM_DEDUP_LOW` /
+  `MEM_DEDUP_HIGH` (consistent with the `MEM_*` family, D15's pattern —
+  per-instance, no persisted config file anywhere in this codebase).
+  **Defaults: `dedup_low = 0.79`** (D3's measured value; default `--json`
+  output is exactly the pre-D17 object — no `dedup_high` or
+  `skipped_duplicate_confident` keys at all, proven by an exact key-set
+  comparison against the pre-D17 shape, not just unchanged-value assertions —
+  the work instance is unaffected) **and `dedup_high` disabled** (`None`) —
+  a confident band is a per-instance calibration choice, never a global
+  default. `MEM_DEDUP_THRESHOLD` (the pre-D17 name) is kept as a back-compat
+  fallback for `dedup_low`, so existing per-instance env config needs no
+  change; `MEM_DEDUP_LOW` takes precedence when both are set. Per-instance
+  deployment: the personal instance sets `dedup_low = 0.83` (removes ~28% of
+  D3 reads at zero observed error, per the study) with `dedup_high` left
+  disabled — the top band stays a mechanism, not a default, until a larger
+  sample moves the 0.8413 floor with confidence. **Band config is validated
+  when read:** `mem extract` refuses cleanly (one-line `error:` message,
+  exit 1 — the same `ExtractError` pattern the command already uses for a
+  down daemon or malformed candidates) if `MEM_DEDUP_HIGH` is configured and
+  not strictly greater than `dedup_low`, or if either value is non-finite or
+  unparseable. A reversed or degenerate pair would silently make the
+  confident band swallow the reviewable one (or vice versa) with no visible
+  symptom; this was raised as an open question at gate and the orchestrator
+  decided fail-fast refusal over silent tolerance.
+- **Proof:** `tests/test_d17_dedup_bands.py` — below-low → added; inside the
+  reviewable band → `skipped-duplicate` (`dedup_high` disabled, or configured
+  but not crossed); exact equality at `dedup_low` and, separately, at a
+  configured `dedup_high` are each pinned through the real extract flow using
+  identical-vector (cosine exactly 1.0) candidates, so both inclusive `>=`
+  boundaries are proven bit-exactly rather than approximated by a margin;
+  above a configured `dedup_high` → `skipped-duplicate-confident` (JSON and
+  text-report forms, counted separately in the summary line); confident band
+  stays disabled by default even at very high similarity; the default
+  `--json` object's exact key set matches the pre-D17 golden (no `dedup_high`
+  / `skipped_duplicate_confident` keys present at all), with a separate test
+  proving those two keys appear only once `dedup_high` is configured;
+  `dedup_high <= dedup_low` and non-finite/unparseable band values are each
+  refused cleanly with a nonzero exit; legacy `MEM_DEDUP_THRESHOLD` still
+  maps to `dedup_low`; `MEM_DEDUP_LOW` takes precedence when both env vars
+  are set; the personal calibration artifact's documented defaults are
+  pinned against `config.DEFAULT_DEDUP_LOW`/`DEFAULT_DEDUP_HIGH` the same way
+  `tests/test_f9_extract.py` pins D3's artifact. Full suite green
+  (`MEM_REQUIRE_NETNS=1 uv run pytest`, 138 passed, up from 124).
+- **AI involvement:** the agent ran the personal-instance calibration study
+  (five extraction batches, `analyze3.py`, KB-existence ground truth) that
+  surfaced the class overlap and motivated a second band; Brent approved the
+  two-band mechanism and its defaults (2026-08-17); the agent chose the
+  `dedup_low`/`dedup_high` names and the env-seam implementation, consistent
+  with the existing `MEM_*` config family and D15's per-instance pattern. A
+  gate cycle (verifier) found the default JSON was not actually
+  byte-identical, the equality boundaries were untested, and this record
+  overstated both; the orchestrator additionally decided the open question
+  on malformed band config (fail fast, don't tolerate silently). This fix
+  cycle corrected the implementation, replaced the misleading test with a
+  golden comparison, added the boundary and validation tests, and corrected
+  this entry to match.

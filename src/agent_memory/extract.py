@@ -1,10 +1,14 @@
 """`mem extract` - the deterministic half of extract-knowledge.
 
 Candidate concepts (JSON) come in; each is validated item-wise, embedded, and
-deduped against the KB's vectors by cosine similarity against the calibrated
-threshold (config.DEFAULT_DEDUP_THRESHOLD, recorded with its measurement in
-research/dedup-calibration.md). Novel candidates are saved through the same
-mechanics as `mem save` (atomic write + one commit per concept + in-line
+deduped against the KB's vectors by cosine similarity against two calibrated
+bands (D17, extends D3): below config.dedup_low() the candidate is novel;
+[dedup_low, dedup_high) is the reviewable "skipped-duplicate" band; at/above
+dedup_high (disabled by default) is "skipped-duplicate-confident", accepted
+without a full-body review. dedup_low is recorded with its measurement in
+research/dedup-calibration.md; a per-instance confident band is calibrated in
+research/dedup-calibration-personal-2026-08-17.md. Novel candidates are saved
+through the same mechanics as `mem save` (atomic write + one commit + in-line
 lexical index) and their already-computed embeddings are stored directly.
 Dedup requires embeddings: with Ollama unreachable the whole batch is refused
 with a one-line error before anything is saved. All embedding happens up
@@ -17,6 +21,7 @@ printed by `mem extract --procedure`.
 """
 
 import json
+import math
 import re
 import sys
 from pathlib import Path
@@ -35,6 +40,29 @@ CANDIDATE_FIELDS = {
 
 class ExtractError(Exception):
     """A one-line, agent-actionable extract refusal."""
+
+
+def _band_config() -> tuple:
+    """(dedup_low, dedup_high), validated. A reversed or degenerate pair
+    (dedup_high <= dedup_low) would make the piecewise disposition logic
+    below silently misclassify every candidate in the gap; a non-finite or
+    unparseable value would do the same via a nonsensical comparison. Both
+    are refused up front rather than discovered downstream."""
+    try:
+        low = config.dedup_low()
+        high = config.dedup_high()
+    except ValueError as e:
+        raise ExtractError(f"invalid dedup band config: {e}") from e
+    if not math.isfinite(low):
+        raise ExtractError(f"dedup_low must be a finite number, got {low}")
+    if high is not None:
+        if not math.isfinite(high):
+            raise ExtractError(f"MEM_DEDUP_HIGH must be a finite number, got {high}")
+        if high <= low:
+            raise ExtractError(
+                f"MEM_DEDUP_HIGH ({high}) must be greater than dedup_low ({low})"
+            )
+    return low, high
 
 
 def _load_candidates(raw: str) -> list:
@@ -234,7 +262,7 @@ def _extract(args) -> int:
     root = config.kb_root()
     store.require_kb(root)
     store.warn_if_remote(root)
-    threshold = config.dedup_threshold()
+    dedup_low, dedup_high = _band_config()
 
     items = _load_candidates(args.candidates)
     results: list = [None] * len(items)
@@ -281,12 +309,17 @@ def _extract(args) -> int:
             saved = []   # (result index, concept) saved this batch, for the remap
             for (i, concept), text, vec in zip(valid, texts, vecs):
                 match, similarity = _best_match(vec, entries)
-                if match is not None and similarity >= threshold:
+                if match is not None and similarity >= dedup_low:
+                    disposition = (
+                        "skipped-duplicate-confident"
+                        if dedup_high is not None and similarity >= dedup_high
+                        else "skipped-duplicate"
+                    )
                     rename[concept.slug] = match
                     results[i] = {
                         "index": i,
                         "title": concept.title,
-                        "disposition": "skipped-duplicate",
+                        "disposition": disposition,
                         "match": match,
                         "similarity": round(similarity, 4),
                     }
@@ -343,23 +376,28 @@ def _extract(args) -> int:
         finally:
             con.close()
 
-    counts = {"added": 0, "skipped-duplicate": 0, "invalid": 0}
+    counts = {
+        "added": 0, "skipped-duplicate": 0, "skipped-duplicate-confident": 0, "invalid": 0,
+    }
     for r in results:
         counts[r["disposition"]] += 1
     links_remapped = sum(r.get("remapped_links", 0) for r in results if r)
 
     if args.json:
-        print(json.dumps(
-            {
-                "threshold": threshold,
-                "added": counts["added"],
-                "skipped_duplicate": counts["skipped-duplicate"],
-                "invalid": counts["invalid"],
-                "links_remapped": links_remapped,
-                "results": results,
-            },
-            indent=2, ensure_ascii=False,
-        ))
+        payload = {
+            "threshold": dedup_low,
+            "added": counts["added"],
+            "skipped_duplicate": counts["skipped-duplicate"],
+            "invalid": counts["invalid"],
+            "links_remapped": links_remapped,
+            "results": results,
+        }
+        if dedup_high is not None:
+            # Additive-only: these two keys never appear in default (no
+            # MEM_DEDUP_HIGH) output, keeping it byte-identical to pre-D17.
+            payload["dedup_high"] = dedup_high
+            payload["skipped_duplicate_confident"] = counts["skipped-duplicate-confident"]
+        print(json.dumps(payload, indent=2, ensure_ascii=False))
     else:
         for r in results:
             if r["disposition"] == "added":
@@ -368,7 +406,12 @@ def _extract(args) -> int:
             elif r["disposition"] == "skipped-duplicate":
                 print(
                     f"skipped-duplicate: {r['title']} - matches '{r['match']}'"
-                    f" (similarity {r['similarity']:.2f} >= threshold {threshold:.2f})"
+                    f" (similarity {r['similarity']:.2f} >= threshold {dedup_low:.2f})"
+                )
+            elif r["disposition"] == "skipped-duplicate-confident":
+                print(
+                    f"skipped-duplicate-confident: {r['title']} - matches '{r['match']}'"
+                    f" (similarity {r['similarity']:.2f} >= confident threshold {dedup_high:.2f})"
                 )
             else:
                 who = f"candidate #{r['index'] + 1}" + (f" ({r['title']})" if r["title"] else "")
@@ -377,6 +420,12 @@ def _extract(args) -> int:
             f"extract: {counts['added']} added, {counts['skipped-duplicate']}"
             f" skipped-duplicate, {counts['invalid']} invalid"
         )
+        if dedup_high is not None:
+            summary = (
+                f"extract: {counts['added']} added, {counts['skipped-duplicate']}"
+                f" skipped-duplicate, {counts['skipped-duplicate-confident']}"
+                f" skipped-duplicate-confident, {counts['invalid']} invalid"
+            )
         if links_remapped:
             summary += f", {links_remapped} link(s) remapped to dedup/suffix targets"
         print(summary)

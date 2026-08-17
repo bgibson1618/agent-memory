@@ -115,17 +115,27 @@ siblings still land.
 ## 5. Review dispositions, then report
 
 **skipped-duplicate is reviewable, not final** (DECISION_LOG D3): the
-calibrated threshold is measured on near-dup vs distinct pairs, but
-umbrella-vs-member concept pairs can exceed it (observed live: a member
-concept at 0.84 against its umbrella). For each skipped-duplicate in the
+calibrated `dedup_low` threshold is measured on near-dup vs distinct pairs,
+but umbrella-vs-member concept pairs can exceed it (observed live: a member
+concept at 0.84 against its umbrella). For each `skipped-duplicate` in the
 report, run `mem get <match-slug> --json` and judge: same concept (true
 duplicate - accept the skip) or genuinely distinct (umbrella/member, sibling)?
 For a wrongly-skipped candidate the sanctioned override is a direct
 `mem save` - it bypasses dedup by design.
 
+**`skipped-duplicate-confident`** (DECISION_LOG D17) is a second, higher
+`dedup_high` band: similarity so high a full-body read adds no signal. You may
+accept these without the `mem get` read above - the report still carries
+match + similarity if you want to spot-check one. Both bands are per-instance
+config, measured against that instance's own corpus
+(`research/dedup-calibration.md`, `research/dedup-calibration-personal-2026-08-17.md`);
+`dedup_high` is disabled by default, so most instances see only
+`skipped-duplicate`.
+
 Then report to Brent, in one readable block:
 
 - **added** - slug per concept (including any override saves, marked as such)
-- **skipped as true duplicates** - candidate title -> matching slug
+- **skipped as true duplicates** - candidate title -> matching slug (mark
+  `skipped-duplicate-confident` entries as such)
 - **rejected in review** - title + the reviewer's reason
 - **invalid** - the CLI's item-wise reason, if any

@@ -315,3 +315,7 @@ def test_threshold_matches_committed_calibration_artifact():
         f" the calibrated choice {match.group(1)} recorded in {artifact}"
     )
     assert 0.0 < config.DEFAULT_DEDUP_THRESHOLD < 1.0
+    # D17: dedup_low inherits this exact value (byte-identical default
+    # behavior); dedup_high stays disabled until an instance opts in.
+    assert config.DEFAULT_DEDUP_LOW == config.DEFAULT_DEDUP_THRESHOLD
+    assert config.DEFAULT_DEDUP_HIGH is None
