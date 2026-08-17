@@ -18,13 +18,14 @@
     "instruction block",
     "managed block",
     "new subcommand",
-    "PRD resolution parentheticals"
+    "PRD resolution parentheticals",
+    "dedup threshold resolution lines"
    ],
-   "lesson": "Doc/contract artifacts and the ACTUAL CLI surface skew in BOTH directions: shipped text can advertise an unbuilt flag (docs ahead of code), and post-closeout growth (new subcommands, new frontmatter fields) leaves component contracts stale (code ahead of docs). Re-true the contract tables in the same commit that grows the surface; a checkpoint reviewer reading only prose will find it otherwise. The class hides in EVERY doc that quotes the surface, not just the contract doc: the 2026-08-05 remediation re-trued ARCHITECTURE but a PRD parenthetical quoting the same 8-command list survived to the 2026-08-10 checkpoint \u2014 sweep all surface-quoting docs (PRD/NFR resolutions included), or date such quotes as version history at write time.",
+   "lesson": "Doc/contract artifacts and the ACTUAL CLI surface skew in BOTH directions: shipped text can advertise an unbuilt flag (docs ahead of code), and post-closeout growth (new subcommands, new frontmatter fields) leaves component contracts stale (code ahead of docs). Re-true the contract tables in the same commit that grows the surface; a checkpoint reviewer reading only prose will find it otherwise. The class hides in EVERY doc that quotes the surface, not just the contract doc: the 2026-08-05 remediation re-trued ARCHITECTURE but a PRD parenthetical quoting the same 8-command list survived to the 2026-08-10 checkpoint \u2014 sweep all surface-quoting docs (PRD/NFR resolutions included), or date such quotes as version history at write time. THIRD recurrence (2026-08-17, D17 two-band dedup): the sweep rule was on record yet the D17 commit still skipped PRD/NFR/ARCHITECTURE's dedup-resolution lines \u2014 a rule in the learning store does not execute itself. Durable kill: make the doc-sweep a mechanical step of the decision-commit itself (grep all surface-quoting docs for the changed surface term in the same engagement that writes the DECISION_LOG entry), and/or a grep-based doc-sweep validator at the sanity seam.",
    "source": "BUILD_LOG.md wave 3 checkpoint finding 1 (kodos-sanity-w3-20260721)",
    "seam": "checkpoint",
    "captured_at": "2026-07-21T22:45:00Z",
-   "updated_at": "2026-08-10T19:31:49Z"
+   "updated_at": "2026-08-17T19:20:00Z"
   },
   {
    "id": "L2",

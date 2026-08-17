@@ -373,3 +373,41 @@ mem list full-KB reparse + pure-Python yaml loader despite libyaml present
 D15 instance seam). Advisory only — the loop never self-assigns; Brent promotes
 what he wants. **Last-CLEAN marker advanced to 8d349bd** (.kodos/sanity.last-clean,
 now gitignored with handoff.latch under the F23 machine-state block).
+
+## 2026-08-17 — D17 (two-band dedup) + standalone sanity checkpoint — DRIFT → remediated
+
+**D17 engagement** (Brent-approved; roster delegate→gate→commit): calibrated the
+personal-instance dedup profile on 381 KB-existence-labeled pairs from the 5-batch
+cancer-corpus extraction (`research/dedup-calibration-personal-2026-08-17.md`; no
+single threshold separates the classes — bottom band clean below 0.8413, top band
+not worth enabling), then shipped `MEM_DEDUP_LOW`/`MEM_DEDUP_HIGH` two-band
+mechanism, back-compatible by default (522ffef). Gate cycle: codex verifier FAIL
+(3 real blockers — default JSON not byte-identical + a test asserting the
+violation; no equality-boundary tests; D-log overclaims) → fix cycle (+ decided
+addition: invalid band config refuses cleanly) → codex re-gate PASS across all 7
+dimensions. Suite 124 → **138 passed**, re-run green by the committing orchestrator.
+Personal instance deploys `MEM_DEDUP_LOW=0.83` via the hub's agent-contract env
+routing (per-instance config is env-var-only, the D15 pattern). Run dirs:
+`work/agents/d17-two-band`, `d17-gate`, `d17-fix`, `d17-gate2`.
+
+**Standalone sanity checkpoint** (tree scope; roster verifier reviewers per the
+role-dispatch seam): deterministic validators 3/3 OK. Drift reviewer
+(sanity-drift) → DRIFT, one finding, independently VALIDATED (sanity-val-f1):
+PRD/NFR_UX/ARCHITECTURE dedup-resolution lines still described the pre-D17
+single-0.79 surface with no dated annotation — the **L1 skew class, third
+recurrence**. Tripped `run.needs_you`; Brent approved remediation same-session:
+dated "Since D17" annotations added to all three docs + ARCHITECTURE extract-row
+disposition list re-trued; L1 updated in `.kodos/learnings.json` (rule-on-record
+didn't self-execute; durable kill = mechanical doc-sweep at the decision-commit
+seam). Advisory (this entry closes the journal-cadence advisory, same as
+2026-08-14): D17 had no BUILD_LOG entry until now. Quality reviewer
+(sanity-quality) → **no HAZARDs**; 6 IMPROVEMENTs (repeats: lexical.db_path
+NameError dead code, unchunked batch embed under flat 30s timeout; new:
+extract.py cross-module underscore-private imports, per-candidate Python-loop
+_best_match [O(candidates×KB)], _extract wall-of-function, kb-obsidianize
+hardcodes the work-KB root around the D15 seam + divergent slugify) + 9 NITs
+(incl. backup script's silenced bundle-verify diagnostic, text `mem get` drops
+`source:`). Advisory only — Brent promotes what he wants. Everything else CLEAN:
+all 12 features' evidence refs real on disk, both KBs zero-remote, managed blocks
+current, D17 chain coherent end-to-end. Re-check checkpoint follows this
+remediation; marker advances only on its CLEAN.

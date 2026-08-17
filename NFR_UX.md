@@ -120,5 +120,7 @@ Part B.)
 
 ## Open Questions
 - Dedup similarity thresholds for extract-knowledge — ✅ resolved at build: **0.79** measured
-  (DECISION_LOG D3, `research/dedup-calibration.md`).
+  (DECISION_LOG D3, `research/dedup-calibration.md`). (Since D17, 2026-08-17: two-band
+  mechanism — `MEM_DEDUP_LOW` default 0.79 = unchanged default behavior, `MEM_DEDUP_HIGH`
+  default disabled; DECISION_LOG D17, `research/dedup-calibration-personal-2026-08-17.md`.)
 - Flag grammar — ✅ finalized at build (see PRD Open Questions for the shipped surface).

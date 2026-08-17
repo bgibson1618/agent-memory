@@ -28,7 +28,7 @@ agent; the CLI is never interactive and every read command speaks `--json`.
 | `index.vector` | Ollama `/api/embed` client; vectors as BLOBs in SQLite; **numpy brute-force cosine** at query time; pending-embed queue | ~30 MB / <10 ms at the 10k ceiling; model tag + digest + dims stamped in metadata, mixed-dim writes refused; `num_ctx` set explicitly; **embed calls carry strict per-purpose client budgets — save/opportunistic-drain 500 ms (timeout ⇒ enqueue, never block); query 2.5 s (`MEM_EMBED_QUERY_TIMEOUT` seam — absorbs moderate model-reload windows; a full cold reload (~3.8 s measured) instead degrades that one query to lexical+graph and warms the model for the next — learning L4, wave-6 evidence); full drain (doctor/reindex) 30 s**; sqlite-vec ANN is a later seam, not a v1 dep |
 | `index.graph` | Parse `[[wikilinks]]` + frontmatter `related` into direct edges and `topics` into **topic nodes** (concept → topic → concept — never materialized pairwise edges, so a broad tag can't go quadratic); mtime-invalidated cache; in-process traversal (pure Python — 1–2-hop expansion needs no traversal lib; networkx/rustworkx remain a later seam) | The research-gated "derived graph" — no graph daemon; Obsidian renders the same links natively |
 | `fusion` | RRF across the three legs; rerank seam (no-op in v1); non-`normal` sensitivity marking (`[work]`/`[sensitive]`, D16) + `--no-work`/`--no-sensitive` filters | Write-to-all + fuse-on-read is settled design (capstone D021/D023/D045) |
-| `extract` | The **deterministic half** of extract-knowledge: candidate concepts (JSON) in → validate → embed → dedup vs KB → save novel → report added/skipped/near-dup | No LLM inside the CLI; thresholds calibrated empirically (capstone D024); with Ollama unreachable it **refuses cleanly** (dedup requires embeddings) — nothing partially saved |
+| `extract` | The **deterministic half** of extract-knowledge: candidate concepts (JSON) in → validate → embed → dedup vs KB → save novel → report added / skipped-duplicate / skipped-duplicate-confident (since D17) / invalid | No LLM inside the CLI; thresholds calibrated empirically (capstone D024); with Ollama unreachable it **refuses cleanly** (dedup requires embeddings) — nothing partially saved |
 | `cli` | `mem` entry point: `init · save · search · get · list · extract · reindex · doctor · links · stats` (links = dangling-link health, D12; stats = usage counts from the local invocation log, D8) | stdlib argparse; never interactive; meaningful exit codes; `--json` on every read; one-line errors. **`mem init` owns setup**: creates `~/.agent-memory` + git init, verifies Ollama/models/FTS5, and installs/refreshes the agent-integration instruction blocks into the global `CLAUDE.md`/`AGENTS.md` (managed marker section); `mem doctor` re-checks all of it |
 | `agent-integration/` | Shipped **as data, not code**: the CLAUDE.md + AGENTS.md instruction blocks (when to save/search unprompted) and the **extract-knowledge procedure** | The invisibility mechanism, vendor-scoped per DECISION_LOG D1: ambient awareness is claimed and proved on Claude; the AGENTS.md block carries the same instructions to approved-vendor consumers (Codex), but for codex/agy v1 claims installation only (F11); Antigravity/Gemini-backed agents are excluded from memory work entirely |
 
@@ -130,7 +130,11 @@ No paid services, no cloud, no copyleft/SSPL components — $0 and Apache/MIT/PS
 ## Open Architecture Questions
 - **Dedup threshold** — ✅ **resolved during build**: calibrated empirically at **0.79**
   (band 0.77–0.81, fp 0 / fn 0 on 26 measured pairs) — DECISION_LOG **D3**,
-  `research/dedup-calibration.md`.
+  `research/dedup-calibration.md`. (Since D17, 2026-08-17: generalized to a two-band
+  mechanism — `MEM_DEDUP_LOW` default 0.79 keeps default behavior byte-identical;
+  `MEM_DEDUP_HIGH`, default disabled, adds a confident-skip band exempt from the D3
+  full-body review; calibrated on 381 KB-existence-labeled pairs in
+  `research/dedup-calibration-personal-2026-08-17.md` — DECISION_LOG **D17**.)
 - **Graph-leg scoring** — v1 seeds traversal from the other legs' hits and expands 1–2 hops;
   the exact hop-decay/link-weight scoring gets fixed against real KB data during build.
 - **RRF tuning** — start k=60, unweighted. Tune only if real usage shows a leg drowning others.

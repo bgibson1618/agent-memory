@@ -107,7 +107,12 @@ session is effectively lost to every other agent and project.
 ## 9. Open Questions
 
 - Dedup similarity thresholds for extract-knowledge — ✅ resolved at build: **0.79** measured
-  (DECISION_LOG D3, `research/dedup-calibration.md`).
+  (DECISION_LOG D3, `research/dedup-calibration.md`). (Since D17, 2026-08-17: the single
+  threshold became a two-band mechanism — `MEM_DEDUP_LOW`, default 0.79 = unchanged default
+  behavior, plus `MEM_DEDUP_HIGH`, default disabled, whose crossing yields the
+  `skipped-duplicate-confident` disposition; second calibration artifact
+  `research/dedup-calibration-personal-2026-08-17.md`; the personal instance deploys
+  `MEM_DEDUP_LOW=0.83`.)
 - Sensitivity-tag recall semantics — ✅ resolved (NFR working session): work-tagged items are
   **included and marked `[work]`** by default; `--no-work` excludes them entirely. (Since
   D16, 2026-08-14: a third value `sensitive` marks PII/PHI with the same include+mark
