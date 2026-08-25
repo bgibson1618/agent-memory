@@ -1,6 +1,9 @@
 # agent-roster observable run dirs (delegate scratch — never committed)
 work/
 
+# playwright-mcp plugin console-log capture (session detritus)
+.playwright-mcp/
+
 # Python
 .venv/
 __pycache__/
