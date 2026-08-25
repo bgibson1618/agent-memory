@@ -557,7 +557,11 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   reference/spine cards in the dedup surface (chunk long cards), (e) persist
   per-run skip/adjudication records so recalibration is mechanical,
   calibrating first on the 2026-08-24 gate labels, (f) rewire the save-path
-  check to consume the same detector. Not in scope here: agent-roster's
+  check to consume the same detector, (g) [added 2026-08-25, Brent]: run the
+  FALSE-SUPPRESSION sweep over the AP-BPF remediation's 60 prior-cycle
+  NO-ACTION-DUP-class rulings (r1-phase2 dup-rulings artifact) with the new
+  tooling — those rulings remain trusted until this sweep runs (R3 gate's
+  deferred-with-owner disposition). Not in scope here: agent-roster's
   fanout result-compaction fix (results keyed by lens role) — a roster-repo
   item recorded in the session memory's process-retro backlog.
 - **AI involvement:** the orchestrator surfaced the failure taxonomy and
