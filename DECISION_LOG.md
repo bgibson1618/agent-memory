@@ -526,3 +526,42 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   cycle corrected the implementation, replaced the misleading test with a
   golden comparison, added the boundary and validation tests, and corrected
   this entry to match.
+
+## D18 — Dedup DETECTION accuracy: parked engagement, Brent-approved for the backlog (2026-08-24)
+
+- **Context:** the AP-BPF remediation (ap-business-personal-finance,
+  `work/kb-extraction-plan-2026-08-21.md` header, runs `r1p2a-gate1..4`)
+  stress-tested near-dup detection against a dense 1,221-card instance. Four
+  independent adversarial gates each found confirmed duplicates the previous
+  "exhaustive" check had cleared. Failure modes, all evidenced in the run
+  dirs: (1) true dup ranked below a topical false positive (rank 3–8);
+  (2) confirmed dups at 0.63–0.73 semantic similarity, below any usable
+  threshold; (3) composite dups spanning the UNION of two live cards;
+  (4) subset dups (candidate body ⊂ live card) that symmetric cosine
+  under-scores; (5) reference/spine cards invisible to embedding search,
+  found only by lexical grep; (6) a tool-interface misread (`mem search
+  --json`'s hybrid `score` grabbed instead of `semantic_similarity`).
+  D17's two-band thresholds solved save-time ROUTING; this is the DETECTION
+  layer beneath it — whether the true duplicate reaches the adjudicator at
+  all. The gates' ~90 adjudicated DUP/DISTINCT/FOLD labels (with scores) are
+  a ready-made calibration set; the 2026-08-19 work-instance study already
+  flagged that skips leave no durable trace.
+- **Decision (Brent, 2026-08-24): PARKED — approved for the backlog, to fire
+  after the AP-BPF KB is finished and handed to the ap agent.** Scope when it
+  fires: (a) a first-class `mem dedup <file>` command encapsulating the
+  correct method once (fused RRF retrieval incl. the lexical leg — the save
+  path is embedding-only today; fixed deep-K full hit list; un-misreadable
+  report), (b) containment/coverage scoring at sentence-or-claim grain
+  against single cards AND unions of top-M (catches subsets + composites),
+  (c) flag on EITHER semantic OR lexical-coverage signal, (d) include
+  reference/spine cards in the dedup surface (chunk long cards), (e) persist
+  per-run skip/adjudication records so recalibration is mechanical,
+  calibrating first on the 2026-08-24 gate labels, (f) rewire the save-path
+  check to consume the same detector. Not in scope here: agent-roster's
+  fanout result-compaction fix (results keyed by lens role) — a roster-repo
+  item recorded in the session memory's process-retro backlog.
+- **AI involvement:** the orchestrator surfaced the failure taxonomy and
+  proposed the scope from the gate evidence; Brent approved parking it on
+  the backlog (2026-08-24 evening) and set the trigger (post-handoff,
+  process-improvement pass). No code has been written; nothing in the store
+  changes until the engagement fires.
