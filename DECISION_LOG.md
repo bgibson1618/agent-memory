@@ -569,3 +569,31 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   the backlog (2026-08-24 evening) and set the trigger (post-handoff,
   process-improvement pass). No code has been written; nothing in the store
   changes until the engagement fires.
+
+## D19 — `mem save --update` merge semantics + deletion warning: approved, parked until after AP-BPF r5b (2026-08-26)
+
+- **Context:** during the AP-BPF r5b engagement, an orchestrator `mem save
+  --update` call that passed a partial field set silently clobbered four
+  frontmatter fields on `current-and-noncurrent-balance-sheet-classifications`
+  (title, description, `related:`, and the R5-added `ced-3-7` retag — a tag
+  backing a live coverage citation). `--update` replaces every field from the
+  invocation's arguments/defaults rather than merging with the stored concept;
+  omitted fields fall back to derivation (description from body line 1) or
+  empty (`related: []`). Caught in the post-edit diff and restored within the
+  minute; net damage zero, but the failure is silent by construction and the
+  operator was the project's own author-orchestrator — a worst-case-friendly
+  UX.
+- **Decision (Brent, 2026-08-26): approved for implementation, parked.**
+  Scope: (a) merge semantics for `--update` — Brent leans merge-by-default
+  (or minimally a `--merge` flag; the default is an implementation-time
+  ruling); (b) a LOUD warning whenever an update would delete or replace an
+  existing field's value without an explicit delete/clear verb being invoked;
+  (c) an explicit field-removal mechanism so intentional deletions remain
+  possible; (d) tests covering partial-invocation updates. Timing: fires
+  after AP-BPF r5b completes (or at the next natural pause) — `mem save
+  --update` is load-bearing inside the running engagement (retag and
+  coverage-card paths), and write-semantics changes should not land
+  mid-stream under the copyright-firewall KB.
+- **AI involvement:** the orchestrator caused, caught, and repaired the
+  incident, and proposed the parking rationale; Brent approved the change and
+  delegated the now-vs-later call (2026-08-26).
