@@ -7,6 +7,7 @@ write lock; a failed index write never un-lands a committed save. No network -
 this leg answers with Ollama entirely absent.
 """
 
+import math
 import re
 import sqlite3
 import sys
@@ -26,6 +27,9 @@ _SCHEMA = (
     """CREATE VIRTUAL TABLE IF NOT EXISTS lexical USING fts5(
         slug UNINDEXED, title, description, body, topics
     )""",
+    # D18 S1: df/idf source for `dedup_match_expr` - zero storage, a live view
+    # over `lexical`, never touched by sync() or any writer.
+    """CREATE VIRTUAL TABLE IF NOT EXISTS lexical_vocab USING fts5vocab(lexical, 'row')""",
 )
 
 
@@ -127,6 +131,59 @@ def match_expr(query: str) -> str:
     and OR-joined - BM25 ranks concepts matching more terms higher, and a query
     with extra words still recalls partial matches."""
     return " OR ".join(f'"{term}"' for term in re.findall(r"\w+", query))
+
+
+def dedup_match_expr(conn: sqlite3.Connection, body: str, n: int = 24) -> str:
+    """D18 S1 - a dedup-sized sibling of `match_expr`. `match_expr` quotes and
+    OR-joins *every* token, so a 1,749-char candidate body becomes a ~250-term
+    OR dominated by stopwords (FTS5's default tokenizer applies no stoplist).
+    This instead takes the `n` highest-IDF *indexed* content terms from `body`
+    and OR-joins those, quoted so FTS5 operators in the body stay literal.
+
+    Terms are the *unstemmed* surface form found in `body` - they must match
+    what FTS5 actually indexed (unicode61: lowercased, no stemming), unlike
+    `claims.tokenize`'s stemmed coverage tokens. df comes from the
+    `lexical_vocab` shadow table (fts5vocab 'row': `(term, doc, cnt)`, `doc` =
+    document frequency); idf is the smoothed `log((N+1)/(df+1)) + 1`.
+
+    D18 W1 fix cycle (gate finding 1): a term with df=0 (out-of-corpus, e.g.
+    novel vocabulary in a candidate not yet saved) cannot retrieve any row -
+    `WHERE lexical MATCH ?` would just drop it - so scoring it at the smoothed
+    *maximum* idf let it crowd every retrievable term out of the top `n` and
+    starve the query to zero recall. df=0 terms are therefore excluded before
+    ranking; only terms this index can actually retrieve compete for the `n`
+    slots. If a candidate is entirely novel vocabulary (no indexed term at
+    all), there is nothing this leg could retrieve, and the result is "".
+
+    `n` is clamped to `[1, 24]` (gate finding 7): this function exists
+    specifically to bound the query to a small, safe term count, so an
+    out-of-range `n` (too large, zero, or negative) is silently corrected
+    rather than trusted - `n=100` still emits at most 24 terms, `n<=0` still
+    emits at least 1.
+
+    `conn` must come from `connect()` so `lexical_vocab` exists."""
+    n = min(max(n, 1), 24)
+    seen = []
+    for term in re.findall(r"\w+", body.lower()):
+        if term not in seen:
+            seen.append(term)
+    if not seen:
+        return ""
+    total_docs = conn.execute("SELECT COUNT(*) FROM lexical").fetchone()[0]
+    placeholders = ",".join("?" * len(seen))
+    rows = conn.execute(
+        f"SELECT term, doc FROM lexical_vocab WHERE term IN ({placeholders})", seen
+    ).fetchall()
+    df = dict(rows)
+    indexed = [t for t in seen if df.get(t, 0) > 0]  # df=0 terms can never retrieve - excluded, not ranked
+    if not indexed:
+        return ""
+
+    def idf(term: str) -> float:
+        return math.log((total_docs + 1) / (df[term] + 1)) + 1.0
+
+    ranked = sorted(indexed, key=lambda t: -idf(t))  # stable sort: ties keep body order
+    return " OR ".join(f'"{term}"' for term in ranked[:n])
 
 
 def search(conn: sqlite3.Connection, query: str, limit: int) -> list:

@@ -31,6 +31,24 @@ DEFAULT_DEDUP_HIGH = None  # disabled by default; per-instance seam: MEM_DEDUP_H
 # MEM_DEDUP_THRESHOLD are the back-compat surface dedup_low() falls back to.
 DEFAULT_DEDUP_THRESHOLD = DEFAULT_DEDUP_LOW
 
+# D18 (research/d18-dedup-detection-design-2026-09-02.md S4.4): the detector's
+# claim-coverage seams, all disabled (None) or conservative by default - a
+# per-instance calibration choice, never a global one, same posture as
+# DEFAULT_DEDUP_HIGH above. Every getter below just reads+parses its env var;
+# cross-field validation (high > low, ranges, non-finite) is dedup.py's
+# load_config(), mirroring extract.py's _band_config().
+DEFAULT_DEDUP_COVERAGE_LOW = None  # recommended calibrated value: 0.35
+DEFAULT_DEDUP_COVERAGE_HIGH = None  # recommended: 0.85
+DEFAULT_DEDUP_UNION_LOW = None  # recommended: 0.55
+DEFAULT_DEDUP_UNION_M = 5
+DEFAULT_DEDUP_CLAIM_LEX = 0.60
+DEFAULT_DEDUP_CLAIM_SEM = None  # the paraphrase lever; off ships the semantic claim leg disabled
+DEFAULT_DEDUP_DEEP_K = 50
+DEFAULT_DEDUP_CHUNKS = False  # off by default; S3's opt-in seam for chunk-index population
+DEFAULT_DEDUP_CHUNK_SKIP_CHARS = 200_000
+DEFAULT_DEDUP_LOG = True
+DEFAULT_DEDUP_LOG_TITLES = True
+
 
 def _home() -> Path:
     return Path(os.path.expanduser("~"))
@@ -79,6 +97,90 @@ def dedup_high() -> float | None:
 def dedup_threshold() -> float:
     """Pre-D17 name, kept as an alias so existing callers need no change."""
     return dedup_low()
+
+
+def _env_float(name: str, default: float | None) -> float | None:
+    """For seams whose default is None (disabled-unless-opted-in)."""
+    raw = os.environ.get(name, "").strip()
+    return float(raw) if raw else default
+
+
+def _env_int(name: str, default: int) -> int:
+    raw = os.environ.get(name, "").strip()
+    return int(raw) if raw else default
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    raw = os.environ.get(name, "").strip().lower()
+    if not raw:
+        return default
+    if raw in ("1", "true", "yes", "on"):
+        return True
+    if raw in ("0", "false", "no", "off"):
+        return False
+    raise ValueError(f"{name} must be a boolean (1/0, true/false, yes/no, on/off), got {raw!r}")
+
+
+def dedup_coverage_low() -> float | None:
+    """Coverage-flag floor - disabled (None) unless an instance opts in,
+    same per-instance posture as dedup_high (D18 S4.4)."""
+    return _env_float("MEM_DEDUP_COVERAGE_LOW", DEFAULT_DEDUP_COVERAGE_LOW)
+
+
+def dedup_coverage_high() -> float | None:
+    """Confident-coverage ceiling; disabled (None) by default (D18 S4.4)."""
+    return _env_float("MEM_DEDUP_COVERAGE_HIGH", DEFAULT_DEDUP_COVERAGE_HIGH)
+
+
+def dedup_union_low() -> float | None:
+    """Union-coverage flag floor; disabled (None) by default (D18 S4.4)."""
+    return _env_float("MEM_DEDUP_UNION_LOW", DEFAULT_DEDUP_UNION_LOW)
+
+
+def dedup_union_m() -> int:
+    """Greedy union set-cover cap (D18 S4.2)."""
+    return _env_int("MEM_DEDUP_UNION_M", DEFAULT_DEDUP_UNION_M)
+
+
+def dedup_claim_lex() -> float:
+    """Per-claim lexical containment match threshold (D18 S4.2's tau_lex)."""
+    raw = os.environ.get("MEM_DEDUP_CLAIM_LEX", "").strip()
+    return float(raw) if raw else DEFAULT_DEDUP_CLAIM_LEX
+
+
+def dedup_claim_sem() -> float | None:
+    """Per-claim semantic cosine match threshold; disabled (None) by default
+    - the semantic claim leg ships off (D18 S7 scope, R1 in the design)."""
+    return _env_float("MEM_DEDUP_CLAIM_SEM", DEFAULT_DEDUP_CLAIM_SEM)
+
+
+def dedup_deep_k() -> int:
+    """Fused-retrieval pool depth per leg (D18 S4.1)."""
+    return _env_int("MEM_DEDUP_DEEP_K", DEFAULT_DEDUP_DEEP_K)
+
+
+def dedup_chunks() -> bool:
+    """Whether the chunk index (S3) is populated at all; off by default -
+    strict boolean parsing, same as dedup_log/dedup_log_titles (D18 S4.4's
+    ratified seam table; gate finding 5)."""
+    return _env_bool("MEM_DEDUP_CHUNKS", DEFAULT_DEDUP_CHUNKS)
+
+
+def dedup_chunk_skip_chars() -> int:
+    """Cards above this size are excluded from chunk population, scored only
+    by their lexically-matched window(s) (D18 S4.2)."""
+    return _env_int("MEM_DEDUP_CHUNK_SKIP_CHARS", DEFAULT_DEDUP_CHUNK_SKIP_CHARS)
+
+
+def dedup_log() -> bool:
+    """Whether `mem dedup` writes .index/dedup-log.jsonl by default (D18 S4.5)."""
+    return _env_bool("MEM_DEDUP_LOG", DEFAULT_DEDUP_LOG)
+
+
+def dedup_log_titles() -> bool:
+    """Whether dedup-log.jsonl records carry candidate/hit titles (D18 S4.5);
+    off for a paranoid instance that wants slugs/hashes/numbers only."""
+    return _env_bool("MEM_DEDUP_LOG_TITLES", DEFAULT_DEDUP_LOG_TITLES)
 
 
 def claude_md_path() -> Path:

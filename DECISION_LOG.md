@@ -692,3 +692,36 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** architect produced the design and calibration analysis;
   Brent accepted and ratified the defaults; the orchestrator chose the wave
   batching. Full implementation addendum to follow at completion (§7 rule 7).
+
+## D18 — Wave 1 implemented (S1+S2: claims + detector core), with amendment (2026-09-02)
+
+- **Landed:** `claims.py` (segmentation + coverage tokenizer), `dedup.py`
+  (containment, directional IDF-mass coverage, relation table, greedy union,
+  fail-fast config), additive `lexical.py` (`lexical_vocab` fts5vocab shadow
+  table + `dedup_match_expr`, df=0 terms excluded, n clamped to [1,24]) and
+  `config.py` (eleven `MEM_DEDUP_*` seams incl. `MEM_DEDUP_CHUNKS`). No
+  retrieval wiring, CLI, extract/save change, chunk table, or log writes —
+  W2/W3 scope. Suite 166 → 239, both commands, netns asserted.
+- **AMENDMENT (orchestrator ruling on the gate's open question): coverage IDF
+  is CARD-GRAIN, stem-aligned, in-memory** (document = card body, df = cards
+  containing the token), selectable grain removed; `fts5vocab` feeds ONLY the
+  lexical query builder's unstemmed term selection. Rationale: the design's own
+  §3.3/§3.4 calibration was computed card-grain in-memory, and fts5vocab's
+  unstemmed vocabulary cannot align with the stemmed coverage tokenizer.
+- **Gate cycle:** codex round 1 FAIL (7 Class-1, all reproduced: unseen-term
+  query starvation; a superset high-band auto-skip bypass; initialism
+  mis-splits; quadratic segmentation >32KiB; two config gaps; caller-bypassable
+  term cap) → fix cycle (sonnet) killed 6 → round 2 FAIL on one residual
+  (fresh `R&D. Dept.` shapes still dropped content) → orchestrator in-seat fix:
+  `&`-joined initialisms guarded structurally, `dept` enumerated, and
+  **sentence splitting made loss-proof by construction** (a sub-floor fragment
+  MERGES into its neighbor, never drops; residual mis-splits are cosmetic) —
+  flipping the measurement corpus's last mismatch family to byte-exact (0/20
+  hand-labeled, 0/100 overall, pinned) → scoped round 3 **PASS, 0 blocking**,
+  incl. fresh adversarial shapes, backward-merge edge, linearity re-check.
+- **Class-2 disposition (gate-concurred):** the mis-split measurement stays a
+  deterministic synthetic corpus with exact expected boundaries — a real-card
+  fixture would embed KB content in the repo tree.
+- **AI involvement:** implementer + fix-cycle lanes (sonnet), three codex gate
+  rounds, orchestrator in-seat fix cycle 2 and the IDF ruling; Brent's
+  standing "go with defaults" (2026-09-02) authorized the wave.
