@@ -665,3 +665,30 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   FAIL; the implementer applied all six mandated corrections and reran both
   full-suite commands to green before this addendum was written
   (2026-09-02).
+
+## D18 — design accepted (2026-09-02)
+
+- **Design:** `research/d18-dedup-detection-design-2026-09-02.md` (architect run
+  `d18-dedup-design`, opus, read-only; fence on `~/.agent-memory-apbpf` honored —
+  calibration evidence drawn entirely from the fence-free
+  `work/kbx-2026-08-21/r1-phase2/` archive joined to the live default KB).
+  Headline measurements: shipping argmax-cosine detector recalls only 0.41 of
+  confirmed dups at `dedup_low=0.79` (0.20 at the work instance's 0.83); classes
+  do not separate on cosine; lexical claim-coverage FP side measured at 0.021 max
+  over 225 real topical negatives. Doctrine: threshold each leg for its own
+  precision, take recall from the union.
+- **Decision (Brent, 2026-09-02): design accepted, "go with defaults" — all eight
+  open questions resolved to their stated defaults**, including: build the chunk
+  index (S3, lowest priority, opt-in); `mem save` keeps its bypass (+ advisory
+  `--dedup-check`); `mem dedup` logs by default; coverage flag on in `mem dedup`,
+  off in `mem extract` pending instance log evidence; semantic claim leg built,
+  shipped off (R1 recorded); superset never auto-skips; sweep escalation bar
+  fixed up front at >=4 overturn-distinct of 60; label mapping NO-ACTION-DUP→DUP,
+  NEW-SAVE→DISTINCT, FOLD→positive-for-detection.
+- **Execution note (orchestrator):** slices S1–S8 run as three gated waves
+  (W1 = S1+S2, W2 = S3+S4+S5, W3 = S6+S7+S8), each wave delegate→gate→commit
+  with the design's per-slice proof obligations as gate checklist; S6's golden
+  byte-identity is the hardest gate criterion. G1/G2 remain post-fence.
+- **AI involvement:** architect produced the design and calibration analysis;
+  Brent accepted and ratified the defaults; the orchestrator chose the wave
+  batching. Full implementation addendum to follow at completion (§7 rule 7).
