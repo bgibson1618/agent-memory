@@ -8,8 +8,18 @@
 #
 # Post-commit hooks cannot fail the commit; on reinstall failure this warns and
 # leaves the previously installed snapshot in place.
+#
+# Skip seam (2026-09-02): MEM_HOOK_NO_REINSTALL=1 defers the deploy - the
+# commit lands but the installed `mem` keeps running the previous snapshot
+# (announced loudly so a deferred deploy can't be mistaken for a done one).
+# Deliberate later rollout: uv tool install --reinstall .
 
 set -u
+
+if [ "${MEM_HOOK_NO_REINSTALL:-0}" = "1" ]; then
+    echo "post-commit: MEM_HOOK_NO_REINSTALL=1 -> 'mem' NOT reinstalled (still the previous snapshot; deploy later with: uv tool install --reinstall .)"
+    exit 0
+fi
 
 if ! git diff-tree --no-commit-id --name-only -r HEAD | grep -qE '^(src/|pyproject\.toml$|uv\.lock$)'; then
     exit 0
