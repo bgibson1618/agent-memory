@@ -597,3 +597,71 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** the orchestrator caused, caught, and repaired the
   incident, and proposed the parking rationale; Brent approved the change and
   delegated the now-vs-later call (2026-08-26).
+
+## D19 — implemented (2026-09-02)
+
+- **Rulings applied (implementation-time, orchestrator-settled):** (1) merge
+  is the default on `--update` — every omitted field keeps its stored value
+  (description is never re-derived just because it was omitted); (2)
+  omitted-vs-explicit is distinguishable — `--type`/`--sensitivity` parser
+  defaults changed to `None`, with the fresh-save defaults (`concept`,
+  `normal`, derived description) applied only on a fresh save; (3) `--title`
+  is optional on `--update` when `--slug` is given, still required otherwise
+  and on every fresh save; (4) body on `--update` is kept when `--body` is
+  absent and stdin is a TTY or empty, replaced by non-empty piped stdin; (5) a
+  loud `warning: --update replaces <field>: <old> -> <new>` line on stderr for
+  every field an update would actually change, silent when the value is
+  identical; (6) an explicit `--clear FIELD[,FIELD...]` verb (clearable:
+  description, topics, related; refused with one exit-1 `error:` line for
+  source (D9), body, title, slug, created, updated, type, sensitivity, for a
+  fresh save, or for a field also set explicitly); (7) lists (`--topics`,
+  `--related`) are replaced wholesale when passed explicitly, never unioned —
+  no `--add-topics` verb, out of scope. Caller audit (grep across the save
+  path, `blocks.py`, README, and the extract procedure text): no caller
+  depends on replace-all behavior — none needed updating beyond the `mem save
+  --help` text itself.
+- **Gate cycle:** first pass FAILED (five Class-1 findings + one Class-2,
+  `work/agents/d19-gate/verifier/output.md`) — a pre-lock merge race (the
+  headline finding), a fresh-save `--description ""` regression, a `--clear
+  ""` bypass on a fresh save, warning truncation applied to every field
+  instead of only long bodies, a weak incident-replay test that failed
+  pre-change only via argparse, and this addendum's absence. This entry
+  records the fix cycle that resolved all six.
+- **The race fix:** the merge was being computed (`load` the existing
+  concept, then merge its fields against the invocation's arguments) BEFORE
+  the inter-process write lock was taken. Two concurrent partial `--update`
+  calls (e.g. one setting `--topics`, one setting `--related`) could each
+  load the same pre-update state, merge independently, and both exit 0 — the
+  second writer's merge silently discarding the first writer's change with
+  no warning, because the merge itself never saw it. This is the exact
+  incident class that motivated D19 in the first place, now reproducible
+  under contention instead of just under an unlucky retag. Fix: `_save` now
+  reads stdin (if the invocation needs it) BEFORE acquiring `write_lock`,
+  then performs load → merge → change-report → serialize → atomic write →
+  commit → lexical index entirely INSIDE the lock, so a second writer's merge
+  always reads the first writer's already-committed state. `vector.index_saved`
+  stays outside the lock, unchanged. Proven by
+  `test_concurrent_disjoint_partial_updates_both_land`, which holds the write
+  lock while spawning both writers (so they queue on it for real, mirroring
+  `tests/test_f7_concurrency.py`'s pattern) and asserts both disjoint fields
+  land.
+- **Deviations:** none forced. The fresh-save `--description ""` regression
+  and the `--clear ""` bypass were both defects in the first-pass diff
+  against the brief's own rulings, not new design forks — fixed to match
+  Ruling 2 (fresh-save byte-identity) and Ruling 6 (`--clear` refused on a
+  fresh save) respectively, each pinned with an explicit test.
+- **Proof:** `tests/test_d19_update_merge.py`, 21 → 28 tests (7 added: the
+  concurrency race, the fresh-save empty-description A/B, `--clear ""` /
+  `--clear ","` refusal on both fresh and update, and the long-source-full /
+  long-body-elided warning pair). Full suite 159 → 166 passed, both
+  `uv run pytest` and `MEM_REQUIRE_NETNS=1 uv run pytest` green. The
+  strengthened incident-replay test was independently confirmed to fail
+  against the true pre-D19 committed code (`git show HEAD:src/agent_memory/
+  store.py`) for the real reason — the description re-derived from the new
+  body (`'Balance sheet items split by operating-cycle horizon.' ->
+  'Revised wording for clarity.'`) — not merely on the old parser's
+  `--title`-required argparse error.
+- **AI involvement:** the orchestrator delegated the fix cycle after gate
+  FAIL; the implementer applied all six mandated corrections and reran both
+  full-suite commands to green before this addendum was written
+  (2026-09-02).

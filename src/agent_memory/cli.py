@@ -26,17 +26,43 @@ def main(argv=None) -> int:
     p_doctor.set_defaults(func=doctor.cmd_doctor)
 
     p_save = sub.add_parser("save", help="save a concept as OKF markdown (one commit per save)")
-    p_save.add_argument("--title", required=True, help="concept title; the slug derives from it")
-    p_save.add_argument("--body", help="markdown body (reads stdin when omitted)")
-    p_save.add_argument("--description", help="one-line summary (defaults to the body's first line)")
-    p_save.add_argument("--topics", help="comma-separated topics")
-    p_save.add_argument("--type", default="concept", help="concept type (default: concept)")
     p_save.add_argument(
-        "--sensitivity", choices=["normal", "work", "sensitive"], default="normal",
-        help="'work' = employer-specific material (DECISION_LOG D1); "
-             "'sensitive' = PII/PHI (D16)",
+        "--title",
+        help="concept title; the slug derives from it unless --slug is given"
+             " (required for a fresh save; optional on --update when --slug is given,"
+             " in which case the stored title is kept - pass --title explicitly to replace it)",
     )
-    p_save.add_argument("--related", help="comma-separated related slugs")
+    p_save.add_argument(
+        "--body",
+        help="markdown body (reads stdin when omitted; on --update, an omitted --body with a"
+             " TTY or empty stdin keeps the stored body - piped non-empty stdin replaces it)",
+    )
+    p_save.add_argument(
+        "--description",
+        help="one-line summary (default on a fresh save: the body's first line; on --update,"
+             " an omitted --description keeps the stored value unchanged - it is not"
+             " re-derived from a new body)",
+    )
+    p_save.add_argument(
+        "--topics",
+        help="comma-separated topics (replaces the stored list on --update; omit to keep it)",
+    )
+    p_save.add_argument(
+        "--type",
+        help="concept type (default on a fresh save: concept; kept from the existing"
+             " concept on --update)",
+    )
+    p_save.add_argument(
+        "--sensitivity", choices=["normal", "work", "sensitive"],
+        help="'work' = employer-specific material (DECISION_LOG D1); "
+             "'sensitive' = PII/PHI (D16) (default on a fresh save: normal; kept from the"
+             " existing concept on --update)",
+    )
+    p_save.add_argument(
+        "--related",
+        help="comma-separated related slugs (replaces the stored list on --update; omit to"
+             " keep it)",
+    )
     p_save.add_argument(
         "--source",
         help="provenance citation, e.g. a paper/book/document reference (default: kept from"
@@ -45,7 +71,16 @@ def main(argv=None) -> int:
     p_save.add_argument("--slug", help="explicit slug (default: derived from --title)")
     p_save.add_argument(
         "--update", action="store_true",
-        help="replace an existing concept: keeps created, bumps updated",
+        help="merge into an existing concept: fields you omit keep their stored value,"
+             " created is kept and updated is bumped; a field you do pass explicitly"
+             " replaces the stored value (warned on stderr) - use --clear to blank a"
+             " clearable field instead of omitting it",
+    )
+    p_save.add_argument(
+        "--clear", action="append", metavar="FIELD[,FIELD...]",
+        help="with --update, explicitly clear a field instead of keeping its stored value"
+             " (repeatable, or comma-separate multiple fields); clearable: description"
+             " (re-derived from the body), topics, related",
     )
     p_save.set_defaults(func=store.cmd_save)
 

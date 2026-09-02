@@ -4,7 +4,9 @@ Markdown is the database: one OKF file per concept under concepts/, written
 atomically (temp file + rename) under the single inter-process write lock,
 then committed to the local git - exactly one commit per successful save,
 message naming the slug - and reflected in the lexical index in-line. Saving
-onto an existing slug errors unless --update.
+onto an existing slug errors unless --update, which MERGES into the stored
+concept (D19): an omitted field keeps its stored value, an explicit field
+replaces it (warned on stderr), and --clear blanks a clearable field instead.
 """
 
 import fcntl
@@ -118,51 +120,191 @@ def cmd_save(args) -> int:
         return 1
 
 
+# D19: fields an --update may blank explicitly instead of merging. Not listed
+# here (source, body, title, slug, created, updated, type, sensitivity) are
+# refused by _validate_clear - source in particular never degrades (D9); set
+# the others explicitly instead of clearing them.
+CLEARABLE_FIELDS = ("description", "topics", "related")
+
+# Fields compared old-vs-new to decide whether a --update warrants the D19
+# loud-change report; created/updated are expected to move on every update and
+# are not "replaced" in the sense this warns about.
+_WARN_FIELDS = ("title", "description", "type", "sensitivity", "topics", "related", "source", "body")
+
+
+def _parse_clear(raw) -> list:
+    fields = []
+    for item in raw or []:
+        for field in _split_csv(item):
+            if field not in fields:
+                fields.append(field)
+    return fields
+
+
+def _validate_clear(fields: list, args) -> None:
+    explicit = {"description": args.description, "topics": args.topics, "related": args.related}
+    for field in fields:
+        if field == "source":
+            raise StoreError(
+                "--clear source is refused - provenance never degrades (D9);"
+                " pass a new --source to replace it"
+            )
+        if field not in CLEARABLE_FIELDS:
+            raise StoreError(f"--clear {field} is refused - set --{field} explicitly instead")
+        if explicit.get(field) is not None:
+            raise StoreError(f"--clear {field} conflicts with --{field} - pass one or the other")
+
+
+def _field_repr(value, elide: bool = False) -> str:
+    if isinstance(value, list):
+        return ", ".join(value) if value else "(none)"
+    text = " ".join(str(value).split())  # collapse a multi-line body onto one line
+    if not text:
+        return "(empty)"
+    if elide and len(text) > 80:
+        return text[:77] + "..."
+    return text
+
+
+def _report_update_changes(existing: okf.Concept, new: okf.Concept) -> None:
+    """D19: loud, non-blocking stderr report of every field an --update is
+    about to replace or clear - printed before the write so an agent-driven
+    caller sees exactly what changed, unlike the silent clobber this replaces.
+    Ruling 5 permits elision only for long bodies; every other field is shown
+    in full so the value an audit needs is never the part that got truncated."""
+    for field in _WARN_FIELDS:
+        old_value = getattr(existing, field)
+        new_value = getattr(new, field)
+        if old_value == new_value:
+            continue
+        elide = field == "body"
+        print(
+            f"warning: --update replaces {field}: "
+            f"{_field_repr(old_value, elide)} -> {_field_repr(new_value, elide)}",
+            file=sys.stderr,
+        )
+
+
 def _save(args) -> int:
     root = config.kb_root()
     require_kb(root)
     warn_if_remote(root)
 
-    body = args.body if args.body is not None else sys.stdin.read()
-    if not body.strip():
-        raise StoreError("empty body - pass --body or pipe markdown on stdin")
+    # D19: check the RAW argument, before CSV-parsing drops empty pieces - a
+    # supplied `--clear ""` must not look like "no --clear" to the checks below.
+    raw_clear = getattr(args, "clear", None)
+    clear_fields = _parse_clear(raw_clear)
+    if not args.update:
+        if raw_clear:
+            raise StoreError("--clear is only valid with --update")
+        if not args.title:
+            raise StoreError("--title is required")
+    elif not args.title and not args.slug:
+        raise StoreError("--update requires --title or --slug to locate the concept")
+    if raw_clear and not clear_fields:
+        raise StoreError("--clear requires at least one field name")
+    _validate_clear(clear_fields, args)
+
     slug = okf.slugify(args.slug or args.title)
     path = concept_path(root, slug)
     stamp = okf.now_stamp()
 
-    if args.update:
-        existing = load(root, slug)  # errors "no concept '<slug>'" if absent
-        created = existing.created
-        prior_source = existing.source
-    else:
-        if path.exists():
-            raise StoreError(f"concept '{slug}' exists - pass --update to modify it")
-        created = stamp
-        prior_source = ""
+    if not args.update and path.exists():
+        # Non-authoritative early exit: a doomed fresh save shouldn't consume
+        # stdin first. The lock below redoes this check authoritatively.
+        raise StoreError(f"concept '{slug}' exists - pass --update to modify it")
 
-    # Provenance never silently degrades (D9): an update without --source keeps
-    # the existing citation; only a truly unsourced save gets the ambient stamp.
-    source = (getattr(args, "source", None) or "").strip() or prior_source \
-        or f"ambient ({stamp[:10]})"
-
-    concept = okf.Concept(
-        slug=slug,
-        title=args.title,
-        description=args.description or _derive_description(body),
-        type=args.type,
-        topics=_split_csv(args.topics),
-        sensitivity=args.sensitivity,
-        created=created,
-        updated=stamp,
-        related=[okf.slugify(r) for r in _split_csv(args.related)],
-        source=source,
-        body=body,
-    )
-    text = okf.serialize(concept)
+    # D19 fix: a blocking stdin read must never happen while the write lock is
+    # held - that stalls every other writer behind it. Read stdin here, before
+    # locking; only the state-dependent merge below happens under the lock.
+    piped_body = None
+    fresh_body_input = ""
+    if args.body is None:
+        if args.update:
+            if not sys.stdin.isatty():
+                piped = sys.stdin.read()
+                piped_body = piped if piped.strip() else None
+        else:
+            fresh_body_input = sys.stdin.read()
 
     with write_lock(root):
-        if not args.update and path.exists():  # collision check redone under the lock
-            raise StoreError(f"concept '{slug}' exists - pass --update to modify it")
+        if args.update:
+            existing = load(root, slug)  # errors "no concept '<slug>'" if absent
+            created = existing.created
+            prior_source = existing.source
+
+            title = args.title if args.title is not None else existing.title
+            concept_type = args.type if args.type is not None else existing.type
+            sensitivity = args.sensitivity if args.sensitivity is not None else existing.sensitivity
+
+            if "topics" in clear_fields:
+                topics = []
+            elif args.topics is not None:
+                topics = _split_csv(args.topics)
+            else:
+                topics = list(existing.topics)
+
+            if "related" in clear_fields:
+                related = []
+            elif args.related is not None:
+                related = [okf.slugify(r) for r in _split_csv(args.related)]
+            else:
+                related = list(existing.related)
+
+            if args.body is not None:
+                body = args.body
+            elif piped_body is not None:
+                body = piped_body
+            else:
+                body = existing.body
+
+            if "description" in clear_fields:
+                description = _derive_description(body)
+            elif args.description is not None:
+                description = args.description
+            else:
+                description = existing.description
+        else:
+            if path.exists():  # collision check redone under the lock
+                raise StoreError(f"concept '{slug}' exists - pass --update to modify it")
+            existing = None
+            created = stamp
+            prior_source = ""
+            title = args.title
+            concept_type = args.type if args.type is not None else okf.TYPE_DEFAULT
+            sensitivity = args.sensitivity if args.sensitivity is not None else "normal"
+            topics = _split_csv(args.topics)
+            related = [okf.slugify(r) for r in _split_csv(args.related)]
+            body = args.body if args.body is not None else fresh_body_input
+            if not body.strip():
+                raise StoreError("empty body - pass --body or pipe markdown on stdin")
+            description = args.description or _derive_description(body)
+
+        # Provenance never silently degrades (D9): an update without --source
+        # keeps the existing citation; only a truly unsourced save gets the
+        # ambient stamp.
+        source = (getattr(args, "source", None) or "").strip() or prior_source \
+            or f"ambient ({stamp[:10]})"
+
+        concept = okf.Concept(
+            slug=slug,
+            title=title,
+            description=description,
+            type=concept_type,
+            topics=topics,
+            sensitivity=sensitivity,
+            created=created,
+            updated=stamp,
+            related=related,
+            source=source,
+            body=body,
+        )
+
+        if existing is not None:
+            _report_update_changes(existing, concept)
+
+        text = okf.serialize(concept)
+
         _sweep_dead_temps(concepts_dir(root))
         atomic_write(path, text)
         verb = "update" if args.update else "save"
