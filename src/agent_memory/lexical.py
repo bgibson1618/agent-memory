@@ -186,8 +186,7 @@ def dedup_match_expr(conn: sqlite3.Connection, body: str, n: int = 24) -> str:
     return " OR ".join(f'"{term}"' for term in ranked[:n])
 
 
-def search(conn: sqlite3.Connection, query: str, limit: int) -> list:
-    expr = match_expr(query)
+def _run_expr(conn: sqlite3.Connection, expr: str, limit: int) -> list:
     if not expr:
         return []
     rows = conn.execute(
@@ -202,3 +201,17 @@ def search(conn: sqlite3.Connection, query: str, limit: int) -> list:
         {"slug": slug, "title": title, "score": round(-neg, 3), "snippet": snip}
         for slug, title, neg, snip in rows
     ]
+
+
+def search(conn: sqlite3.Connection, query: str, limit: int) -> list:
+    return _run_expr(conn, match_expr(query), limit)
+
+
+def search_expr(conn: sqlite3.Connection, expr: str, limit: int) -> list:
+    """D18 S4 - run an already-built FTS5 MATCH expression directly.
+    `dedup_match_expr` returns a ready quoted-OR expression; feeding that
+    string back through `match_expr` would re-tokenize the expression text
+    itself (splitting on its own `OR`/quotes), which is not what a caller
+    holding a pre-built expression wants. Same query/ranking/snippet shape
+    as `search`, just skipping the tokenize-and-rebuild step."""
+    return _run_expr(conn, expr, limit)

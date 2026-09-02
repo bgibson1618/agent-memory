@@ -69,11 +69,18 @@ def connect(root: Path) -> sqlite3.Connection:
     return con
 
 
-def embed_text(concept: okf.Concept) -> str:
+def document_text(concept: okf.Concept) -> str:
+    """The unprefixed, untruncated text `embed_text` and D18's chunker both
+    build from - factored out so a card's ONE chunk (S3: no headings, <=1,000
+    chars) can be byte-identical to what `embed_text` embeds, making
+    cosine_best_chunk == cosine_document exactly rather than approximately."""
     parts = [concept.title, concept.description, ", ".join(concept.topics), concept.body]
-    text = "\n\n".join(p.strip() for p in parts if p and p.strip())
+    return "\n\n".join(p.strip() for p in parts if p and p.strip())
+
+
+def embed_text(concept: okf.Concept) -> str:
     # nomic-embed retrieval prefixes: documents and queries embed into the same space
-    return ("search_document: " + text)[:EMBED_MAX_CHARS]
+    return ("search_document: " + document_text(concept))[:EMBED_MAX_CHARS]
 
 
 def content_hash(text: str) -> str:
@@ -90,9 +97,17 @@ def _stamp_meta(con: sqlite3.Connection, model: str, digest: str, dims: int) -> 
         con.execute("INSERT OR REPLACE INTO vector_meta(key, value) VALUES(?, ?)", (key, value))
 
 
-def check_meta(meta: dict | None, model: str, dims: int, refusal: str) -> None:
-    """Refuse a (model, dims) pair that disagrees with the stamped index
-    metadata - one wording for the write path and extract's batch gate."""
+def check_meta(
+    meta: dict | None, model: str, dims: int, refusal: str, digest: str | None = None,
+) -> None:
+    """Refuse a (model, dims[, digest]) pair that disagrees with the stamped
+    index metadata - one wording for the write path, extract's batch gate,
+    and D18's document/chunk scans. `digest` is optional and back-compat:
+    omitted (extract.py's call, byte-untouched this wave), it is not
+    checked - callers that KNOW the digest they embedded with (D18's
+    dedup.Corpus, which computes it right after the batch embed) pass it so
+    a same-named model whose installed weights changed since the index was
+    built is refused too, not just a renamed model (gate finding 3)."""
     if meta is None:
         return
     if meta.get("model") != model:
@@ -103,6 +118,11 @@ def check_meta(meta: dict | None, model: str, dims: int, refusal: str) -> None:
     if int(meta.get("dims", 0)) != dims:
         raise VectorError(
             f"embedding dims {dims} != index dims {meta.get('dims')}"
+            f" - {refusal}; run: mem reindex"
+        )
+    if digest is not None and meta.get("digest") not in (None, "unknown", digest):
+        raise VectorError(
+            f"index built with model {model} digest {meta.get('digest')}, current digest is {digest}"
             f" - {refusal}; run: mem reindex"
         )
 
@@ -283,6 +303,28 @@ def _embed_query(base: str, model: str, text: str, timeout: float) -> list:
         return ollama.embed(base, model, [text], timeout=budget)[0]
 
 
+def _scan_rows(rows: list, qvec: list, k: int | None) -> list:
+    """Shared brute-force cosine scan: `rows` is [(slug, vec_blob), ...],
+    `k=None` returns the FULL ranked list (D18's `top_k_doc` whole-KB scope),
+    otherwise the top `k`. Factored out of `top_k` unchanged (same stable
+    argsort, same tie-break) so `top_k_doc` doesn't duplicate it."""
+    if not rows:
+        return []
+
+    import numpy as np  # deferred: only query paths pay the import
+
+    mat = np.vstack([np.frombuffer(blob, dtype=np.float32) for _, blob in rows])
+    q = np.asarray(qvec, dtype=np.float32)
+    qnorm = float(np.linalg.norm(q))
+    norms = np.linalg.norm(mat, axis=1)
+    if qnorm == 0.0:
+        return []
+    scores = (mat @ q) / (np.where(norms == 0.0, 1.0, norms) * qnorm)
+    limit = len(scores) if k is None else k
+    order = np.argsort(-scores, kind="stable")[:limit]
+    return [(rows[i][0], float(scores[i])) for i in order]
+
+
 def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> list:
     """The vector leg: brute-force cosine over stored vectors, best first.
     Returns [(slug, score), ...]; raises ollama.OllamaError when the daemon
@@ -311,17 +353,55 @@ def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> l
         ).fetchall()
     finally:
         con.close()
-    if not rows:
-        return []
+    return _scan_rows(rows, qvec, k)
 
-    import numpy as np  # deferred: only query paths pay the import
 
-    mat = np.vstack([np.frombuffer(blob, dtype=np.float32) for _, blob in rows])
-    q = np.asarray(qvec, dtype=np.float32)
-    qnorm = float(np.linalg.norm(q))
-    norms = np.linalg.norm(mat, axis=1)
-    if qnorm == 0.0:
+def top_k_doc(
+    root: Path, text: str | None = None, *, vec: list | None = None,
+    k: int | None = None, timeout: float | None = None,
+    model: str | None = None, digest: str | None = None,
+) -> list:
+    """D18 S4.2 - the document-prefixed twin of `top_k`: `search_document:`
+    on BOTH sides (`top_k` prefixes the query side with `search_query:`),
+    so results are on the calibrated document-document cosine scale D3/D17's
+    bands were measured against - reusing `top_k`'s query-prefixed leg for
+    dedup would put a query-prefixed vector against document vectors and
+    produce numbers not comparable to those bands (the design's "prefix
+    trap"). `extract._best_match` is this function's degenerate k=1 case
+    (S6, not wired here). `k=None` returns the FULL ranked list - the
+    document-cosine flag is evaluated over the WHOLE KB (D18 S4.1), not a
+    top-K pool, since the brute-force scan is whole-KB regardless and a
+    deep-K cutoff would silently reintroduce failure mode 1 for the semantic
+    signal. Pass a precomputed `vec` (already embedded, `search_document:`
+    prefixed) to skip embedding - a dedup batch embeds once and reuses it.
+
+    `model`/`digest` (gate finding 3) identify which model actually produced
+    `vec`/`text`'s embedding - default to the CURRENT `config.embed_model()`
+    so a caller that never passed one still gets checked against whatever
+    model is configured NOW. Checked against the index's stamped
+    `vector_meta` via `check_meta` BEFORE scanning: two same-dimension
+    embedding spaces from different models are numerically incomparable, and
+    a dims-only check (the pre-fix behavior) let that through silently."""
+    if not db_path(root).exists():
         return []
-    scores = (mat @ q) / (np.where(norms == 0.0, 1.0, norms) * qnorm)
-    order = np.argsort(-scores, kind="stable")[:k]
-    return [(rows[i][0], float(scores[i])) for i in order]
+    con = connect(root)
+    try:
+        meta = get_meta(con)
+        if meta is None:
+            return []
+        query_model = model or config.embed_model()
+        if vec is None:
+            qvec = _embed_query(
+                config.ollama_base_url(), query_model,
+                "search_document: " + (text or ""),
+                timeout if timeout is not None else query_timeout(),
+            )
+        else:
+            qvec = vec
+        check_meta(meta, query_model, len(qvec), "document-cosine scan refused", digest=digest)
+        rows = con.execute(
+            "SELECT slug, vec FROM vectors WHERE dims = ? ORDER BY slug", (len(qvec),)
+        ).fetchall()
+    finally:
+        con.close()
+    return _scan_rows(rows, qvec, k)

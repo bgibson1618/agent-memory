@@ -5,7 +5,7 @@ import subprocess
 import sys
 import time
 
-from agent_memory import __version__, config, doctor, extract, graph, initcmd, reindex, search, store, usage, vector
+from agent_memory import __version__, config, dedupcmd, doctor, extract, graph, initcmd, reindex, search, store, usage, vector
 
 
 def main(argv=None) -> int:
@@ -142,7 +142,52 @@ def main(argv=None) -> int:
         help="rebuild all derived indexes (lexical, graph, vector) from the"
         " markdown; drain all queued embeddings",
     )
+    p_reindex.add_argument(
+        "--chunks", action="store_true",
+        help="also eagerly (re)build the D18 chunk index (opt-in, disposable"
+        " sub-card retrieval windows); without this flag, stale chunk rows"
+        " are still dropped but not repopulated",
+    )
     p_reindex.set_defaults(func=reindex.cmd_reindex)
+
+    p_dedup = sub.add_parser(
+        "dedup",
+        help="detect near/likely-duplicate concepts via fused retrieval +"
+        " claim-coverage (un-misreadable report: no score/semantic_similarity"
+        " keys anywhere)",
+    )
+    p_dedup.add_argument(
+        "file", nargs="?",
+        help="candidates JSON (path, '-' for stdin, or inline), an OKF card,"
+        " or a plain markdown file; omit only when using --adjudicate",
+    )
+    p_dedup.add_argument("--json", action="store_true", help="machine-readable output")
+    p_dedup.add_argument("--deep-k", type=int, default=None, help="override MEM_DEDUP_DEEP_K")
+    p_dedup.add_argument("--top-m", type=int, default=None, help="override MEM_DEDUP_UNION_M")
+    p_dedup.add_argument(
+        "--explain", action="store_true",
+        help="add the per-claim match table to the text report (always present in --json)",
+    )
+    p_dedup.add_argument(
+        "--no-log", action="store_true", help="skip writing .index/dedup-log.jsonl this run",
+    )
+    p_dedup.add_argument(
+        "--title", help="title for a plain-markdown FILE lacking a heading",
+    )
+    p_dedup.add_argument(
+        "--adjudicate", metavar="RUN_ID",
+        help="append an adjudication record joining a prior detection run's candidate,"
+        " instead of analyzing FILE",
+    )
+    p_dedup.add_argument("--candidate", metavar="HASH", help="candidate content_hash to adjudicate")
+    p_dedup.add_argument(
+        "--label", help="adjudication label: DUP, DISTINCT, or FOLD"
+        " (validated by the command itself, not argparse `choices=`, so an"
+        " invalid value gets the project's one-line `error:` convention"
+        " instead of argparse's four-line usage block - gate note)",
+    )
+    p_dedup.add_argument("--by", help="who/what made the adjudication (free text)")
+    p_dedup.set_defaults(func=dedupcmd.cmd_dedup)
 
     p_links = sub.add_parser(
         "links", help="link health: report dangling wikilink/related targets"

@@ -68,6 +68,10 @@ NOVEL_ATTENTION = {
     "title": "Attention is quadratic",
     "body": "Transformer attention cost grows with the square of the context window tokens.",
 }
+DEDUP_NEAR_DUP = {
+    "title": "Reviewing at growing intervals",
+    "body": "Spacing out review sessions with growing intervals improves long-term retention over cramming.",
+}
 
 
 def semantic_vec(text: str, dims: int) -> list:
@@ -293,6 +297,19 @@ def main(config_json: str) -> int:
         and r.stdout.startswith("reindexed: 2 concept(s)")
         and "embedding(s) drained" in r.stdout
         and not stderr_lines(r),
+        r.stdout + r.stderr,
+    )
+
+    r = mem(up, "dedup", json.dumps([DEDUP_NEAR_DUP]), "--json")
+    try:
+        dedup_report = json.loads(r.stdout)
+        dedup_verdicts = [c["verdict"] for c in dedup_report["candidates"]]
+        dedup_keys_ok = "score" not in r.stdout and "semantic_similarity" not in r.stdout
+    except (ValueError, KeyError):
+        dedup_verdicts, dedup_keys_ok = [], False
+    rep.check(
+        "up-dedup-flags-near-dup",
+        r.returncode == 0 and dedup_verdicts == ["review-duplicate"] and dedup_keys_ok,
         r.stdout + r.stderr,
     )
 

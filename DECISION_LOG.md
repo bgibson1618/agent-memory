@@ -725,3 +725,47 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** implementer + fix-cycle lanes (sonnet), three codex gate
   rounds, orchestrator in-seat fix cycle 2 and the IDF ruling; Brent's
   standing "go with defaults" (2026-09-02) authorized the wave.
+
+## D18 — Wave 2 implemented (S3+S4+S5: chunk index + `mem dedup` + durable log), with rulings (2026-09-02)
+
+- **Landed:** `chunks.py` (block-grain section chunker + `chunks` table, lazy +
+  `mem reindex --chunks` eager population, oversize skip), `dedupcmd.py`
+  (`mem dedup`: input sniffing, fused deep-K retrieval, un-misreadable JSON/text
+  reports — no key named `score` or `semantic_similarity` at any depth, RRF
+  emits only integer `fusion_rank`; `--adjudicate`), `deduplog.py`
+  (`.index/dedup-log.jsonl`: detection + adjudication records joined on
+  (run_id, content_hash), config embedded per record, STRICT <4096B atomic
+  lines, reindex-preserved — the second deliberate non-derived exception after
+  D8's usage.jsonl), `vector.top_k_doc` (document-prefixed scan with
+  model/digest/dims identity enforcement), additive `lexical.search_expr`,
+  ARCHITECTURE.md storage/CLI reconciliation. extract.py/store.py byte-untouched
+  (W3 scope). Suite 239 → 294, both commands, netns asserted.
+- **Ruling A:** fallback relation labels (0.35/0.85 when coverage unconfigured)
+  are PRESENTATION ONLY — verdict routing reads configured thresholds
+  exclusively; the superset confident→review downgrade applies only under
+  configured coverage. **Ruling B:** semantic-flag + unrelated-coverage maps to
+  the generic `review` action — ratified as a NEW W2 routing rule after the
+  gate proved (git archaeology at a8d4456) the implementer's "pre-existing W1
+  bug" provenance claim false. **Ruling C (round-2 residuals, orchestrator
+  in-seat):** zero-overlap chunk advances are never permitted — single-block
+  chunks force-include the next block under the hard cap; an over-cap block
+  pair takes the ratified `_windows` character fallback; block-grain resume
+  re-includes the trailing block. **Standalone `mem dedup` coverage overlay:**
+  0.35/0.85/0.55 when env unset, dedup command only; extract globals stay
+  disabled (ratified Q3).
+- **Gate cycle:** codex round 1 FAIL (10 Class-1, all reproduced — headline:
+  the coverage-on default missing from the very surface it was ratified for; a
+  fallback-bound verdict leak; no embedding-identity enforcement; advisory
+  4096B bound; untruthful legs_run; block-cutting chunker; stale ARCHITECTURE;
+  the false provenance claim) → fix cycle (sonnet) killed 8 → round 2 FAIL on
+  two boundary conditions (<= at exactly 4096; zero-overlap two-block advance)
+  → orchestrator in-seat fixes → round 3 (cap round) confirmed ALL runtime
+  behavior correct, FAILed only the orchestrator's own boundary regression pin
+  as mutation-ineffective (title-swept; the builder elides titles) →
+  orchestrator rewrote the pin through the non-elided config field + ran the
+  gate's mutation check both directions in-seat (each reverted guard fails its
+  pin) → **escalated per GATE-POLICY's cap rule; Brent ruled commit-now on the
+  mutation evidence (2026-09-02 16:38)**.
+- **AI involvement:** implementer + fix lanes (sonnet), three codex gate
+  rounds, orchestrator rulings A–C + two in-seat fix cycles; Brent's cap-round
+  commit ruling.

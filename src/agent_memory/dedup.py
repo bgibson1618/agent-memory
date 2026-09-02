@@ -1,15 +1,15 @@
-"""D18 S2 - dedup detector core: claim-grain containment, directional
-coverage, the `relation` table, and greedy union set-cover.
+"""D18 S2+S4 - dedup detector core (claim-grain containment, directional
+coverage, the `relation` table, greedy union set-cover) AND the fused-
+retrieval orchestration (`Corpus`/`detect()`) `mem dedup` (S4) drives.
 
-research/d18-dedup-detection-design-2026-09-02.md S4.2/S4.4 is the spec. This
-module ships the SCORING core only - S1's claims.py segmentation/tokenization
-plus this file's pure functions over already-segmented claim text. No
-retrieval wiring (the four fused legs), no `mem dedup` command, no
-extract/save changes: those land in S3/S4/S6 once the four legs exist to
-feed a `detect()` entry point. What ships here anticipates that surface -
-`Claim`/`build_claims` is the exact shape a future `detect()` needs for each
-retrieved hit - but there is no `detect()` yet (see output.md's judgment-call
-note on scope).
+research/d18-dedup-detection-design-2026-09-02.md S4.1/S4.2/S4.4/S5 is the
+spec. S2's scoring core is pure functions over already-segmented claim text
+(no I/O). S4's `Corpus`/`detect()` (bottom of this file) are the retrieval
+wiring: four fused legs (lexical/vector_document/vector_chunk/graph) built
+once per `mem dedup` invocation and reused across every candidate in a
+batch, `fusion.rrf` reused verbatim, then this module's own S2 functions
+score the resulting deep-K hit list. S6 (extract rewiring, a later wave)
+reuses `detect()` unchanged; nothing here is extract-specific.
 
 IDF here is a pure, SQLite-free `idf_from_corpus`: build a df/idf table
 in-memory from a corpus of already-tokenized claim-lists, decoupled from any
@@ -29,11 +29,16 @@ module; that alternative gives materially different (and uncalibrated)
 answers - see `test_idf_from_corpus_is_card_grain_reproduces_common_rare_0500`.
 """
 
+import hashlib
 import math
+import sqlite3
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable, Iterable, Optional, Sequence
 
-from agent_memory import claims, config
+from agent_memory import chunks as chunks_mod
+from agent_memory import claims, config, fusion, lexical, ollama, store, vector
+from agent_memory import graph as graph_mod
 
 IdfLookup = Callable[[str], float]
 
@@ -397,3 +402,454 @@ def load_config() -> DedupConfig:
         log=log,
         log_titles=log_titles,
     )
+
+
+# ==========================================================================
+# S4 - fused retrieval orchestration: Corpus + detect()
+#
+# research/d18-dedup-detection-design-2026-09-02.md S4.1 (retrieval spec),
+# S4.2 (the prefix trap - `vector.top_k_doc` reused, never `search`'s
+# query-prefixed leg), S4.4 (flag policy), S5 (interfaces/data flow).
+# ==========================================================================
+
+
+def content_hash(concept) -> str:
+    """A candidate's identity for the durable log's (run_id, content_hash)
+    join (S4.5) - hashed from the concept's own text so it never depends on
+    whether embedding succeeded this run (dedup must still answer, coverage-
+    only, with the daemon down)."""
+    return "sha256:" + hashlib.sha256(vector.document_text(concept).encode("utf-8")).hexdigest()
+
+
+@dataclass
+class Corpus:
+    """Everything `detect()` needs to score MANY candidates against the same
+    KB snapshot, built ONCE per `mem dedup` invocation so a batch doesn't
+    re-sync the lexical index or reopen connections per candidate. Owns the
+    lexical + chunk connections for the invocation's lifetime; `close()`
+    releases them."""
+
+    root: Path
+    cfg: DedupConfig
+    lex_conn: sqlite3.Connection
+    chunk_con: Optional[sqlite3.Connection]
+    graph: object
+    idf: IdfLookup
+    body_by_slug: dict
+    title_by_slug: dict
+    vector_available: bool
+    chunk_leg_active: bool  # cfg.chunks AND the daemon hasn't failed mid-run
+    legs_run: list
+    embed_model: Optional[str] = None  # set by the CLI once the batch embed
+    embed_digest: Optional[str] = None  # completes - identity for top_k_doc/chunk scans (gate finding 3)
+    _concept_cache: dict = field(default_factory=dict)
+
+    def concept(self, slug: str):
+        """Lazily-loaded, memoized `okf.Concept` for a hit slug - None if the
+        file vanished since indexing (no ghost hits, mirroring search.py)."""
+        if slug not in self._concept_cache:
+            try:
+                self._concept_cache[slug] = store.load(self.root, slug)
+            except store.StoreError:
+                self._concept_cache[slug] = None
+        return self._concept_cache[slug]
+
+    def close(self) -> None:
+        self.lex_conn.close()
+        if self.chunk_con is not None:
+            self.chunk_con.close()
+
+
+def build_corpus(root: Path, cfg: DedupConfig) -> Corpus:
+    """Sync the lexical index (like `search.cmd_search`), reconcile vectors
+    from that change-set, then snapshot title/body/IDF from the now-current
+    lexical table - one read pass, reused by every candidate in the batch."""
+    lex_conn = lexical.connect(root)
+    changed, removed = lexical.sync(lex_conn, root)
+    vector.reconcile(root, changed, removed)
+
+    rows = lex_conn.execute("SELECT slug, title, body FROM lexical").fetchall()
+    body_by_slug = {slug: body for slug, _title, body in rows}
+    title_by_slug = {slug: title for slug, title, _body in rows}
+    idf = idf_from_corpus(claims.tokenize(body) for _slug, _title, body in rows)
+
+    vec_con = vector.connect(root)
+    try:
+        vector_available = vector.get_meta(vec_con) is not None
+    finally:
+        vec_con.close()
+
+    chunk_con = chunks_mod.connect(root) if cfg.chunks else None
+    legs_run = ["lexical", "graph", "coverage_lexical"]
+    if vector_available:
+        legs_run.insert(1, "vector_document")
+    if cfg.chunks:
+        legs_run.append("vector_chunk")
+
+    return Corpus(
+        root=root, cfg=cfg, lex_conn=lex_conn, chunk_con=chunk_con,
+        graph=graph_mod.load(root), idf=idf, body_by_slug=body_by_slug,
+        title_by_slug=title_by_slug, vector_available=vector_available,
+        chunk_leg_active=cfg.chunks, legs_run=legs_run,
+    )
+
+
+def _claims_source(corpus: Corpus, slug: str, concept, snippet_by_slug: dict) -> tuple:
+    """(text, note) for scoring a hit card's coverage - the whole body,
+    unless it is oversize (S4.2's bound: coverage for an oversize card is
+    scored against its lexically-matched window only, located from FTS5's
+    own snippet - never the whole body, which for a 1.79 MB card would blow
+    the per-candidate coverage budget). `snippet()` is an FTS5 auxiliary
+    function that requires a MATCH context to highlight against, so the
+    snippet must come from the lexical leg's own MATCH query (`lex_hits`),
+    not a fresh plain SELECT; a hit that reached deep-K by a non-lexical leg
+    has no snippet, so an oversize card found only that way falls back to a
+    leading slice of its body."""
+    body = corpus.body_by_slug.get(slug, concept.body if concept else "")
+    if len(body) <= corpus.cfg.chunk_skip_chars:
+        return body, None
+    text = snippet_by_slug.get(slug) or body[: corpus.cfg.chunk_skip_chars]
+    return text, "oversize"
+
+
+def _dedup_seed(seen: list, extra: list) -> list:
+    for slug in extra:
+        if slug not in seen:
+            seen.append(slug)
+    return seen
+
+
+def _cross(value, threshold) -> bool:
+    return value is not None and threshold is not None and value >= threshold
+
+
+# S4.2's `relation` table needs SOME low/high pair to label a hit even on an
+# instance that hasn't calibrated (and so hasn't set) MEM_DEDUP_COVERAGE_LOW/
+# HIGH - the per-hit `relation`/`recommended_action` fields are descriptive,
+# never a flag gate (that gate reads the real, possibly-None cfg thresholds
+# via `decisions[...]["crossed"]` directly), so a mislabeled relation on an
+# uncalibrated instance costs nothing but a confusing string. Falling back
+# to 0/1 here would make "unrelated" nearly unreachable (coverage is never
+# negative); the design's own recommended calibrated values (S4.4) are a
+# far more useful default label boundary than the unit interval's edges.
+_RELATION_LABEL_FALLBACK_LOW = 0.35
+_RELATION_LABEL_FALLBACK_HIGH = 0.85
+
+
+def detect(corpus: Corpus, candidate, precomputed_vec: Optional[list] = None) -> dict:
+    """The fused-retrieval + coverage + routing pipeline for ONE candidate
+    against `corpus`'s KB snapshot (S4.1/S4.2/S4.4). Returns the per-
+    candidate report dict (§4.1's shape) - `mem dedup` assembles the `kb`/
+    `summary`/`log` wrapper around a list of these; S6 (a later wave) will
+    call this unchanged from `mem extract`."""
+    cfg = corpus.cfg
+    notes: list = []
+    self_slug = candidate.slug
+
+    # Ruling A (D18 W2 fix cycle, gate finding 2): a hit's `relation` label
+    # is CALIBRATED (and so may drive the confident-duplicate superset
+    # downgrade below) only when BOTH coverage bounds are actually
+    # configured for this instance. Unconfigured, the label still uses the
+    # design's own recommended values as a legible default (never the raw
+    # unit interval, which would make `unrelated` nearly unreachable), but
+    # it is presentation only - `label_basis` says which, and the routing
+    # code below must check `coverage_configured`, never infer it from the
+    # label string.
+    coverage_configured = cfg.coverage_low is not None and cfg.coverage_high is not None
+    if coverage_configured:
+        coverage_low_for_labels: float = cfg.coverage_low  # type: ignore[assignment]
+        coverage_high_for_labels: float = cfg.coverage_high  # type: ignore[assignment]
+        label_basis = "configured"
+    else:
+        coverage_low_for_labels = _RELATION_LABEL_FALLBACK_LOW
+        coverage_high_for_labels = _RELATION_LABEL_FALLBACK_HIGH
+        label_basis = "fallback"
+
+    # --- lexical leg -----------------------------------------------------
+    expr = lexical.dedup_match_expr(corpus.lex_conn, candidate.body, n=24)
+    lex_hits = lexical.search_expr(corpus.lex_conn, expr, cfg.deep_k) if expr else []
+    lex_slugs = [h["slug"] for h in lex_hits if h["slug"] != self_slug]
+    snippet_by_slug = {h["slug"]: h["snippet"] for h in lex_hits}
+    if not expr:
+        notes.append("lexical leg: empty query (candidate is entirely unseen vocabulary)")
+
+    # --- vector_document leg (whole-KB scope for the flag) ---------------
+    doc_cosines: dict = {}
+    vec_slugs: list = []
+    if corpus.vector_available and precomputed_vec is not None:
+        ranked = vector.top_k_doc(
+            corpus.root, vec=precomputed_vec, k=None,
+            model=corpus.embed_model, digest=corpus.embed_digest,
+        )
+        doc_cosines = {slug: score for slug, score in ranked if slug != self_slug}
+        vec_slugs = [slug for slug, _ in ranked if slug != self_slug][: cfg.deep_k]
+    elif corpus.vector_available and precomputed_vec is None:
+        notes.append("vector_document leg skipped: no embedding available this run")
+
+    # --- vector_chunk leg (deep-K scope, lazy retrieval-driven population) --
+    chunk_best: dict = {}
+    if corpus.chunk_leg_active and precomputed_vec is not None:
+        seed_slugs = _dedup_seed(list(lex_slugs), vec_slugs)[: cfg.deep_k]
+        oversize_seen = 0
+        for slug in seed_slugs:
+            concept = corpus.concept(slug)
+            if concept is None:
+                continue
+            try:
+                status = chunks_mod.populate_one(
+                    corpus.chunk_con, concept, cfg.chunk_skip_chars, vector.FULL_DRAIN_TIMEOUT,
+                    model=corpus.embed_model, digest=corpus.embed_digest,
+                )
+            except ollama.OllamaError:
+                corpus.chunk_leg_active = False
+                # gate finding 5: a leg that failed mid-run must not still be
+                # reported as having run - remove it from the shared
+                # per-invocation legs_run list, not just this candidate's
+                # local `chunk_leg_active` flag, so `config.legs_run` in the
+                # eventual report/log stays truthful for the whole batch.
+                if "vector_chunk" in corpus.legs_run:
+                    corpus.legs_run.remove("vector_chunk")
+                notes.append("vector_chunk leg disabled mid-run: embed daemon unavailable")
+                break
+            if status == "skipped-oversize":
+                oversize_seen += 1
+        if oversize_seen:
+            notes.append(f"chunk_index: skipped-oversize for {oversize_seen} hit(s)")
+        if corpus.chunk_leg_active:
+            chunk_best = chunks_mod.best_per_card(
+                corpus.chunk_con, precomputed_vec, k=cfg.deep_k,
+                model=corpus.embed_model, digest=corpus.embed_digest,
+            )
+            chunk_best.pop(self_slug, None)
+    elif cfg.chunks and precomputed_vec is None:
+        notes.append("vector_chunk leg skipped: no embedding available this run")
+
+    # --- graph leg (ordering only - never flags) --------------------------
+    seeds = _dedup_seed(list(lex_slugs), vec_slugs)
+    graph_slugs = [s for s in fusion.graph_leg(corpus.graph, seeds) if s != self_slug]
+
+    # --- fuse, then cut to the deep-K report ------------------------------
+    chunk_slugs = sorted(chunk_best, key=lambda s: (-chunk_best[s][0], s))
+    fused = fusion.rrf([lex_slugs, vec_slugs, chunk_slugs, graph_slugs])
+    hit_slugs = [slug for slug, _score in fused if slug != self_slug][: cfg.deep_k]
+
+    # --- per-hit coverage scoring ------------------------------------------
+    candidate_claim_texts = claims.segment(candidate.body)
+    candidate_claims = build_claims(candidate_claim_texts, corpus.idf)
+
+    hits = []
+    hit_claims_by_slug = {}
+    oversize_claim_hits = 0
+    for rank, slug in enumerate(hit_slugs, start=1):
+        concept = corpus.concept(slug)
+        if concept is None:
+            continue
+        legs = []
+        if slug in lex_slugs:
+            legs.append("lexical")
+        if slug in doc_cosines and slug in vec_slugs:
+            legs.append("vector_document")
+        if slug in chunk_best:
+            legs.append("vector_chunk")
+
+        source_text, src_note = _claims_source(corpus, slug, concept, snippet_by_slug)
+        if src_note == "oversize":
+            oversize_claim_hits += 1
+        card_claim_texts = claims.segment(source_text)
+        card_claims = build_claims(card_claim_texts, corpus.idf)
+        hit_claims_by_slug[slug] = card_claims
+
+        cc = coverage_of_candidate(candidate_claims, card_claims, corpus.idf, cfg.claim_lex)
+        cd = coverage_of_card(candidate_claims, card_claims, corpus.idf, cfg.claim_lex)
+        rel, action = relation(cc, cd, coverage_low_for_labels, coverage_high_for_labels)
+
+        matched_claims = []
+        for i, cand_c in enumerate(candidate_claims):
+            for j, card_c in enumerate(card_claims):
+                if matched(cand_c.tokens, card_c.tokens, corpus.idf, cfg.claim_lex):
+                    matched_claims.append({
+                        "candidate_claim": i, "card_claim": j,
+                        "lexical_containment": round(
+                            lexical_containment(cand_c.tokens, card_c.tokens, corpus.idf), 4
+                        ),
+                        "semantic_cosine": None,  # S7 (semantic claim leg) - not built this wave
+                    })
+
+        cos_doc = doc_cosines.get(slug)
+        cos_chunk, chunk_ord = chunk_best.get(slug, (None, None))
+        hit = {
+            "fusion_rank": rank,
+            "slug": slug,
+            "title": corpus.title_by_slug.get(slug, concept.title),
+            "type": concept.type,
+            "legs": legs,
+            "cosine_document": round(cos_doc, 4) if cos_doc is not None else None,
+            "cosine_best_chunk": round(cos_chunk, 4) if cos_chunk is not None else None,
+            "best_chunk_ordinal": chunk_ord,
+            "coverage_of_candidate": round(cc, 4),
+            "coverage_of_card": round(cd, 4),
+            "relation": rel,
+            "label_basis": label_basis,
+            "recommended_action": action,
+            "matched_claims": matched_claims,
+        }
+        if concept.sensitivity != "normal":
+            hit["sensitivity"] = concept.sensitivity
+        hits.append(hit)
+    if oversize_claim_hits:
+        notes.append(f"claims: scored from lexically-matched excerpt only for {oversize_claim_hits} hit(s)")
+
+    # --- union (greedy set-cover over the deep-K hit list) ----------------
+    union = greedy_union_cover(
+        candidate_claims,
+        [(h["slug"], hit_claims_by_slug[h["slug"]]) for h in hits],
+        corpus.idf, cfg.claim_lex, m=cfg.union_m,
+    )
+
+    # --- aggregate signals + decisions -------------------------------------
+    cosine_document_max = max(doc_cosines.values()) if doc_cosines else None
+    cosine_document_slug = (
+        max(doc_cosines, key=lambda s: doc_cosines[s]) if doc_cosines else None
+    )
+    chunk_cosines = {h["slug"]: h["cosine_best_chunk"] for h in hits if h["cosine_best_chunk"] is not None}
+    cosine_chunk_max = max(chunk_cosines.values()) if chunk_cosines else None
+    cosine_chunk_slug = max(chunk_cosines, key=lambda s: chunk_cosines[s]) if chunk_cosines else None
+    coverage_max = max((h["coverage_of_candidate"] for h in hits), default=None)
+    coverage_slug = (
+        max(hits, key=lambda h: h["coverage_of_candidate"])["slug"] if hits else None
+    )
+    coverage_union_value = union.coverage_union if union.member_slugs else None
+
+    decisions = {
+        "cosine_document_max": {
+            "value": round(cosine_document_max, 4) if cosine_document_max is not None else None,
+            "threshold": cfg.dedup_low, "scope": "whole-kb",
+            "crossed": _cross(cosine_document_max, cfg.dedup_low),
+        },
+        "cosine_document_confident": {
+            "value": round(cosine_document_max, 4) if cosine_document_max is not None else None,
+            "threshold": cfg.dedup_high, "scope": "whole-kb",
+            "crossed": _cross(cosine_document_max, cfg.dedup_high),
+        },
+        "cosine_chunk_max": {
+            "value": round(cosine_chunk_max, 4) if cosine_chunk_max is not None else None,
+            "threshold": cfg.dedup_low, "scope": "deep-k",
+            "crossed": _cross(cosine_chunk_max, cfg.dedup_low),
+        },
+        "coverage_of_candidate_max": {
+            "value": round(coverage_max, 4) if coverage_max is not None else None,
+            "threshold": cfg.coverage_low, "scope": "deep-k",
+            "crossed": _cross(coverage_max, cfg.coverage_low),
+        },
+        "coverage_of_candidate_confident": {
+            "value": round(coverage_max, 4) if coverage_max is not None else None,
+            "threshold": cfg.coverage_high, "scope": "deep-k",
+            "crossed": _cross(coverage_max, cfg.coverage_high),
+        },
+        "coverage_union": {
+            "value": round(coverage_union_value, 4) if coverage_union_value is not None else None,
+            "threshold": cfg.union_low, "scope": "top-m",
+            "crossed": _cross(coverage_union_value, cfg.union_low),
+        },
+    }
+
+    semantic_flag = decisions["cosine_document_max"]["crossed"] or decisions["cosine_chunk_max"]["crossed"]
+    coverage_flag = (
+        decisions["coverage_of_candidate_max"]["crossed"] or decisions["coverage_union"]["crossed"]
+    )
+    flagged = semantic_flag or coverage_flag
+
+    hits_by_slug = {h["slug"]: h for h in hits}
+    confident_trigger = (
+        decisions["coverage_of_candidate_confident"]["crossed"]
+        or decisions["cosine_document_confident"]["crossed"]
+    )
+    winning_hit = None
+    if decisions["coverage_of_candidate_confident"]["crossed"] and coverage_slug in hits_by_slug:
+        winning_hit = hits_by_slug[coverage_slug]
+    elif decisions["cosine_document_confident"]["crossed"] and cosine_document_slug in hits_by_slug:
+        winning_hit = hits_by_slug[cosine_document_slug]
+
+    if confident_trigger:
+        # S4.4: never auto-confident on a superset - but a confident cosine/
+        # coverage threshold crossing still promotes even when the specific
+        # winning hit couldn't be resolved into the deep-K list (rare: the
+        # whole-KB argmax fell out of the fused report); the downgrade only
+        # fires when we can positively identify a superset relation.
+        #
+        # Ruling A (gate finding 2): that identification is only trustworthy
+        # when `coverage_configured` - i.e. the winning hit's `relation` was
+        # labeled from CONFIGURED coverage bounds, not the presentation-only
+        # fallback. With coverage unconfigured, a cosine-only confident
+        # trigger must route on cosine alone; the fallback-labeled relation
+        # (whatever it says) may never demote it to review-duplicate.
+        if (
+            coverage_configured
+            and winning_hit is not None
+            and winning_hit["relation"] == CANDIDATE_SUPERSET
+        ):
+            verdict = "review-duplicate"
+        else:
+            verdict = "confident-duplicate"
+    elif flagged:
+        verdict = "review-duplicate"
+    else:
+        verdict = "novel"
+
+    if verdict == "novel":
+        recommended_action = "add"
+    else:
+        # A flagged/confident verdict must never silently inherit "add" from
+        # a hit whose OWN relation is `unrelated` (the relation table's
+        # "add" cell) - that hit isn't why this candidate flagged (e.g. the
+        # semantic leg fired while coverage found nothing on that hit), and
+        # surfacing "add" on a review/confident-duplicate would contradict
+        # the verdict itself. "review" is the safe fallback whenever no hit
+        # we can point to actually explains the flag with a decision-worthy
+        # relation (subset/superset/equivalent/overlapping).
+        candidate_for_action = winning_hit
+        if candidate_for_action is None and coverage_slug in hits_by_slug:
+            candidate_for_action = hits_by_slug[coverage_slug]
+        if candidate_for_action is not None and candidate_for_action["relation"] != UNRELATED:
+            recommended_action = candidate_for_action["recommended_action"]
+        else:
+            recommended_action = "review"
+
+    flag_reasons = []
+    for name, against in (
+        ("cosine_document_max", cosine_document_slug),
+        ("cosine_chunk_max", cosine_chunk_slug),
+        ("coverage_of_candidate_max", coverage_slug),
+    ):
+        if decisions[name]["crossed"]:
+            flag_reasons.append({
+                "signal": name, "value": decisions[name]["value"],
+                "threshold": decisions[name]["threshold"], "against": against,
+            })
+    if decisions["coverage_union"]["crossed"]:
+        flag_reasons.append({
+            "signal": "coverage_union", "value": decisions["coverage_union"]["value"],
+            "threshold": decisions["coverage_union"]["threshold"],
+            "against": "+".join(union.member_slugs) or None,
+        })
+
+    return {
+        "title": candidate.title,
+        "slug_intended": candidate.slug,
+        "content_hash": content_hash(candidate),
+        "claim_count": len(candidate_claims),
+        "verdict": verdict,
+        "recommended_action": recommended_action,
+        "flagged": flagged,
+        "flag_reasons": flag_reasons,
+        "decisions": decisions,
+        "hits": hits,
+        "union": {
+            "member_slugs": union.member_slugs,
+            "coverage_curve": [
+                {"slug": step.slug, "cumulative_coverage": round(step.cumulative_coverage, 4)}
+                for step in union.curve
+            ],
+        },
+        "notes": notes,
+    }
