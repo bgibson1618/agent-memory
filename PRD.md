@@ -122,5 +122,6 @@ session is effectively lost to every other agent and project.
   (save), `--limit` (search), `--procedure` (extract) — since D16 (2026-08-14) also
   `--no-sensitive` (search); the subcommand surface shipped as
   settled in ARCHITECTURE (v1: `init · save · search · get · list · extract · reindex ·
-  doctor`; post-v1 growth: + `links · stats` per D12/D8 — ARCHITECTURE carries the current
-  10-command surface, pinned to the CLI by the F12 parity test).
+  doctor`; post-v1 growth: + `links · stats` per D12/D8, + `dedup` per D18 W2 (2026-09-02)
+  — ARCHITECTURE carries the current 11-command surface, pinned to the CLI by the F12
+  parity test; this sentence names no count that ARCHITECTURE does not also carry).

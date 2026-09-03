@@ -411,3 +411,33 @@ hardcodes the work-KB root around the D15 seam + divergent slugify) + 9 NITs
 all 12 features' evidence refs real on disk, both KBs zero-remote, managed blocks
 current, D17 chain coherent end-to-end. Re-check checkpoint follows this
 remediation; marker advances only on its CLEAN.
+
+## 2026-09-03 — standalone sanity checkpoint (tree scope; first deep read since D18/D19)
+
+Deterministic half: ledger OK, state + bidirectional join OK, scheduler `done`
+(12/12 proved). Judgment half (roster verifiers, sonnet, subscription lane —
+two earlier attempts discarded: `--emit-artifact` put both reviewers into Claude
+Plan Mode and they delivered no verdict; a further relaunch was found billing
+the org gateway because the lane var never reaches delegate panes — both filed
+in the roster AGENT-NOTE, fixed for this session with a tmux session-scoped
+`CLAUDE_PIPE=personal`, verified from `/proc`). **Drift reviewer → DRIFT, one
+finding, validated by a fresh validator:** `PRD.md:123-126` quoted "the current
+10-command surface"; the CLI has 11 since D18 W2's `mem dedup` (L1 skew class,
+**4th recurrence**). Remediated same-session (Brent: "fix the PRD"): re-trued to
+11, `dedup` added to the post-v1 growth list with its D18 citation, and the
+sentence reworded to name no count ARCHITECTURE does not also carry; L1 record
+in `.kodos/learnings.json` updated (structural lesson: a prose count is not a
+pin). **Quality reviewer → one HAZARD (validated):** `dedup.py`'s
+`greedy_union_cover` recomputes the claim-match matrix on every union round
+and `_claim_cosine` recomputes vector norms per pair — real redundant work,
+material only once the (shipped-off) semantic claim leg is enabled at volume;
+disposition pending Brent (fix now vs IMPROVEMENT backlog). Advisory: 3
+IMPROVEMENTs (`mem list` parses every file instead of querying the lexical
+table; `dedup-log.jsonl`/`usage.jsonl` scanned linearly in full on every
+lookup — unbounded-growth pattern; `chunks.py`/`claims.py` hand-mirrored
+identity/rebuild engine → extract a shared helper) + 2 NITs (local `import re`
+in chunks.py; blank-line run in the W3b test file). Everything else CLEAN: all
+12 features' evidence real on disk, S6-deferral claims verified byte-exact
+against the W2 commit, procedure-v2 ordering pinned, 305 tests collected =
+D-log's count, tree clean. Run flipped to needs-you for the two validated
+findings; marker does not advance until resume + a clean re-check.
