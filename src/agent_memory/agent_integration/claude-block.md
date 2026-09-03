@@ -31,7 +31,8 @@ Never present a `position` or `sb-position` as settled.
 
 **Extract from a document** when Brent points you at a paper, article, or doc to
 mine for the KB: run `mem extract --procedure` and follow the printed choreography
-(fresh-eyed extractor fan-out, fresh-eyed review, then `mem extract`).
+(fresh-eyed extractor fan-out, fresh-eyed review, `mem dedup` on the survivors
+with adjudications recorded, then `mem extract`).
 
 **Confidentiality (non-negotiable):**
 - **Instances (D15):** `MEM_KB_ROOT` points `mem` at an alternate KB instance (personal

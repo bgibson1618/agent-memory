@@ -55,6 +55,12 @@ def test_procedure_structural_contract():
     assert "sensitivity: work" in text
     # Preflight names the diagnosis command.
     assert "mem doctor" in text
+    # D18: the full detector runs on the survivors BEFORE submission, and every
+    # judgment is recorded for recalibration.
+    assert "mem dedup /tmp/candidates.json --json" in text
+    assert text.index("mem dedup /tmp/candidates.json") < text.index("mem extract --candidates")
+    assert "--adjudicate" in text
+    assert "candidate-superset" in text and "never auto-skipped" in text
 
 
 def test_procedure_schema_matches_cli_fields():

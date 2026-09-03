@@ -826,3 +826,14 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** implementer/fix lanes (sonnet, personal lane by Brent's
   intent), five codex gate rounds across W3/W3b, orchestrator rulings + two
   in-seat fix passes, Brent's option-3 ruling and commit-and-deploy decision.
+- **Procedure v2 (2026-09-03, Brent-requested):** the extract-knowledge
+  choreography gains step 4 — `mem dedup` on the reviewer survivors BEFORE
+  `mem extract`, reading only verdict/recommended_action/flag_reasons/relation,
+  with the DUP/DISTINCT/FOLD judgment recorded via `--adjudicate` (calibration
+  data from day one) and FOLD landing on D19's `mem save --update` merge;
+  candidate-superset is never auto-skipped. This is what makes the S6 deferral
+  cheap: the full detector reaches the adjudicator on gated code with
+  extract's write path untouched. Both managed instruction blocks name the
+  step; `tests/test_f10_procedure.py` pins its presence and ordering. In-seat
+  doc/choreography change, suite 305 green; no gate (no runtime behavior
+  changed).

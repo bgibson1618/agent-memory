@@ -31,7 +31,8 @@ project reference card; `type: reference` is a descriptor of an artifact/standar
 quote it as what the artifact specifies with its version/date, never as vetted knowledge.
 Pass `--type concept` to ground a claim only in vetted knowledge.
 **Extract** knowledge from a document Brent supplies: `mem extract --procedure`
-prints the choreography to follow (approved-vendor subagents only).
+prints the choreography to follow (approved-vendor subagents only; it includes a
+`mem dedup` pass on the reviewer survivors, adjudications recorded, before `mem extract`).
 
 Instances (D15): `MEM_KB_ROOT` points `mem` at an alternate KB instance (personal
 projects set it in their env to route at the personal KB); unset = the default

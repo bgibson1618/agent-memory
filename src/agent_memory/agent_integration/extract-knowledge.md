@@ -1,4 +1,4 @@
-# extract-knowledge procedure v1
+# extract-knowledge procedure v2
 
 You are the orchestrating agent. Brent has pointed you at a document - a paper,
 article, spec, chapter, or transcript - and wants its durable knowledge in his
@@ -67,7 +67,8 @@ You merge the extractors' outputs yourself - no subagent:
 
 - Union all candidates; where two extractors proposed the same concept, keep
   the better-written body and union the `topics`.
-- Do NOT dedup against the KB - that is `mem extract`'s job.
+- Do NOT dedup against the KB by hand - that is step 4's job (`mem dedup`) and
+  then `mem extract`'s.
 - Number the merged list; reviewers refer to candidates by index.
 
 ## 3. Review - at least two fresh-eyed reviewers
@@ -98,9 +99,53 @@ Survival rule: a candidate reaches the CLI only if **no reviewer rejects it**.
 Apply reviewers' `fix` fields before submitting; if two fixes conflict, take
 the more conservative one. Keep every rejection's reason for the final report.
 
-## 4. Submit
+## 4. Detect duplicates with `mem dedup` (DECISION_LOG D18)
 
-Write the survivors to a JSON file and run the deterministic half:
+`mem extract`'s own dedup is a single whole-document cosine check; on a dense
+KB it misses most confirmed duplicates (measured: recall 0.41 at the default
+threshold - `research/dedup-detection-calibration-2026-09-02.md`). The full
+detector - fused deep-K retrieval plus claim-grain coverage, which catches
+subset, composite, and lexical duplicates cosine cannot see - is
+`mem dedup`. Run it on the reviewer survivors BEFORE submitting:
+
+```
+mem dedup /tmp/candidates.json --json > /tmp/dedup-report.json
+```
+
+Read only these fields per candidate - the report deliberately has no key
+named `score` or `semantic_similarity`, so there is nothing to misread:
+`verdict` (`novel` | `review-duplicate` | `confident-duplicate`),
+`recommended_action`, `flag_reasons[]` (each names its signal, value, and
+threshold), and the top hit's `relation` (`equivalent` | `candidate-subset` |
+`candidate-superset` | `overlapping` | `unrelated`). Then, per candidate:
+
+- **`novel`** - keep it for step 5.
+- **`confident-duplicate`** with relation `equivalent` or `candidate-subset` -
+  drop it (the KB already holds everything it says); record it as a dedup skip
+  in your final report.
+- **`review-duplicate`** (any relation) and **any `candidate-superset`** - run
+  `mem get <slug> --json` on the named hit and judge: **DUP** (same concept -
+  drop), **DISTINCT** (umbrella/member, sibling - keep for step 5), or **FOLD**
+  (the candidate adds material to the existing card - merge it INTO that card
+  with `mem save --update --slug <slug> --body ...`; D19 merge semantics keep
+  every field you omit; then drop the candidate from the batch). A
+  `candidate-superset` is never auto-skipped: skipping would discard the new
+  material.
+- **Record every judgment** so the detector can be recalibrated mechanically
+  (D18 §4.5): `mem dedup --adjudicate <log.run_id> --candidate
+  <candidates[].content_hash> --label DUP|DISTINCT|FOLD --by <your name>`.
+  Both ids are in the report. Never pass `--no-log` in this choreography.
+
+If the embedding daemon is down, `mem dedup` still runs its lexical coverage
+legs and says so in `config.legs_run` - proceed, but note the degraded run in
+your report. `mem dedup` flags on coverage by default; `mem extract` (next
+step) flags on cosine only, so a candidate can be `novel` here and still be
+skipped there - see step 6.
+
+## 5. Submit
+
+Write the step-4 survivors (novel + DISTINCT) to a JSON file and run the
+deterministic half:
 
 ```
 mem extract --candidates /tmp/candidates.json --json
@@ -112,7 +157,7 @@ Candidate schema (the CLI rejects unknown fields item-wise): `title` and
 from title) optional. Invalid candidates are reported individually; valid
 siblings still land.
 
-## 5. Review dispositions, then report
+## 6. Review dispositions, then report
 
 **skipped-duplicate is reviewable, not final** (DECISION_LOG D3): the
 calibrated `dedup_low` threshold is measured on near-dup vs distinct pairs,
@@ -121,7 +166,9 @@ concept at 0.84 against its umbrella). For each `skipped-duplicate` in the
 report, run `mem get <match-slug> --json` and judge: same concept (true
 duplicate - accept the skip) or genuinely distinct (umbrella/member, sibling)?
 For a wrongly-skipped candidate the sanctioned override is a direct
-`mem save` - it bypasses dedup by design.
+`mem save` - it bypasses dedup by design. A candidate you already judged
+**DISTINCT** in step 4 that extract still skips on cosine is exactly this
+case: save it directly, and cite the step-4 adjudication in your report.
 
 **`skipped-duplicate-confident`** (DECISION_LOG D17) is a second, higher
 `dedup_high` band: similarity so high a full-body read adds no signal. You may
