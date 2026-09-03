@@ -467,3 +467,8 @@ before the validator read it (parallel sequencing, not a disputed finding). The
 finding stands as real: the reviewer reproduced 2 failed / 303 passed, and the
 orchestrator independently reproduced the pre-fix failure by stashing the
 fixture (2 failed) and restoring it (2 passed). Recorded as learnings L10.
+Final drift re-check (verified personal-lane delegate) → **CLEAN**: the PRD
+remediation, the hermeticity fix (reviewer re-ran the full suite live and the
+targeted reproduction), the backlogged hazard, the S6-deferral byte-identity,
+and the procedure-v2 pin all cohere with disk. Last-CLEAN marker advanced to
+1b66b6e (2026-09-03T18:11:47Z). Checkpoint closed; handoff follows.
