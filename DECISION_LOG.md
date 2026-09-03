@@ -810,7 +810,10 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   pre-batch head, purge derived rows, log records buffered until success). No
   provisional machinery. Meanwhile the extract PROCEDURE may invoke `mem dedup`
   as an explicit step — the full detector reaches the adjudicator today on
-  gated code. `extract.py`/`vector.py` are byte-identical to the W2 commit;
+  gated code. **First task of that follow-up (sanity 2026-09-03, validated
+  HAZARD, Brent-backlogged):** memoize each `Claim`'s unit vector/norm and
+  compute the claim-match matrix once per hit so `greedy_union_cover` consumes
+  it instead of recomputing `matched()`/`_claim_cosine()` every union round. `extract.py`/`vector.py` are byte-identical to the W2 commit;
   `dedup.detect()`'s `strict_claim_leg`/`precomputed_claim_vecs` and
   `fakes.die_after` are documented RESERVED/unused seams for that follow-up.
 - **W3b gate cycle:** round 1 FAIL (3 C1: the advisory's missing digest

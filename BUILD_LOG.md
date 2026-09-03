@@ -441,3 +441,8 @@ in chunks.py; blank-line run in the W3b test file). Everything else CLEAN: all
 against the W2 commit, procedure-v2 ordering pinned, 305 tests collected =
 D-log's count, tree clean. Run flipped to needs-you for the two validated
 findings; marker does not advance until resume + a clean re-check.
+Disposition (Brent, 2026-09-03): the validated HAZARD is **backlogged as
+IMPROVEMENT** — it is the first task of the S7-enablement / S6 follow-up
+engagement (memoize claim vectors' norms; compute the claim-match matrix once
+and let `greedy_union_cover` consume it). `run-resume` applied; drift re-check
+follows for the marker.
