@@ -169,6 +169,24 @@
       "source": "2026-08-05 standalone sanity checkpoint, drift finding 2 (F12); remediation commit pending",
       "seam": "checkpoint",
       "captured_at": "2026-08-05T19:28:30Z"
+    },
+    {
+      "id": "L10",
+      "category": "verification",
+      "applies_when": "a test suite reads process-level config (env vars) that a supported per-instance deployment may set in the operator's shell",
+      "symptoms": [
+        "ambient env",
+        "MEM_DEDUP_LOW",
+        "hermetic",
+        "env -u",
+        "passes for me",
+        "in-process config read",
+        "subprocess env dict"
+      ],
+      "lesson": "Subprocess-hermetic is not suite-hermetic: tests that shell out with an explicit env dict stay green while in-process config reads silently pick up the operator's ambient per-instance settings, so the documented verification command fails only in the shells that actually deploy the feature. The operator's own habit (`env -u VAR uv run pytest`) masks the class for weeks; a fresh reviewer running the documented command finds it in one pass. Strip ambient config in an autouse fixture so every test sees only what it sets, and never let a workaround become the recorded verification command.",
+      "source": "2026-09-03 standalone sanity drift re-check (reviewer reproduced 2 failed/303 passed with MEM_DEDUP_LOW=0.83; orchestrator reproduced pre-fix 2 failed; remediated same session in tests/conftest.py)",
+      "seam": "checkpoint",
+      "captured_at": "2026-09-03T18:04:00Z"
     }
   ]
 }

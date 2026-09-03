@@ -446,3 +446,24 @@ IMPROVEMENT** — it is the first task of the S7-enablement / S6 follow-up
 engagement (memoize claim vectors' norms; compute the claim-match matrix once
 and let `greedy_union_cover` consume it). `run-resume` applied; drift re-check
 follows for the marker.
+Drift re-check (2026-09-03, after the PRD remediation) → **DRIFT, one NEW
+validated finding; everything else CLEAN incl. the PRD fix:** the suite was not
+hermetic against the invoking shell's `MEM_*` config — with the personal
+instance's own `MEM_DEDUP_LOW=0.83` exported (D15/D17's supported deployment
+mechanism), the documented verification command `uv run pytest` failed two
+tests (`test_mixed_batch_dispositions_json`: in-process `config.dedup_threshold()`
+read the ambient 0.83 while the subprocess report said 0.79; a W2 Ruling-A test
+tripped `MEM_DEDUP_HIGH (0.8) must be greater than dedup_low (0.83)`). The
+orchestrator had been masking this all week with `env -u MEM_DEDUP_LOW` — the
+reviewer's fresh eyes saw what the operator's habit hid. Remediated: an
+`autouse` fixture in `tests/conftest.py` strips every ambient `MEM_*` variable
+from the test process (subprocess `mem` calls were already hermetic via the
+`kb` env dict). Proof: the two tests pass and the full suite is 305 green with
+`MEM_DEDUP_LOW=0.83` exported and NO `env -u`, netns asserted. New learnings
+class recorded (test hermeticity vs ambient per-instance env).
+Validator note: the per-finding validator returned REFUTED — "already resolved on
+disk" — because the orchestrator's remediation had landed in the working tree
+before the validator read it (parallel sequencing, not a disputed finding). The
+finding stands as real: the reviewer reproduced 2 failed / 303 passed, and the
+orchestrator independently reproduced the pre-fix failure by stashing the
+fixture (2 failed) and restoring it (2 passed). Recorded as learnings L10.

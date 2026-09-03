@@ -15,6 +15,20 @@ import pytest
 
 from fakes import DEFAULT_MODEL, FakeOllamaServer
 
+
+@pytest.fixture(autouse=True)
+def _hermetic_mem_env(monkeypatch):
+    """Sanity 2026-09-03 (drift re-check finding, reproduced 2-failed pre-fix): the suite was not hermetic
+    against the invoking shell's `MEM_*` config - a per-instance deployment
+    setting such as `MEM_DEDUP_LOW=0.83` (D15/D17's own supported mechanism)
+    made two tests fail for anyone running the documented verification
+    command from that shell. Subprocess `mem` calls were already hermetic
+    (the `kb` fixture builds an explicit env); in-process `config.*()` reads
+    were not. Strip every ambient `MEM_*` variable for the test process so a
+    test sees only what it sets itself (via monkeypatch or the kb env)."""
+    for key in [k for k in os.environ if k.startswith("MEM_")]:
+        monkeypatch.delenv(key, raising=False)
+
 class FakeOllama(FakeOllamaServer):
     """Minimal double (flat constant embeddings, no /api/tags) - the shared
     parameterized server in fakes.py; suites needing meaning-shaped embeddings
