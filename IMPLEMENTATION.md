@@ -2,7 +2,7 @@
 
 > **Generated snapshot** (D21 / F30) — rendered by `scripts/render-snapshot.mjs` from
 > `FEATURES.md` + `.kodos/state.json`. **Do not hand-edit** — re-render instead.
-> Rendered: 2026-08-17T18:50:32Z.
+> Rendered: 2026-09-03T18:12:46Z.
 
 ## Status
 

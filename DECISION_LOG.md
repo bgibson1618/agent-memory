@@ -840,3 +840,22 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   step; `tests/test_f10_procedure.py` pins its presence and ordering. In-seat
   doc/choreography change, suite 305 green; no gate (no runtime behavior
   changed).
+
+## Handoff flush (2026-09-03) — two durable calls not yet on the record
+
+- **Follow-up trigger (Brent, 2026-09-03):** the deferred S6 extract rewiring
+  (transactional-batch spec above), G1 (per-instance calibration replay against
+  a pinned clone), G2 (the 60-ruling false-suppression sweep, report-only,
+  escalation bar >=4/60) and the apbpf backup-cron wiring all fire together
+  **when the ap-business agent is not spun up** — the same fence-lift condition
+  as the sweep's precondition (1); none of them runs while that agent holds the
+  `~/.agent-memory-apbpf` instance. First task when it fires: the backlogged
+  dedup union-recomputation hazard.
+- **Post-commit deploy seam (Brent, 2026-09-02):** `scripts/git-hooks/post-commit`
+  auto-reinstalls the `mem` tool on any commit touching `src/`, `pyproject.toml`
+  or `uv.lock` — deliberately, so the CLI agents invoke never drifts from HEAD —
+  and honors `MEM_HOOK_NO_REINSTALL=1` to defer that deploy when another agent is
+  live on the installed tool (a loud skip line names the deliberate deploy
+  command). Rationale: the D19 commit hot-deployed merge semantics under a live
+  engagement without a decision point; the seam restores one without giving up
+  deploy-on-commit as the default. Not a product feature; repo tooling.
