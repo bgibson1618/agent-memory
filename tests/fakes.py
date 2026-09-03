@@ -11,6 +11,12 @@ only its distinctive knob:
   daemon queuing requests behind the loading runner). `embed_requests` counts.
 - `digest="sha256:..."` - serve /api/tags with this digest (extract/doctor
   stamp it); omit to 404 the endpoint.
+- `die_after=N` - simulated daemon death: the (N+1)th `/api/embed` POST (and
+  every one after it) drops the connection with no response instead of
+  answering, so the client's `ollama.embed()` sees a genuine mid-batch
+  failure (a real OSError, not a crafted exception). Generic fake capability
+  for daemon-death tests; currently no shipped test instantiates it (its
+  first consumer, the S6 extract-atomicity suite, was deferred 2026-09-03).
 """
 
 import json
@@ -37,7 +43,8 @@ class FakeOllamaServer:
 
     def __init__(self, dims: int = 768, model: str = DEFAULT_MODEL,
                  embed_fn=flat_embed, stall: bool = False,
-                 load_delay: float | None = None, digest: str | None = None):
+                 load_delay: float | None = None, digest: str | None = None,
+                 die_after: int | None = None):
         srv = self
         self.dims = dims
         self.model = model
@@ -45,6 +52,7 @@ class FakeOllamaServer:
         self.stall = stall
         self.load_delay = load_delay
         self.digest = digest
+        self.die_after = die_after
         self.embed_requests = 0
         self.warm_at: float | None = None
         self._lock = threading.Lock()
@@ -87,9 +95,13 @@ class FakeOllamaServer:
                 now = time.monotonic()
                 with srv._lock:
                     srv.embed_requests += 1
+                    died = srv.die_after is not None and srv.embed_requests > srv.die_after
                     if srv.load_delay is not None and srv.warm_at is None:
                         srv.warm_at = now + srv.load_delay
                     wait = (srv.warm_at - now) if srv.warm_at is not None else 0.0
+                if died:
+                    self.close_connection = True
+                    return  # simulated daemon death: dropped, no response
                 if wait > 0:
                     time.sleep(wait)  # cold model: block until "loaded"
                 try:

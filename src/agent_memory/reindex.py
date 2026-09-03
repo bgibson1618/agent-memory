@@ -4,12 +4,13 @@ All of `.index/` is disposable EXCEPT `usage.jsonl` (D8) and `dedup-log.jsonl`
 (D18 S4.5, the SAME D8 precedent - neither is knowledge, neither is derived,
 reindex leaves both alone; gate finding 9 caught this docstring naming only
 the newer of the two): the lexical FTS5 tables, the graph cache, the vector
-store, and the D18 chunk index are wiped and rebuilt from concepts/*.md in
-one command.
+store, and the D18 chunk/claim indexes are wiped and rebuilt from
+concepts/*.md in one command.
 Lexical and graph rebuild locally and unconditionally; vectors re-enqueue
-every parseable concept and drain fully. The chunk index (D18 S3) is always
-dropped (stale sub-card windows must not survive a body edit) but only
-eagerly repopulated with `--chunks` - population is opt-in and otherwise
+every parseable concept and drain fully. The chunk index (D18 S3) and the
+claim-vector index (D18 S7) are always dropped (stale sub-card/per-claim
+vectors must not survive a body edit) but only eagerly repopulated with
+`--chunks`/`--claims` respectively - population is opt-in and otherwise
 stays lazy/retrieval-driven, per D18's disposable-index posture. A daemon
 that is down leaves the embeds queued with one stderr line and exit 0 - they
 drain when it returns. Unchanged content rebuilds to equivalent search
@@ -18,7 +19,7 @@ results, so reindex is always safe to run.
 
 import sys
 
-from agent_memory import chunks, config, dedup, graph, lexical, ollama, vector
+from agent_memory import chunks, claims, config, dedup, graph, lexical, ollama, vector
 
 
 def cmd_reindex(args) -> int:
@@ -77,17 +78,36 @@ def cmd_reindex(args) -> int:
         if chunk_error is not None:
             chunk_note += f" ({chunk_error} - remaining chunks drain on a later --chunks run)"
 
+    # D18 S7: the claim-vector index is fully disposable - drop every stale
+    # row regardless of --claims, since a body edit invalidates old claim
+    # vectors; only --claims pays to eagerly repopulate them (mirrors the
+    # chunk index immediately above).
+    claim_con = claims.connect(root)
+    try:
+        claim_con.execute("DELETE FROM claim_vectors")
+        claim_con.commit()
+    finally:
+        claim_con.close()
+    claim_note = ""
+    if getattr(args, "claims", False):
+        claim_populated, _claim_current, _claim_empty, claim_error = claims.populate_all(
+            root, indexed, vector.FULL_DRAIN_TIMEOUT
+        )
+        claim_note = f"; claims: {claim_populated} populated"
+        if claim_error is not None:
+            claim_note += f" ({claim_error} - remaining claims drain on a later --claims run)"
+
     if remaining == 0:
         print(
             f"reindexed: {len(indexed)} concept(s) - lexical + graph rebuilt,"
-            f" {drained} embedding(s) drained{chunk_note}"
+            f" {drained} embedding(s) drained{chunk_note}{claim_note}"
         )
         return 0
     if isinstance(error, ollama.OllamaError):
         print(
             f"reindexed: {len(indexed)} concept(s) - lexical + graph rebuilt;"
             f" {drained} embedded, {remaining} queued - {error};"
-            f" they drain when the daemon returns{chunk_note}",
+            f" they drain when the daemon returns{chunk_note}{claim_note}",
             file=sys.stderr,
         )
         return 0

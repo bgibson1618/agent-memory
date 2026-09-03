@@ -70,22 +70,55 @@ class Claim:
     for t in tokens - the quantity `coverage_of_candidate`/`coverage_of_card`
     sum over, so filler claims (few/low-idf tokens) can't inflate coverage
     the way a plain claim-count would (S4.2's stated reason for IDF-mass
-    weighting over plain counts)."""
+    weighting over plain counts).
+
+    `vec` (D18 S7, added 2026-09-02): this claim's embedding as a plain
+    float tuple, or None when the semantic claim leg is disabled/unresolved
+    for this claim - a tuple (not a numpy array) so a frozen dataclass stays
+    hashable/comparable without numpy's elementwise `__eq__` ambiguity. Every
+    EXISTING caller constructs a `Claim` with no `vec` (defaulting to None),
+    so `_claim_cosine` always returns None for them - S1/S2's tests are
+    unaffected by this field's addition."""
 
     text: str
     tokens: frozenset
     weight: float
+    vec: Optional[tuple] = None
 
 
-def build_claims(texts: Iterable[str], idf: IdfLookup) -> list:
+def build_claims(texts: Iterable[str], idf: IdfLookup, vecs: Optional[Sequence] = None) -> list:
     """One Claim per text unit (already segmented - callers pass
-    `claims.segment(body)`'s output, not raw bodies)."""
+    `claims.segment(body)`'s output, not raw bodies). `vecs[i]` (D18 S7),
+    when given and not None, becomes that Claim's `vec` - omit (or pass
+    None entries) to build claims with no semantic leg, exactly the S1/S2
+    behavior."""
     out = []
-    for text in texts:
+    for i, text in enumerate(texts):
         tokens = frozenset(claims.tokenize(text))
         weight = sum(idf(t) for t in tokens)
-        out.append(Claim(text=text, tokens=tokens, weight=weight))
+        vec = None
+        if vecs is not None and i < len(vecs) and vecs[i] is not None:
+            vec = tuple(float(x) for x in vecs[i])
+        out.append(Claim(text=text, tokens=tokens, weight=weight, vec=vec))
     return out
+
+
+def _claim_cosine(a: Claim, b: Claim) -> Optional[float]:
+    """cos(a.vec, b.vec), or None when either side has no embedding (the
+    semantic leg is disabled, or embedding this particular claim failed and
+    was degraded - D18 S7). Symmetric by construction, so callers never need
+    to care which side is the "candidate" claim, unlike `lexical_containment`."""
+    if a.vec is None or b.vec is None:
+        return None
+    import numpy as np
+
+    va = np.asarray(a.vec, dtype=np.float32)
+    vb = np.asarray(b.vec, dtype=np.float32)
+    na = float(np.linalg.norm(va))
+    nb = float(np.linalg.norm(vb))
+    if na == 0.0 or nb == 0.0:
+        return None
+    return float((va @ vb) / (na * nb))
 
 
 def idf_from_corpus(card_token_lists: Iterable[Iterable]) -> IdfLookup:
@@ -148,38 +181,51 @@ def matched(
 
 
 def _directional_coverage(
-    reference_claims: Sequence[Claim], other_claims: Sequence[Claim], idf: IdfLookup, lex_threshold: float
+    reference_claims: Sequence[Claim], other_claims: Sequence[Claim], idf: IdfLookup, lex_threshold: float,
+    *, sem_threshold: Optional[float] = None,
 ) -> float:
     """IDF-mass-weighted fraction of `reference_claims` that have some match
     in `other_claims`. `coverage_of_candidate`/`coverage_of_card` are this
     function with the two argument roles swapped - `matched()`'s first
     argument is always the containment denominator, so swapping which claim
     list plays "reference" correctly re-derives the asymmetric direction
-    without duplicating the loop."""
+    without duplicating the loop.
+
+    `sem_threshold` (D18 S7): threaded straight into every `matched()` call
+    alongside the per-pair `_claim_cosine` - cosine is symmetric, so it needs
+    no directional swap the way lexical containment does. Omitted (the
+    default), this degrades to S1/S2's lexical-only behavior exactly, since
+    `matched()` itself already treats `sem_threshold=None` as "leg off"."""
     total = sum(c.weight for c in reference_claims)
     if total <= 0:
         return 0.0
     covered = sum(
         c.weight
         for c in reference_claims
-        if any(matched(c.tokens, d.tokens, idf, lex_threshold) for d in other_claims)
+        if any(
+            matched(c.tokens, d.tokens, idf, lex_threshold,
+                    semantic_cosine=_claim_cosine(c, d), sem_threshold=sem_threshold)
+            for d in other_claims
+        )
     )
     return covered / total
 
 
 def coverage_of_candidate(
-    candidate_claims: Sequence[Claim], card_claims: Sequence[Claim], idf: IdfLookup, lex_threshold: float
+    candidate_claims: Sequence[Claim], card_claims: Sequence[Claim], idf: IdfLookup, lex_threshold: float,
+    *, sem_threshold: Optional[float] = None,
 ) -> float:
     """S4.2: fraction of the candidate's IDF mass that the card covers."""
-    return _directional_coverage(candidate_claims, card_claims, idf, lex_threshold)
+    return _directional_coverage(candidate_claims, card_claims, idf, lex_threshold, sem_threshold=sem_threshold)
 
 
 def coverage_of_card(
-    candidate_claims: Sequence[Claim], card_claims: Sequence[Claim], idf: IdfLookup, lex_threshold: float
+    candidate_claims: Sequence[Claim], card_claims: Sequence[Claim], idf: IdfLookup, lex_threshold: float,
+    *, sem_threshold: Optional[float] = None,
 ) -> float:
     """S4.2: fraction of the card's IDF mass that the candidate covers -
     coverage_of_candidate with the roles swapped."""
-    return _directional_coverage(card_claims, candidate_claims, idf, lex_threshold)
+    return _directional_coverage(card_claims, candidate_claims, idf, lex_threshold, sem_threshold=sem_threshold)
 
 
 def relation(
@@ -249,6 +295,8 @@ def greedy_union_cover(
     idf: IdfLookup,
     lex_threshold: float,
     m: int = 5,
+    *,
+    sem_threshold: Optional[float] = None,
 ) -> UnionResult:
     """S4.2: greedy set-cover over `cards` (a `[(slug, card_claims)]` list,
     the deep-K hit list in the eventual retrieval-wired form), ranked each
@@ -257,7 +305,10 @@ def greedy_union_cover(
     justification over exhaustive pairs). Returns the picked slugs in
     marginal-gain order, the final cumulative coverage, and the step-by-step
     curve - each entry's own cumulative_coverage, so a consumer can see the
-    diminishing returns rather than only the endpoint."""
+    diminishing returns rather than only the endpoint.
+
+    `sem_threshold` (D18 S7): same OR-with-lexical semantics as
+    `_directional_coverage` - omitted, the union is lexical-only (S1/S2)."""
     total = sum(c.weight for c in candidate_claims)
     remaining = list(cards)
     covered = [False] * len(candidate_claims)
@@ -273,7 +324,11 @@ def greedy_union_cover(
             newly = [
                 i
                 for i, c in enumerate(candidate_claims)
-                if not covered[i] and any(matched(c.tokens, d.tokens, idf, lex_threshold) for d in card_claims)
+                if not covered[i] and any(
+                    matched(c.tokens, d.tokens, idf, lex_threshold,
+                            semantic_cosine=_claim_cosine(c, d), sem_threshold=sem_threshold)
+                    for d in card_claims
+                )
             ]
             gain = sum(candidate_claims[i].weight for i in newly)
             if gain > best_gain:
@@ -440,6 +495,8 @@ class Corpus:
     vector_available: bool
     chunk_leg_active: bool  # cfg.chunks AND the daemon hasn't failed mid-run
     legs_run: list
+    claim_con: Optional[sqlite3.Connection] = None  # D18 S7
+    claim_leg_active: bool = False  # cfg.claim_sem is not None AND the daemon hasn't failed mid-run
     embed_model: Optional[str] = None  # set by the CLI once the batch embed
     embed_digest: Optional[str] = None  # completes - identity for top_k_doc/chunk scans (gate finding 3)
     _concept_cache: dict = field(default_factory=dict)
@@ -458,6 +515,8 @@ class Corpus:
         self.lex_conn.close()
         if self.chunk_con is not None:
             self.chunk_con.close()
+        if self.claim_con is not None:
+            self.claim_con.close()
 
 
 def build_corpus(root: Path, cfg: DedupConfig) -> Corpus:
@@ -480,17 +539,21 @@ def build_corpus(root: Path, cfg: DedupConfig) -> Corpus:
         vec_con.close()
 
     chunk_con = chunks_mod.connect(root) if cfg.chunks else None
+    claim_con = claims.connect(root) if cfg.claim_sem is not None else None
     legs_run = ["lexical", "graph", "coverage_lexical"]
     if vector_available:
         legs_run.insert(1, "vector_document")
     if cfg.chunks:
         legs_run.append("vector_chunk")
+    if cfg.claim_sem is not None:
+        legs_run.append("claim_semantic")
 
     return Corpus(
         root=root, cfg=cfg, lex_conn=lex_conn, chunk_con=chunk_con,
         graph=graph_mod.load(root), idf=idf, body_by_slug=body_by_slug,
         title_by_slug=title_by_slug, vector_available=vector_available,
         chunk_leg_active=cfg.chunks, legs_run=legs_run,
+        claim_con=claim_con, claim_leg_active=cfg.claim_sem is not None,
     )
 
 
@@ -536,12 +599,27 @@ _RELATION_LABEL_FALLBACK_LOW = 0.35
 _RELATION_LABEL_FALLBACK_HIGH = 0.85
 
 
-def detect(corpus: Corpus, candidate, precomputed_vec: Optional[list] = None) -> dict:
+def detect(
+    corpus: Corpus, candidate, precomputed_vec: Optional[list] = None,
+    precomputed_claim_vecs: Optional[list] = None, strict_claim_leg: bool = False,
+) -> dict:
     """The fused-retrieval + coverage + routing pipeline for ONE candidate
     against `corpus`'s KB snapshot (S4.1/S4.2/S4.4). Returns the per-
     candidate report dict (§4.1's shape) - `mem dedup` assembles the `kb`/
-    `summary`/`log` wrapper around a list of these; S6 (a later wave) will
-    call this unchanged from `mem extract`."""
+    `summary`/`log` wrapper around a list of these; `mem save --dedup-check`
+    calls it once, advisory-only. No shipped caller is `mem extract`: S6 (the
+    extract rewiring) is DEFERRED as a follow-up decision (2026-09-03).
+
+    `strict_claim_leg` and `precomputed_claim_vecs` are RESERVED, currently
+    UNUSED seams kept for that S6 follow-up (its all-or-nothing batch will
+    need to re-raise claim-embed daemon failures and to pass the candidate's
+    up-front-embedded claim vectors). Every shipped caller leaves them at
+    their defaults: a claim-embed daemon failure mid-run turns the leg off
+    and keeps going (graceful degradation), and `detect()` embeds the
+    candidate's own claims itself with one live call when the semantic claim
+    leg is active (degrading the leg off on daemon trouble, exactly like the
+    chunk leg).
+    """
     cfg = corpus.cfg
     notes: list = []
     self_slug = candidate.slug
@@ -635,7 +713,27 @@ def detect(corpus: Corpus, candidate, precomputed_vec: Optional[list] = None) ->
 
     # --- per-hit coverage scoring ------------------------------------------
     candidate_claim_texts = claims.segment(candidate.body)
-    candidate_claims = build_claims(candidate_claim_texts, corpus.idf)
+
+    # --- semantic claim leg (S7, off unless MEM_DEDUP_CLAIM_SEM is set) ---
+    candidate_claim_vecs = None
+    if corpus.claim_leg_active and candidate_claim_texts:
+        if precomputed_claim_vecs is not None:
+            candidate_claim_vecs = precomputed_claim_vecs
+        else:
+            try:
+                base = config.ollama_base_url()
+                model = corpus.embed_model or config.embed_model()
+                texts = ["search_document: " + t for t in candidate_claim_texts]
+                candidate_claim_vecs = ollama.embed(base, model, texts, timeout=vector.FULL_DRAIN_TIMEOUT)
+            except ollama.OllamaError:
+                if strict_claim_leg:
+                    raise
+                corpus.claim_leg_active = False
+                if "claim_semantic" in corpus.legs_run:
+                    corpus.legs_run.remove("claim_semantic")
+                notes.append("claim_semantic leg disabled mid-run: embed daemon unavailable (candidate claims)")
+
+    candidate_claims = build_claims(candidate_claim_texts, corpus.idf, candidate_claim_vecs)
 
     hits = []
     hit_claims_by_slug = {}
@@ -656,23 +754,51 @@ def detect(corpus: Corpus, candidate, precomputed_vec: Optional[list] = None) ->
         if src_note == "oversize":
             oversize_claim_hits += 1
         card_claim_texts = claims.segment(source_text)
-        card_claims = build_claims(card_claim_texts, corpus.idf)
+
+        card_claim_vecs = None
+        if corpus.claim_leg_active and card_claim_texts:
+            try:
+                status = claims.populate_one(
+                    corpus.claim_con, slug, card_claim_texts, vector.FULL_DRAIN_TIMEOUT,
+                    model=corpus.embed_model, digest=corpus.embed_digest,
+                )
+            except ollama.OllamaError:
+                if strict_claim_leg:
+                    raise
+                corpus.claim_leg_active = False
+                if "claim_semantic" in corpus.legs_run:
+                    corpus.legs_run.remove("claim_semantic")
+                notes.append("claim_semantic leg disabled mid-run: embed daemon unavailable")
+            else:
+                card_claim_vecs = claims.vectors_for(
+                    corpus.claim_con, slug, model=corpus.embed_model, digest=corpus.embed_digest,
+                )
+
+        card_claims = build_claims(card_claim_texts, corpus.idf, card_claim_vecs)
         hit_claims_by_slug[slug] = card_claims
 
-        cc = coverage_of_candidate(candidate_claims, card_claims, corpus.idf, cfg.claim_lex)
-        cd = coverage_of_card(candidate_claims, card_claims, corpus.idf, cfg.claim_lex)
+        cc = coverage_of_candidate(
+            candidate_claims, card_claims, corpus.idf, cfg.claim_lex, sem_threshold=cfg.claim_sem,
+        )
+        cd = coverage_of_card(
+            candidate_claims, card_claims, corpus.idf, cfg.claim_lex, sem_threshold=cfg.claim_sem,
+        )
         rel, action = relation(cc, cd, coverage_low_for_labels, coverage_high_for_labels)
 
         matched_claims = []
         for i, cand_c in enumerate(candidate_claims):
             for j, card_c in enumerate(card_claims):
-                if matched(cand_c.tokens, card_c.tokens, corpus.idf, cfg.claim_lex):
+                sem = _claim_cosine(cand_c, card_c)
+                if matched(
+                    cand_c.tokens, card_c.tokens, corpus.idf, cfg.claim_lex,
+                    semantic_cosine=sem, sem_threshold=cfg.claim_sem,
+                ):
                     matched_claims.append({
                         "candidate_claim": i, "card_claim": j,
                         "lexical_containment": round(
                             lexical_containment(cand_c.tokens, card_c.tokens, corpus.idf), 4
                         ),
-                        "semantic_cosine": None,  # S7 (semantic claim leg) - not built this wave
+                        "semantic_cosine": round(sem, 4) if sem is not None else None,
                     })
 
         cos_doc = doc_cosines.get(slug)
@@ -703,7 +829,7 @@ def detect(corpus: Corpus, candidate, precomputed_vec: Optional[list] = None) ->
     union = greedy_union_cover(
         candidate_claims,
         [(h["slug"], hit_claims_by_slug[h["slug"]]) for h in hits],
-        corpus.idf, cfg.claim_lex, m=cfg.union_m,
+        corpus.idf, cfg.claim_lex, m=cfg.union_m, sem_threshold=cfg.claim_sem,
     )
 
     # --- aggregate signals + decisions -------------------------------------

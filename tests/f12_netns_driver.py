@@ -68,6 +68,10 @@ NOVEL_ATTENTION = {
     "title": "Attention is quadratic",
     "body": "Transformer attention cost grows with the square of the context window tokens.",
 }
+DEDUP_CHECK_DOWN_LEG = {
+    "title": "Coral reef bleaching stress",
+    "body": "Sustained warm water stresses coral polyps into expelling their symbiotic algae.",
+}
 DEDUP_NEAR_DUP = {
     "title": "Reviewing at growing intervals",
     "body": "Spacing out review sessions with growing intervals improves long-term retention over cramming.",
@@ -244,6 +248,18 @@ def main(config_json: str) -> int:
     r = mem(up, "save", "--title", SEED["title"], "--body", SEED["body"])
     rep.check("up-save", r.returncode == 0 and not stderr_lines(r), r.stdout + r.stderr)
 
+    # D18 S8: --dedup-check opens a NEW network-relevant path (an advisory
+    # embed call after the save) - exercised here so the up-leg's aggregate
+    # peer/allowed-connect checks below cover it too.
+    r = mem(up, "save", "--title", NEAR_DUP["title"], "--body", NEAR_DUP["body"], "--dedup-check")
+    rep.check(
+        "up-save-dedup-check-advisory",
+        r.returncode == 0
+        and "dedup-check: verdict=" in r.stderr
+        and '"flagged": true' in r.stderr,
+        r.stdout + r.stderr,
+    )
+
     r = mem(up, "list")
     rep.check("up-list", r.returncode == 0 and SEED_SLUG in r.stdout, r.stdout + r.stderr)
 
@@ -294,7 +310,7 @@ def main(config_json: str) -> int:
     rep.check(
         "up-reindex-drained",
         r.returncode == 0
-        and r.stdout.startswith("reindexed: 2 concept(s)")
+        and r.stdout.startswith("reindexed: 3 concept(s)")
         and "embedding(s) drained" in r.stdout
         and not stderr_lines(r),
         r.stdout + r.stderr,
@@ -338,6 +354,17 @@ def main(config_json: str) -> int:
 
     r = mem(down, "save", "--title", NOVEL_ATTENTION["title"], "--body", NOVEL_ATTENTION["body"])
     rep.check("down-save-queues-quietly", r.returncode == 0 and not stderr_lines(r), r.stdout + r.stderr)
+
+    # D18 S8: --dedup-check degrades to an advisory note, never a failure,
+    # with the daemon unreachable - the save itself still succeeds.
+    r = mem(down, "save", "--title", DEDUP_CHECK_DOWN_LEG["title"], "--body", DEDUP_CHECK_DOWN_LEG["body"], "--dedup-check")
+    rep.check(
+        "down-save-dedup-check-degrades",
+        r.returncode == 0
+        and "dedup-check: semantic legs skipped" in r.stderr
+        and '"verdict": "novel"' in r.stderr,
+        r.stdout + r.stderr,
+    )
 
     r = mem(down, "search", "transformer attention", "--json")
     lines = stderr_lines(r)

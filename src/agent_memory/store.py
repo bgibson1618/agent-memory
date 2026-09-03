@@ -16,7 +16,7 @@ import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from agent_memory import config, gitkb, graph, lexical, okf, vector
+from agent_memory import config, gitkb, graph, lexical, okf, ollama, vector
 
 
 class StoreError(Exception):
@@ -118,6 +118,65 @@ def cmd_save(args) -> int:
     except (StoreError, okf.OKFError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
+
+
+def _dedup_check(root: Path, concept: okf.Concept) -> None:
+    """D18 S8 - `mem save --dedup-check`'s advisory-only detector run: the
+    full `dedup.detect()` report to STDERR, after the save has already
+    landed. Never blocks, never changes the exit code, never touches the
+    KB - D3 Sec66-69 made the `mem save` bypass the designed recourse for
+    umbrella/member overrides, and this flag must not quietly take that
+    back. Any daemon/config/index trouble degrades to a one-line stderr note
+    instead of a failure, since there is nothing left to refuse into - the
+    write already committed (D18 W3 fix cycle, gate finding 4: this covers
+    `vector.VectorError` too - e.g. a model swap since the index was built -
+    not just the embed call's own `ollama.OllamaError`, which was already
+    caught around that one call but let every OTHER detector/index failure
+    upstream and downstream of it propagate uncaught).
+
+    Deferred import: `dedup.py` imports `store` (for `Corpus.concept()`'s
+    `store.load`/`store.StoreError`), so a module-level `from agent_memory
+    import dedup` here would be circular; importing inside the function
+    body resolves fine because both modules are already fully loaded by
+    the time a real `mem save --dedup-check` invocation reaches this call."""
+    from agent_memory import dedup
+
+    try:
+        cfg = dedup.load_config()
+        corpus = dedup.build_corpus(root, cfg)
+    except dedup.DedupError as e:
+        print(f"dedup-check: skipped (invalid dedup config: {e})", file=sys.stderr)
+        return
+    except vector.VectorError as e:
+        print(f"dedup-check: skipped ({e})", file=sys.stderr)
+        return
+    try:
+        corpus.embed_model = config.embed_model()
+        vec = None
+        try:
+            text = vector.embed_text(concept)
+            vec = ollama.embed(
+                config.ollama_base_url(), config.embed_model(), [text],
+                timeout=vector.FULL_DRAIN_TIMEOUT,
+            )[0]
+            # W3b gate finding 1: the semantic legs' identity is model AND
+            # digest - resolve it exactly as `mem dedup` does, so a stale
+            # same-model claim/chunk row is refused and repopulated here too.
+            # `model_digest` never fails over metadata: with /api/tags
+            # unavailable it yields 'unknown', which is stamped and compared
+            # exactly as standalone `mem dedup` does - identical identity
+            # semantics on both surfaces, never a silent cross-space compare.
+            corpus.embed_digest = ollama.model_digest(config.ollama_base_url(), config.embed_model())
+        except ollama.OllamaError as e:
+            vec = None
+            print(f"dedup-check: semantic legs skipped ({e})", file=sys.stderr)
+        report = dedup.detect(corpus, concept, vec)
+        print(f"dedup-check: verdict={report['verdict']} flagged={report['flagged']}", file=sys.stderr)
+        print(json.dumps(report, indent=2, ensure_ascii=False), file=sys.stderr)
+    except (vector.VectorError, dedup.DedupError, StoreError, ollama.OllamaError) as e:
+        print(f"dedup-check: skipped ({e})", file=sys.stderr)
+    finally:
+        corpus.close()
 
 
 # D19: fields an --update may blank explicitly instead of merging. Not listed
@@ -321,6 +380,8 @@ def _save(args) -> int:
     vector.index_saved(root, concept)
 
     print(f"{'updated' if args.update else 'saved'}: {slug} ({path})")
+    if getattr(args, "dedup_check", False):
+        _dedup_check(root, concept)
     return 0
 
 

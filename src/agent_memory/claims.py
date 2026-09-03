@@ -26,9 +26,28 @@ pinned by test_d18_w1_claims_coverage.py's 100-card sample.
 what's indexed - see `lexical.dedup_match_expr`): lowercased alnum runs >= 3
 chars with light suffix stripping (ing|ed|es|s), so morphological variants of
 the same word count as the same coverage token.
-"""
 
+D18 S7 (2026-09-02) - the `claim_vectors` table, this module's second job:
+per-CLAIM embeddings, mirroring `chunks.py`'s table/schema shape but at claim
+grain rather than chunk grain. LAZY and retrieval-scoped by construction
+(`dedup.detect()` only populates a hit CARD's claim vectors when that card
+already reached the deep-K report - never a whole-KB eager pass), plus
+`mem reindex --claims` for an instance that opts into an eager build. Off by
+construction unless `MEM_DEDUP_CLAIM_SEM` is set (dedup.py's `Corpus.
+claim_leg_active`) - the paraphrase lever, R1 in the design, shipped off.
+Every row is stamped with the `model`/`digest` it was embedded under, exactly
+like `chunks.py`'s identity guard (a model swap must invalidate old claim
+vectors, not leave numerically-incomparable ones looking current); a
+mismatched/absent row is excluded from a read-time scan, never raised on -
+this table is disposable, same posture as `chunks`."""
+
+import hashlib
 import re
+import sqlite3
+from array import array
+from pathlib import Path
+
+from agent_memory import config, indexdb, ollama, okf
 
 MIN_CONTENT_TOKENS = 4
 
@@ -194,3 +213,155 @@ def tokenize(text: str) -> list:
     """Coverage-grain tokens: lowercased alnum runs >= 3 chars, light suffix
     stripping. Not the FTS5-aligned tokenizer - see the module docstring."""
     return [_stem(w) for w in _WORD_RE.findall(text.lower()) if len(w) >= 3]
+
+
+# ==========================================================================
+# D18 S7 - the `claim_vectors` table: per-claim embeddings, lazy and
+# retrieval-scoped (module docstring). Mirrors `chunks.py`'s schema/identity
+# pattern at claim grain instead of chunk grain.
+# ==========================================================================
+
+_SCHEMA = """CREATE TABLE IF NOT EXISTS claim_vectors (
+    slug TEXT NOT NULL,
+    ordinal INTEGER NOT NULL,
+    text_hash TEXT NOT NULL,
+    model TEXT NOT NULL,
+    digest TEXT NOT NULL,
+    vec BLOB NOT NULL,
+    updated TEXT NOT NULL,
+    PRIMARY KEY (slug, ordinal)
+)"""
+
+
+def connect(root: Path) -> sqlite3.Connection:
+    con = indexdb.connect(root)
+    con.execute(_SCHEMA)
+    return con
+
+
+def content_hash(text: str) -> str:
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def _existing_identity(con: sqlite3.Connection, slug: str) -> list:
+    return con.execute(
+        "SELECT text_hash, model, digest FROM claim_vectors WHERE slug = ? ORDER BY ordinal", (slug,)
+    ).fetchall()
+
+
+def is_current(
+    con: sqlite3.Connection, slug: str, claim_texts: list, model: str, digest: str | None = None,
+) -> bool:
+    """Whether `slug`'s stored claim rows already match `claim_texts` under
+    `model` (ordinal-for-ordinal text hash AND model, `digest` compared only
+    when given - mirrors `chunks.is_current`/`vector.check_meta`'s posture
+    exactly)."""
+    wanted = [content_hash(t) for t in claim_texts]
+    existing = _existing_identity(con, slug)
+    if len(existing) != len(wanted):
+        return False
+    for (existing_hash, existing_model, existing_digest), wanted_hash in zip(existing, wanted):
+        if existing_hash != wanted_hash or existing_model != model:
+            return False
+        if digest is not None and existing_digest != digest:
+            return False
+    return True
+
+
+def _store(con: sqlite3.Connection, slug: str, claim_texts: list, vecs: list, model: str, digest: str) -> None:
+    con.execute("DELETE FROM claim_vectors WHERE slug = ?", (slug,))
+    stamp = okf.now_stamp()
+    for ordinal, (text, vec) in enumerate(zip(claim_texts, vecs)):
+        con.execute(
+            "INSERT INTO claim_vectors(slug, ordinal, text_hash, model, digest, vec, updated)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (slug, ordinal, content_hash(text), model, digest, array("f", vec).tobytes(), stamp),
+        )
+    con.commit()
+
+
+def populate_one(
+    con: sqlite3.Connection, slug: str, claim_texts: list, timeout: float,
+    model: str | None = None, digest: str | None = None,
+) -> str:
+    """(Re)embed one card's claim vectors if not already current. Returns
+    "populated" | "current" | "empty". Raises ollama.OllamaError on daemon
+    trouble - callers degrade the leg exactly like `chunks.populate_one`'s
+    already-ratified pattern (`dedup.detect()`'s chunk leg: turn the leg off
+    for the rest of the run, never abort a batch already in flight).
+
+    `model`/`digest`: same default-to-current-config / skip-if-None posture
+    as `chunks.populate_one` - a caller that resolved a digest once per
+    invocation passes it through every call; a caller that hasn't resolved
+    one gets a same-instance-consistent model-only identity."""
+    model = model or config.embed_model()
+    if not claim_texts:
+        con.execute("DELETE FROM claim_vectors WHERE slug = ?", (slug,))
+        con.commit()
+        return "empty"
+    if is_current(con, slug, claim_texts, model, digest):
+        return "current"
+    base = config.ollama_base_url()
+    texts = ["search_document: " + t for t in claim_texts]
+    vecs = ollama.embed(base, model, texts, timeout=timeout)
+    stamp_digest = digest if digest is not None else ollama.model_digest(base, model)
+    _store(con, slug, claim_texts, vecs, model, stamp_digest)
+    return "populated"
+
+
+def vectors_for(
+    con: sqlite3.Connection, slug: str, model: str | None = None, digest: str | None = None,
+) -> list | None:
+    """[vec_array, ...] ordinal-ordered for `slug`'s stored claim vectors, or
+    None when no rows exist, OR when any row's `model`/`digest` (when given)
+    doesn't match - a stale/foreign identity is excluded wholesale, not
+    partially trusted (mirrors `chunks.all_rows`'s exclude-not-corrupt
+    posture: this table is disposable, so a caller that gets None just
+    proceeds without the semantic leg for that card)."""
+    import numpy as np
+
+    rows = con.execute(
+        "SELECT ordinal, model, digest, vec FROM claim_vectors WHERE slug = ? ORDER BY ordinal", (slug,)
+    ).fetchall()
+    if not rows:
+        return None
+    out = []
+    for _ordinal, row_model, row_digest, blob in rows:
+        if model is not None and row_model != model:
+            return None
+        if digest is not None and row_digest != digest:
+            return None
+        out.append(np.frombuffer(blob, dtype=np.float32))
+    return out
+
+
+def populate_all(root: Path, concepts: list, timeout: float) -> tuple:
+    """Eager build (`mem reindex --claims`): (re)populate every concept's
+    claim vectors, segmenting from `concept.body` alone (the same grain
+    `dedup.detect()` scores at). Returns (populated, current, empty, error) -
+    `error` (an ollama.OllamaError, or None) stops the loop early exactly
+    like `chunks.populate_all`/`vector.drain_fully`, leaving the remainder
+    for a later run. Resolves model/digest identity ONCE for the whole
+    build, like `chunks.populate_all`."""
+    con = connect(root)
+    try:
+        model = config.embed_model()
+        digest = ollama.model_digest(config.ollama_base_url(), model)
+        populated = current = empty = 0
+        error = None
+        for _slug, concept in concepts:
+            texts = segment(concept.body)
+            try:
+                status = populate_one(con, concept.slug, texts, timeout, model=model, digest=digest)
+            except ollama.OllamaError as e:
+                error = e
+                break
+            if status == "populated":
+                populated += 1
+            elif status == "current":
+                current += 1
+            else:
+                empty += 1
+        return populated, current, empty, error
+    finally:
+        con.close()

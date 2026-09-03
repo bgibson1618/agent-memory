@@ -15,8 +15,9 @@ telemetry — see Storage). One `agent_memory` package (installed
 via `uv tool install`, entry point `mem`) owns OKF markdown files under the selected instance
 root — default `~/.agent-memory/`, alternate via `MEM_KB_ROOT` (D15) — as that instance's sole
 source of truth; three derived indexes — lexical (FTS5), vector (local Ollama
-embeddings), graph (wikilink edges) — serve every read through RRF fusion, plus a fourth,
-opt-in D18 index — sub-card **chunk** windows — that serves only `mem dedup`'s semantic legs and
+embeddings), graph (wikilink edges) — serve every read through RRF fusion, plus two more,
+opt-in D18 indexes — sub-card **chunk** windows and per-claim **claim** vectors (S7, the
+semantic claim leg) — that serve only the dedup detector's semantic legs and
 never `mem search`. **No resident
 process of ours, ever**: all work happens in-process at CLI invocation time (pending embeddings
 retry on the next call); the only daemon on the machine is Ollama. The primary caller is an
@@ -31,10 +32,11 @@ agent; the CLI is never interactive and every read command speaks `--json`.
 | `index.vector` | Ollama `/api/embed` client; vectors as BLOBs in SQLite; **numpy brute-force cosine** at query time; pending-embed queue | ~30 MB / <10 ms at the 10k ceiling; model tag + digest + dims stamped in metadata, mixed-dim writes refused; `num_ctx` set explicitly; **embed calls carry strict per-purpose client budgets — save/opportunistic-drain 500 ms (timeout ⇒ enqueue, never block); query 2.5 s (`MEM_EMBED_QUERY_TIMEOUT` seam — absorbs moderate model-reload windows; a full cold reload (~3.8 s measured) instead degrades that one query to lexical+graph and warms the model for the next — learning L4, wave-6 evidence); full drain (doctor/reindex) 30 s**; sqlite-vec ANN is a later seam, not a v1 dep |
 | `index.graph` | Parse `[[wikilinks]]` + frontmatter `related` into direct edges and `topics` into **topic nodes** (concept → topic → concept — never materialized pairwise edges, so a broad tag can't go quadratic); mtime-invalidated cache; in-process traversal (pure Python — 1–2-hop expansion needs no traversal lib; networkx/rustworkx remain a later seam) | The research-gated "derived graph" — no graph daemon; Obsidian renders the same links natively |
 | `fusion` | RRF across the three legs; rerank seam (no-op in v1); non-`normal` sensitivity marking (`[work]`/`[sensitive]`, D16) + `--no-work`/`--no-sensitive` filters | Write-to-all + fuse-on-read is settled design (capstone D021/D023/D045) |
-| `extract` | The **deterministic half** of extract-knowledge: candidate concepts (JSON) in → validate → embed → dedup vs KB → save novel → report added / skipped-duplicate / skipped-duplicate-confident (since D17) / invalid | No LLM inside the CLI; thresholds calibrated empirically (capstone D024); with Ollama unreachable it **refuses cleanly** (dedup requires embeddings) — nothing partially saved |
+| `extract` | The **deterministic half** of extract-knowledge: candidate concepts (JSON) in → validate → embed → dedup vs KB → save novel → report added / skipped-duplicate / skipped-duplicate-confident (since D17) / invalid | No LLM inside the CLI; thresholds calibrated empirically (capstone D024); with Ollama unreachable it **refuses cleanly** (dedup requires embeddings) — nothing partially saved. D18 S6 (rewiring this decision onto `dedup.detect()`) is DEFERRED to a follow-up decision (2026-09-03): extract still uses its original whole-KB argmax cosine; the full detector is reachable today via `mem dedup` (procedure step) and `mem save --dedup-check` |
 | `index.chunks` | D18 opt-in sub-card retrieval windows in a new `chunks` table (SQLite): heading-then-markdown-block chunker (~1,000-char target / 4,000 hard cap / 50% overlap; a heading-less card ≤1,000 chars yields exactly one chunk, byte-identical to its whole-card text); lazy retrieval-driven population + `mem reindex --chunks` eager build; each row stamped with the model/digest it was embedded under | A NEW table, not new `vectors` rows (a synthetic `slug#N` key was one bug away from leaking chunk hits into `mem search`); `vectors`/`mem search` stay byte-unchanged; fully disposable |
-| `dedup` | D18 detection layer behind `mem dedup`: fused deep-K retrieval (lexical BM25 + whole-KB document cosine + chunk cosine + graph ordering via `fusion.rrf`) then claim-grain directional coverage scoring → `verdict`/`flagged`/`recommended_action`; `.index/dedup-log.jsonl` durable detection/adjudication log | Un-misreadable report contract (no `score`/`semantic_similarity` key anywhere, `fusion_rank` is the only fusion number); coverage flag **on** by default in `mem dedup`, **off** in `mem extract` pending per-instance log evidence (D18 §4.4) |
-| `cli` | `mem` entry point: `init · save · search · get · list · extract · dedup · reindex · doctor · links · stats` (links = dangling-link health, D12; stats = usage counts from the local invocation log, D8) | stdlib argparse; never interactive; meaningful exit codes; `--json` on every read; one-line errors. **`mem init` owns setup**: creates `~/.agent-memory` + git init, verifies Ollama/models/FTS5, and installs/refreshes the agent-integration instruction blocks into the global `CLAUDE.md`/`AGENTS.md` (managed marker section); `mem doctor` re-checks all of it |
+| `index.claims` | D18 S7 opt-in per-claim retrieval-scoped embeddings in a new `claim_vectors` table (SQLite), same identity-stamping/disposability posture as `index.chunks`; lazy, retrieval-scoped population (only deep-K hit cards' claims embed) + `mem reindex --claims` eager build | Powers the semantic claim leg (`MEM_DEDUP_CLAIM_SEM`, shipped off — the paraphrase lever); `claims.py` owns both segmentation (S1) and this storage |
+| `dedup` | D18 detection layer behind `mem dedup` and `mem save --dedup-check` (extract rewiring = S6, deferred): fused deep-K retrieval (lexical BM25 + whole-KB document cosine + chunk cosine + graph ordering via `fusion.rrf`) then claim-grain directional coverage scoring — lexical OR semantic (S7) — → `verdict`/`flagged`/`recommended_action`; `.index/dedup-log.jsonl` durable detection/adjudication log | Un-misreadable report contract (no `score`/`semantic_similarity` key anywhere, `fusion_rank` is the only fusion number); coverage flag **on** by default in `mem dedup`, **off** in `mem extract` pending per-instance log evidence (D18 §4.4); the semantic claim leg ships **off** everywhere (`MEM_DEDUP_CLAIM_SEM` unset) |
+| `cli` | `mem` entry point: `init · save · search · get · list · extract · dedup · reindex · doctor · links · stats` (links = dangling-link health, D12; stats = usage counts from the local invocation log, D8) | stdlib argparse; never interactive; meaningful exit codes; `--json` on every read; one-line errors. **`mem init` owns setup**: creates `~/.agent-memory` + git init, verifies Ollama/models/FTS5, and installs/refreshes the agent-integration instruction blocks into the global `CLAUDE.md`/`AGENTS.md` (managed marker section); `mem doctor` re-checks all of it. `mem save --dedup-check` (D18 S8): advisory-only, full detector report to stderr, never blocks the save or changes its exit code — the save-path dedup bypass stays D3's designed recourse |
 | `agent-integration/` | Shipped **as data, not code**: the CLAUDE.md + AGENTS.md instruction blocks (when to save/search unprompted) and the **extract-knowledge procedure** | The invisibility mechanism, vendor-scoped per DECISION_LOG D1: ambient awareness is claimed and proved on Claude; the AGENTS.md block carries the same instructions to approved-vendor consumers (Codex), but for codex/agy v1 claims installation only (F11); Antigravity/Gemini-backed agents are excluded from memory work entirely |
 
 **The extract-knowledge procedure** (agent-side, per Brent's design): ≥2 fresh-eyed extractor
@@ -86,17 +88,19 @@ a second, fully isolated store with its own git repo, indexes, and recall scope 
 consumer: the personal KB, kept out of work-session ambient recall); unset, the default
 `~/.agent-memory` is unchanged, and every invariant (local-only, no remote, OKF) applies
 per-instance. The derived stores — `.index/mem.db` (FTS5 +
-vectors + the D18 chunk table + embed-queue + metadata, one SQLite file) and `.index/graph.json`
+vectors + the D18 chunk table + the D18 S7 claim-vector table + embed-queue + metadata, one
+SQLite file) and `.index/graph.json`
 (the mtime/size-keyed graph edge cache) — are disposable: `mem reindex` rebuilds all of them from
-the markdown (`--chunks` eagerly repopulates the chunk table; otherwise it stays dropped until the
-next lazy/retrieval-driven population). Two deliberate exceptions, both per the same D8 rationale:
+the markdown (`--chunks`/`--claims` eagerly repopulate their tables; otherwise each stays dropped
+until the next lazy/retrieval-driven population). Two deliberate exceptions, both per the same D8
+rationale:
 `.index/usage.jsonl` (D8, the per-invocation usage log) and `.index/dedup-log.jsonl` (D18 S4.5,
 the dedup detection/adjudication log) are NOT derived — reindex preserves both, and deleting
 `.index/` wholesale loses that history by design. Storage layout:
 ```
 ~/.agent-memory/
   concepts/<slug>.md    # OKF source of truth (Obsidian-openable)
-  .index/mem.db         # derived: fts5 / vectors / chunks / embed-queue / meta
+  .index/mem.db         # derived: fts5 / vectors / chunks / claim_vectors / embed-queue / meta
   .index/graph.json     # derived: graph edge cache (wikilink/related/topic edges)
   .index/dedup-log.jsonl # NOT derived: dedup detection/adjudication log (D18 S4.5) — reindex leaves it alone
   .index/usage.jsonl    # NOT derived: usage telemetry (D8) — reindex leaves it alone

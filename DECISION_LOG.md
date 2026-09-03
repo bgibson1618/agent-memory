@@ -769,3 +769,60 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **AI involvement:** implementer + fix lanes (sonnet), three codex gate
   rounds, orchestrator rulings A–C + two in-seat fix cycles; Brent's cap-round
   commit ruling.
+
+## D18 — Wave 3b implemented (S7 + S8); S6 DEFERRED with its follow-up spec (2026-09-03)
+
+- **Landed (S7):** the semantic claim leg — `claim_vectors` table in `claims.py`
+  (identity-stamped like chunks; lazy, retrieval-scoped population; `mem reindex
+  --claims` eager build; plain reindex drops stale rows), `MEM_DEDUP_CLAIM_SEM`
+  activates claim-pair matching as lexical OR semantic; **shipped OFF** (ratified
+  Q4; R1 — the paraphrase gap while off — stands recorded). Proof: paraphrased
+  claims sharing zero tokens → lexical 0.000, semantic high, OR-flag fires;
+  cache (second run zero new embeds); scope bounded by deep-K; graceful degrade
+  in standalone `mem dedup`.
+- **Landed (S8):** `research/dedup_detection_calibration.py` + committed
+  artifact `research/dedup-detection-calibration-2026-09-02.md` — Stage 1a
+  (coverage mechanics + FP side, synthetic, D3's 26 pairs as negative control)
+  and Stage 1b (archive replay, md5-pinned canonical labels, NEVER globbed)
+  reproducing the design baseline EXACTLY: recall@1 0.810, recall@10 0.968,
+  MRR 0.872, threshold recall 0.410 @0.79 / 0.197 @0.83. A test pins the
+  shipped standalone `mem dedup` overlay (0.35/0.85/0.55) to the artifact
+  (config.py globals stay disabled). `mem save --dedup-check`: advisory only
+  (stderr report; save, stdout, exit code unchanged), resolving model+digest
+  identity exactly as `mem dedup` does (W3b gate finding 1).
+- **S6 (extract rewiring onto `dedup.detect()`) — DEFERRED (Brent, option 3,
+  2026-09-03).** History: W3 round 1 FAIL (6 C1) → fix → round 2 FAIL (2
+  residuals) → orchestrator ruled "two-phase extraction with provisional
+  in-batch candidates" → cap round FAIL: the provisional mechanism opened 4
+  real new C1 (provisionals visible to the vector leg only → lexical intra-batch
+  dups saved; durable ghost claim rows after refusal; unprotected predicted
+  slugs under concurrent saves; untruthful legs_run) + 1 FALSE finding (D12's
+  link-remap second commit + re-embed are PRE-EXISTING HEAD behavior — the
+  orchestrator's gate criterion was wrong, not the code). Escalated per
+  GATE-POLICY's cap rule; Brent chose to ship S7+S8 and defer S6.
+  **Follow-up spec (ratified as the direction for S6 when it fires): the
+  TRANSACTIONAL BATCH** — phase 1 performs ALL daemon work (candidate document
+  + claim embeds; pre-populate claim/chunk vectors for each candidate's
+  pre-batch deep-K; in-batch cards reuse their candidate vectors); phase 2 is
+  the UNCHANGED pre-D18 sequential detect→save loop under the write lock
+  (intra-batch semantics + golden byte-identity preserved by construction);
+  any failure rolls back (delete created files, `git reset --hard` to the
+  pre-batch head, purge derived rows, log records buffered until success). No
+  provisional machinery. Meanwhile the extract PROCEDURE may invoke `mem dedup`
+  as an explicit step — the full detector reaches the adjudicator today on
+  gated code. `extract.py`/`vector.py` are byte-identical to the W2 commit;
+  `dedup.detect()`'s `strict_claim_leg`/`precomputed_claim_vecs` and
+  `fakes.die_after` are documented RESERVED/unused seams for that follow-up.
+- **W3b gate cycle:** round 1 FAIL (3 C1: the advisory's missing digest
+  identity; the orchestrator's S6 pruning residue in the renamed test file;
+  the calibration generator/artifact citing the removed test and misstating
+  the overlay pin) + 1 C2 (dead seams/false docstring) → all fixed in-seat
+  (digest fix mutation-checked both ways) → round 2 **PASS-W-NOTES, 0
+  blocking** (three cosmetic notes, cleared before commit). Suite 294 → 305,
+  both commands, netns asserted. D18 in-repo scope is now complete except the
+  deferred S6; G1 (per-instance calibration replay) and G2 (the 60-ruling
+  false-suppression sweep, escalation bar ≥4/60 fixed up front) remain
+  post-fence.
+- **AI involvement:** implementer/fix lanes (sonnet, personal lane by Brent's
+  intent), five codex gate rounds across W3/W3b, orchestrator rulings + two
+  in-seat fix passes, Brent's option-3 ruling and commit-and-deploy decision.

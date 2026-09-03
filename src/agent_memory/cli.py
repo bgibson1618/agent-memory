@@ -82,6 +82,12 @@ def main(argv=None) -> int:
              " (repeatable, or comma-separate multiple fields); clearable: description"
              " (re-derived from the body), topics, related",
     )
+    p_save.add_argument(
+        "--dedup-check", action="store_true", dest="dedup_check",
+        help="advisory only: after saving, run the D18 detector and print its full"
+             " report to stderr - never blocks the save or changes the exit code"
+             " (the save-path bypass stays the designed recourse; D3)",
+    )
     p_save.set_defaults(func=store.cmd_save)
 
     p_search = sub.add_parser(
@@ -147,6 +153,13 @@ def main(argv=None) -> int:
         help="also eagerly (re)build the D18 chunk index (opt-in, disposable"
         " sub-card retrieval windows); without this flag, stale chunk rows"
         " are still dropped but not repopulated",
+    )
+    p_reindex.add_argument(
+        "--claims", action="store_true",
+        help="also eagerly (re)build the D18 claim-vector index (opt-in,"
+        " disposable per-claim embeddings for the semantic claim leg);"
+        " without this flag, stale claim vectors are still dropped but not"
+        " repopulated - the leg otherwise embeds lazily, retrieval-scoped",
     )
     p_reindex.set_defaults(func=reindex.cmd_reindex)
 
