@@ -31,6 +31,15 @@ if ! command -v uv >/dev/null 2>&1; then
 fi
 
 root="$(git rev-parse --show-toplevel)"
+
+# Frozen release (2026-09-21): other projects run `mem` from a read-only release copy of this repo. While the
+# installed `mem` comes from anywhere but this worktree, a commit here must not replace it; a release moves it
+# instead (plugin-freeze.sh mem release <sha>). Before a freeze, and after a rollback, it comes from here.
+receipt="$(uv tool dir 2>/dev/null)/agent-memory/uv-receipt.toml"
+if [ -f "$receipt" ] && ! grep -qF -e "directory = \"$root\"" -e "editable = \"$root\"" "$receipt"; then
+    echo "post-commit: 'mem' is deployed from a release copy, not this worktree -> NOT reinstalled (release with: plugin-freeze.sh mem release <sha>)"
+    exit 0
+fi
 if uv tool install --reinstall --quiet "$root" >/dev/null 2>&1; then
     echo "post-commit: source changed -> 'mem' reinstalled ($(mem --version 2>/dev/null || echo 'version n/a'))"
 else
