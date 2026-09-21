@@ -8,7 +8,7 @@
       "name": "mem",
       "source": ".",
       "description": "Slash-command surface for agent-memory: /mem:extract runs the extract-knowledge choreography on a document. Search/save stay ambient by design.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "category": "knowledge",
       "keywords": ["knowledge-base", "memory", "okf", "extraction", "personal-kb"],
       "author": { "name": "bgibs" }
