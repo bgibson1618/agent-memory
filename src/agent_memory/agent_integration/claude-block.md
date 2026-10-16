@@ -49,9 +49,11 @@ with adjudications recorded, then `mem extract`).
   knowledge, drop the identifiers); tag `sensitive` when they must be kept. Marked
   `[sensitive]` in results; `--no-sensitive` excludes; treat the marker as
   do-not-quote-onward.
-- The KB is local-only: never add a git remote to `~/.agent-memory`; its content goes
-  nowhere but localhost (Ollama embeddings). `[work]`-marked results may be used in
-  Claude and Codex contexts only (approved vendors: Anthropic, OpenAI).
+- The KB's only permitted remotes are the URLs listed in its `.allowed-remotes` file
+  (today: the work host over Tailscale, D1 2026-10-15): never a public, vendor or
+  personal-cloud remote; its content goes nowhere but those machines and localhost
+  (Ollama embeddings). `[work]`-marked results may be used in Claude and Codex
+  contexts only (approved vendors: Anthropic, OpenAI).
 - `mem doctor` diagnoses the setup; if it fails, surface the failure - never store
   knowledge elsewhere as a workaround.
 <!-- END AGENT-MEMORY BLOCK -->

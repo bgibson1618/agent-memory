@@ -40,9 +40,10 @@ including confidentiality-invariant decay.
 - `mem doctor` reports pass/fail per check — Ollama reachable, embedding model present with
   expected dimensions, FTS5 available — with a nonzero exit when a required check fails, so an
   agent can act on the diagnosis rather than guessing.
-- **The no-remote invariant holds for the KB's life, not just at init:** with a remote injected
+- **The remote invariant holds for the KB's life, not just at init:** with a remote injected
   into the KB repo after init, `mem doctor` fails loudly naming it, and write commands warn
-  until it is removed.
+  until it is removed — unless its exact URL is listed in the KB root's `.allowed-remotes`
+  (D1, 2026-10-15: the work host over Tailscale), which doctor then reports as allowed.
 - With Ollama stopped, `mem doctor` says exactly that in one line; all non-Ollama checks still
   pass and are reported.
 

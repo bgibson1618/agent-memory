@@ -1,7 +1,9 @@
 """Git plumbing for the KB repository.
 
-The KB repo is local-only for life: nothing here can add a remote, and the
-no-remote invariant is checked by doctor and warned about on every write path.
+The KB repo's remotes are confined for life: nothing here can add a remote, and
+the only remotes permitted are the URLs listed in the KB root's `.allowed-remotes`
+file (one URL per line, `#` comments; D1 2026-10-15: the work host over Tailscale).
+Doctor fails on any other remote and every write path warns about it.
 """
 
 import subprocess
@@ -31,6 +33,33 @@ def init_repo(root: Path) -> None:
 
 def remotes(root: Path) -> list[str]:
     return _git(root, "remote").stdout.split()
+
+
+ALLOWED_REMOTES_FILE = ".allowed-remotes"
+
+
+def allowed_remotes(root: Path) -> set[str]:
+    """URLs listed in <root>/.allowed-remotes (D1). Missing file = nothing allowed."""
+    path = root / ALLOWED_REMOTES_FILE
+    if not path.is_file():
+        return set()
+    urls: set[str] = set()
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if line and not line.startswith("#"):
+            urls.add(line)
+    return urls
+
+
+def disallowed_remotes(root: Path) -> list[tuple[str, str]]:
+    """(name, url) for every configured remote whose URL is not in .allowed-remotes."""
+    allowed = allowed_remotes(root)
+    out: list[tuple[str, str]] = []
+    for name in remotes(root):
+        url = remote_url(root, name) or "no url"
+        if url not in allowed:
+            out.append((name, url))
+    return out
 
 
 def remote_url(root: Path, name: str) -> str:

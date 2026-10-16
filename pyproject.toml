@@ -1,6 +1,6 @@
 [project]
 name = "agent-memory"
-version = "0.2.0"
+version = "0.2.1"
 description = "Personal cross-agent knowledge base: OKF markdown source of truth + local vector + derived graph, RRF-fused"
 requires-python = ">=3.12"
 dependencies = ["numpy>=2", "pyyaml>=6"]

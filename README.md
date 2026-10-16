@@ -14,7 +14,9 @@ Brent's coding agents each start every session cold — knowledge learned in one
 
 This repo holds code only — KB data lives in the selected instance root (default
 `~/.agent-memory`; `MEM_KB_ROOT` selects an alternate instance, D15), each a local git repo
-with **no remote**, a hard confidentiality line, and never pushed.
+whose **only permitted remotes are the URLs listed in its `.allowed-remotes` file** (D1,
+2026-10-15: the work host over Tailscale; nothing public, vendor-hosted or personal-cloud),
+a hard confidentiality line.
 
 ## Using it
 

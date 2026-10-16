@@ -39,7 +39,8 @@ projects set it in their env to route at the personal KB); unset = the default
 work-adjacent KB. Never mix instances in one task; every rule here applies
 per-instance.
 
-The KB is local-only: never add a git remote to `~/.agent-memory` (or to any other
-instance's root); its content goes nowhere but localhost Ollama. `mem doctor`
-diagnoses the setup.
+The KB's only permitted remotes are the URLs listed in its `.allowed-remotes` file
+(today: the work host over Tailscale, D1 2026-10-15); never a public, vendor or
+personal-cloud remote, for any instance; its content goes nowhere but those machines
+and localhost Ollama. `mem doctor` diagnoses the setup.
 <!-- END AGENT-MEMORY BLOCK -->

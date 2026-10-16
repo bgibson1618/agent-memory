@@ -52,17 +52,24 @@ def run_checks(mutate: bool = True) -> list[Check]:
     else:
         checks.append(Check("git-repo", "ok", "local repository present"))
         remote_names = gitkb.remotes(root)
-        if remote_names:
-            first = remote_names[0]
-            url = gitkb.remote_url(root, first) or "no url"
-            more = f" and {len(remote_names) - 1} more" if len(remote_names) > 1 else ""
+        disallowed = gitkb.disallowed_remotes(root)
+        if disallowed:
+            first, url = disallowed[0]
+            more = f" and {len(disallowed) - 1} more" if len(disallowed) > 1 else ""
             checks.append(
                 Check(
                     "no-remote",
                     "fail",
-                    f"remote '{first}' configured ({url}){more}"
-                    f" - the KB must stay local-only; remove: git -C {root} remote remove {first}",
+                    f"remote '{first}' configured ({url}){more} is not listed in"
+                    f" {root / gitkb.ALLOWED_REMOTES_FILE}"
+                    f" - remove it (git -C {root} remote remove {first}) or, if it is the"
+                    f" work host over Tailscale (D1), list its exact URL there",
                 )
+            )
+        elif remote_names:
+            listed = ", ".join(f"{n} ({gitkb.remote_url(root, n)})" for n in remote_names)
+            checks.append(
+                Check("no-remote", "ok", f"remote(s) listed in {gitkb.ALLOWED_REMOTES_FILE}: {listed}")
             )
         else:
             checks.append(Check("no-remote", "ok", "no remotes configured"))

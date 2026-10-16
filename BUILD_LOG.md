@@ -472,3 +472,15 @@ remediation, the hermeticity fix (reviewer re-ran the full suite live and the
 targeted reproduction), the backlogged hazard, the S6-deferral byte-identity,
 and the procedure-v2 pin all cohere with disk. Last-CLEAN marker advanced to
 1b66b6e (2026-09-03T18:11:47Z). Checkpoint closed; handoff follows.
+
+
+## 2026-10-16 — D1: an allowlist for the KB's remote (0.2.1, branch d1-allowed-remotes)
+
+Brent ruled on 2026-10-15 (D1 of the work-host readiness) that the KB keeps a git remote on his
+tailnet host and that `mem doctor`'s no-remote check and the managed CLAUDE.md line change to match.
+Change: `gitkb.allowed_remotes()` reads `<kb root>/.allowed-remotes` (one URL per line, `#`
+comments); `disallowed_remotes()` lists every configured remote whose URL is not there. Doctor's
+`no-remote` check fails only on a disallowed remote (naming the file and the two remedies) and
+reports allowed ones; `store.warn_if_remote` warns only on disallowed ones. Both managed blocks say
+so. Tests: `tests/test_d1_allowed_remotes.py`. Release into the read-only copies on both machines and
+`mem init` (block refresh) are Brent's word, as every freeze is.

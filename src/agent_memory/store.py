@@ -37,11 +37,13 @@ def require_kb(root: Path) -> None:
 
 
 def warn_if_remote(root: Path) -> None:
-    remote_names = gitkb.remotes(root)
-    if remote_names:
+    """Warn on every write about a remote that .allowed-remotes does not list (D1)."""
+    disallowed = gitkb.disallowed_remotes(root)
+    if disallowed:
+        names = ", ".join(f"{n} ({u})" for n, u in disallowed)
         print(
-            f"warning: KB git repo has remote(s): {', '.join(remote_names)}"
-            f" - the KB must stay local-only; remove: git -C {root} remote remove {remote_names[0]}",
+            f"warning: KB git repo has remote(s) not listed in {gitkb.ALLOWED_REMOTES_FILE}: {names}"
+            f" - remove: git -C {root} remote remove {disallowed[0][0]}",
             file=sys.stderr,
         )
 
