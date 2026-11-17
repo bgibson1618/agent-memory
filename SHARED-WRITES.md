@@ -2,11 +2,13 @@
 
 This documents the host-mediated shared-write mode built on 2026-10-20 for instances governed by
 an operator profile. As of 2026-11-17 it is **held** (DECISION_LOG D20). How governance actually
-works (`shared.profile_for`): a readable, valid, owner-only operator profile that lists an instance's
-root governs that instance, whether or not the KB carries the `agent-memory.sharedWrites` git marker;
-the marker is the fail-closed lever — a marked root whose profile is missing, unreadable, invalid or
-does not list it refuses local source writes instead of falling back to local behaviour, while an
-unmarked root that no usable profile lists stays a local KB. The four transport commands (`retry`,
+works (`shared.profile_for`), in two steps. Step one, obtaining a listing: if the profile is
+missing, not an owner-only regular file, unparseable, has no `roots` table, or lists other roots
+only, then a KB carrying the `agent-memory.sharedWrites` git marker refuses local source writes
+(fail closed) and an unmarked KB stays a local KB. Step two, once a listing names the root: the
+profile is validated (machine, receiver paths, and on a laptop a complete `transport` entry), and a
+validation failure refuses writes regardless of the marker — a profile that lists a root but lacks
+`transport` governs that root into refusal, marked or not. The four transport commands (`retry`,
 `pending`, `refresh`, `delete`) act only on a governed instance and refuse elsewhere; `init` refuses
 a governed instance. Endpoint values live only in the profile's `transport` entry, never in source.
 The test suite exercises this logic against synthetic profiles that list synthetic roots, with the

@@ -887,16 +887,16 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 ## D20 — Host-mediated shared writes: built 2026-10-20, a held private deployment mode (2026-11-17)
 
 - **What exists:** `shared.py` / `coordinator.py` and the `retry · pending · refresh · delete`
-  commands implement host-mediated writes. Governance (`shared.profile_for`): an instance is
-  provisioned when the operator profile (owner-only file under the user's config directory) is
-  readable and valid and lists the instance's root; such a profile governs the root whether or not
-  the KB carries the `agent-memory.sharedWrites` git marker. The marker's job is fail-closed: a
-  marked root with a missing, unreadable, invalid or non-listing profile refuses local source
-  writes instead of falling back to local behaviour, while an unmarked root that no usable profile
-  lists is simply local. `init` refuses a provisioned shared KB. Endpoint values (host alias,
-  address, user, port) live only in the profile's `transport` entry, never in source (2026-11
-  curation); a laptop profile without that entry is invalid, so a marked root governed by it fails
-  closed.
+  commands implement host-mediated writes. Governance (`shared.profile_for`) has two steps. First,
+  obtaining a listing from the operator profile (an owner-only regular file under the user's config
+  directory): when the profile is missing, unreadable, malformed, has no `roots` table or lists only
+  other roots, a KB carrying the `agent-memory.sharedWrites` git marker refuses local source writes
+  (fail closed) and an unmarked KB is simply local. Second, once the profile lists the root, it is
+  validated (machine, receiver paths, and on a laptop a complete `transport` entry: alias, hostname,
+  user, port); a validation failure refuses writes regardless of the marker. So a listed root is
+  governed by its profile whether or not it is marked, and a laptop profile without `transport`
+  governs every root it lists into refusal. `init` refuses a governed KB. Endpoint values live only
+  in the profile's `transport` entry, never in source (2026-11 curation).
 - **Status:** held. The suite exercises the transport only against synthetic profiles and synthetic
   roots with the transport mocked (`tests/test_shared_writes.py`, `tests/test_coordinator.py`);
   live transport is not exercised. `SHARED-WRITES.md` is kept as the historical procedure under a
