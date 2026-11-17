@@ -64,7 +64,10 @@ def test_literal_terms_rank_matching_concept_with_ollama_absent(mem, kb):
     lines = result.stdout.strip().splitlines()
     assert lines and lines[0].startswith("quaternion-rotation  ")
     assert "Quaternion Rotation" in lines[0]
-    assert result.stderr.strip() == ""  # no Ollama noise on the lexical path
+    # Degraded, never silent (Stage 2, 2026-11): the daemon is absent, so the
+    # semantic leg says so exactly once; the lexical answer is unaffected.
+    assert result.stderr.count("warning: semantic leg skipped") == 1, result.stderr
+    assert result.stderr.count("\n") == 1
 
     hits = search_json(mem, "sourdough starter")
     assert hits[0]["slug"] == "sourdough-starter-care"
@@ -126,12 +129,17 @@ def test_empty_result_exits_zero_with_empty_list_and_one_quiet_line(mem, kb):
     text = mem("search", "xyzzyplugh")
     assert text.returncode == 0
     assert text.stdout.strip().splitlines() == ["no matches: xyzzyplugh"]
-    assert text.stderr.strip() == ""
+    # Degraded, never silent (Stage 2, 2026-11): the daemon is absent, so the
+    # semantic leg says so exactly once; the empty result itself stays valid.
+    warnings = text.stderr.strip().splitlines()
+    assert len(warnings) == 1 and warnings[0].startswith("warning: semantic leg skipped"), text.stderr
 
     as_json = mem("search", "xyzzyplugh", "--json")
     assert as_json.returncode == 0
     assert json.loads(as_json.stdout) == []  # stdout stays machine-clean
-    assert as_json.stderr.strip().splitlines() == ["no matches: xyzzyplugh"]
+    lines = as_json.stderr.strip().splitlines()
+    assert len(lines) == 2 and lines[0].startswith("warning: semantic leg skipped"), as_json.stderr
+    assert lines[1] == "no matches: xyzzyplugh"
 
 
 def test_operator_lookalike_queries_stay_literal(mem, kb):

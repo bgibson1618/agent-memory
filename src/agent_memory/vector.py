@@ -325,22 +325,53 @@ def _scan_rows(rows: list, qvec: list, k: int | None) -> list:
     return [(rows[i][0], float(scores[i])) for i in order]
 
 
+def _has_concepts(root: Path) -> bool:
+    """Whether there is anything to know: one concept file is enough."""
+    return next((root / "concepts").glob("*.md"), None) is not None
+
+
+def require_built(root: Path, con: sqlite3.Connection | None) -> dict | None:
+    """Structural absence of the semantic index, when the KB does hold
+    concepts, is a degraded search and must be said: a missing database, an
+    index never built (no metadata) or no stored vectors at all each raise
+    VectorError with the remedy, so the caller's one warning line fires.
+    A KB with no concepts has nothing to know and stays quiet; a genuine
+    no-match or a zero-norm query also stays an empty result (Stage 2,
+    2026-11; the 2026-09-14 AM-1 finding)."""
+    if con is None:
+        if _has_concepts(root):
+            raise VectorError("vector index not built - run: mem reindex")
+        return None
+    meta = get_meta(con)
+    if meta is None:
+        if _has_concepts(root):
+            raise VectorError("vector index not built - run: mem reindex")
+        return None
+    stored = con.execute("SELECT count(*) FROM vectors").fetchone()[0]
+    if stored == 0 and _has_concepts(root):
+        pending = con.execute("SELECT count(*) FROM embed_queue").fetchone()[0]
+        raise VectorError(f"no embeddings stored yet ({pending} pending) - run: mem reindex")
+    return meta
+
+
 def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> list:
     """The vector leg: brute-force cosine over stored vectors, best first.
     Returns [(slug, score), ...]; raises ollama.OllamaError when the daemon
-    cannot embed the query (callers decide how to degrade)."""
-    if not db_path(root).exists():
-        return []
-    con = connect(root)
+    cannot embed the query and VectorError when the index is structurally
+    absent for a KB that has concepts (callers decide how to degrade). The
+    daemon is consulted first so that, when both are true, the warning names
+    the unreachable embedder rather than advising a reindex that could not
+    embed either."""
+    con = connect(root) if db_path(root).exists() else None
     try:
-        meta = get_meta(con)
-        if meta is None:
-            return []
         qvec = _embed_query(
             config.ollama_base_url(), config.embed_model(),
             "search_query: " + query,
             timeout if timeout is not None else query_timeout(),
         )
+        meta = require_built(root, con)
+        if meta is None:
+            return []
         if len(qvec) != int(meta.get("dims", 0)):
             raise VectorError(
                 f"query embedding dims {len(qvec)} != index dims {meta.get('dims')} - run: mem reindex"
@@ -352,7 +383,8 @@ def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> l
             "SELECT slug, vec FROM vectors WHERE dims = ? ORDER BY slug", (len(qvec),)
         ).fetchall()
     finally:
-        con.close()
+        if con is not None:
+            con.close()
     return _scan_rows(rows, qvec, k)
 
 
@@ -382,13 +414,8 @@ def top_k_doc(
     `vector_meta` via `check_meta` BEFORE scanning: two same-dimension
     embedding spaces from different models are numerically incomparable, and
     a dims-only check (the pre-fix behavior) let that through silently."""
-    if not db_path(root).exists():
-        return []
-    con = connect(root)
+    con = connect(root) if db_path(root).exists() else None
     try:
-        meta = get_meta(con)
-        if meta is None:
-            return []
         query_model = model or config.embed_model()
         if vec is None:
             qvec = _embed_query(
@@ -398,10 +425,14 @@ def top_k_doc(
             )
         else:
             qvec = vec
+        meta = require_built(root, con)
+        if meta is None:
+            return []
         check_meta(meta, query_model, len(qvec), "document-cosine scan refused", digest=digest)
         rows = con.execute(
             "SELECT slug, vec FROM vectors WHERE dims = ? ORDER BY slug", (len(qvec),)
         ).fetchall()
     finally:
-        con.close()
+        if con is not None:
+            con.close()
     return _scan_rows(rows, qvec, k)
