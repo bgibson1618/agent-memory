@@ -13,17 +13,20 @@ Two install layers decide what the `mem` on PATH imports:
 
 A commit never touches either layer (scripts/git-hooks/post-commit). This
 tool does, explicitly, and only where it is told to: every command names the
-tool directory and bin directory it works on, refuses the live default prefix
-unless --allow-live is given (an activation decision, not a development
-step), records the previous state before changing anything, and measures the
-result through the prefix's own interpreter.
+tool directory and bin directory it works on, canonicalizes every path it
+records, refuses the live default prefix unless --allow-live is given (an
+activation decision, not a development step), writes its undo journal
+BEFORE changing anything, and measures the result through the prefix's own
+interpreter.
 
   stage     archive one revision of a source repo into a read-only release
-            directory with a manifest of file hashes
-  activate  install that release non-editably into the named prefix and point
-            the selector at it; record the previous state for rollback
-  rollback  restore the previous state recorded by the last activate (receipt
-            layer and selectors)
+            directory with a manifest of file hashes (built in a temporary
+            directory and renamed into place, so a failure leaves nothing)
+  activate  journal the previous state, then install the release
+            non-editably into the named prefix and point the selector at it
+  rollback  journal, then restore the previous state recorded by the last
+            activate (receipt layer and selectors); also recovers an
+            interrupted activate from its journal
   status    report what the named prefix's `mem` imports right now
 
 Exit codes: 0 ok, 1 refused or failed (one-line reason on stderr).
@@ -36,6 +39,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -66,6 +70,17 @@ def run(argv, env=None, cwd=None, input=None) -> subprocess.CompletedProcess:
         detail = (result.stderr or result.stdout).strip().splitlines()
         raise ReleaseError(f"{argv[0]} failed: {detail[-1] if detail else result.returncode}")
     return result
+
+
+def atomic_write_json(path: Path, data: dict) -> None:
+    """Durable before it is visible: write a sibling temp file, fsync, rename."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_name(path.name + ".tmp")
+    with open(temp, "w", encoding="utf-8") as stream:
+        stream.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
+        stream.flush()
+        os.fsync(stream.fileno())
+    os.replace(temp, path)
 
 
 # ---------------------------------------------------------------- prefix ----
@@ -119,8 +134,15 @@ def selectors(tool_dir: Path) -> dict:
 
 # ----------------------------------------------------------------- stage ----
 
+def _make_writable(root: Path) -> None:
+    for path in root.rglob("*"):
+        path.chmod(0o755 if path.is_dir() else 0o644)
+    root.chmod(0o755)
+
+
 def stage(source: Path, rev: str, releases_dir: Path) -> Path:
     source = source.resolve()
+    releases_dir = releases_dir.resolve()
     sha = run(["git", "-C", str(source), "rev-parse", "--verify", rev + "^{commit}"]).stdout.strip()
     pyproject = run(["git", "-C", str(source), "show", f"{sha}:pyproject.toml"]).stdout
     match = re.search(r'^version\s*=\s*"([^"]+)"', pyproject, re.M)
@@ -131,24 +153,35 @@ def stage(source: Path, rev: str, releases_dir: Path) -> Path:
     dest = releases_dir / release_id
     if dest.exists():
         raise ReleaseError(f"release {release_id} already staged at {dest}")
-    archive = subprocess.run(["git", "-C", str(source), "archive", "--format=tar", sha, *ARCHIVE_PATHS],
-                             capture_output=True, timeout=600)
-    if archive.returncode:
-        raise ReleaseError("git archive failed: " + archive.stderr.decode(errors="replace").strip())
-    tree = dest / "source"
-    tree.mkdir(parents=True)
-    with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
-        tar.extractall(tree, filter="data")
-    files = {}
-    for path in sorted(p for p in tree.rglob("*") if p.is_file()):
-        files[str(path.relative_to(tree))] = sha256_file(path)
-    manifest = {"format": FORMAT, "id": release_id, "version": version, "source_repo": str(source),
-                "rev": sha, "created": now(), "files": files}
-    (dest / "release.json").write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
-    for path in tree.rglob("*"):
-        path.chmod(0o555 if path.is_dir() else 0o444)
-    (dest / "release.json").chmod(0o444)
-    tree.chmod(0o555)
+    releases_dir.mkdir(parents=True, exist_ok=True)
+    work = releases_dir / f".staging-{release_id}-{os.getpid()}"
+    if work.exists():
+        _make_writable(work)
+        shutil.rmtree(work)
+    try:
+        archive = subprocess.run(["git", "-C", str(source), "archive", "--format=tar", sha, *ARCHIVE_PATHS],
+                                 capture_output=True, timeout=600)
+        if archive.returncode:
+            raise ReleaseError("git archive failed: " + archive.stderr.decode(errors="replace").strip())
+        tree = work / "source"
+        tree.mkdir(parents=True)
+        with tarfile.open(fileobj=io.BytesIO(archive.stdout)) as tar:
+            tar.extractall(tree, filter="data")
+        files = {str(p.relative_to(tree)): sha256_file(p)
+                 for p in sorted(p for p in tree.rglob("*") if p.is_file())}
+        manifest = {"format": FORMAT, "id": release_id, "version": version, "source_repo": str(source),
+                    "rev": sha, "created": now(), "files": files}
+        (work / "release.json").write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
+        for path in tree.rglob("*"):
+            path.chmod(0o555 if path.is_dir() else 0o444)
+        (work / "release.json").chmod(0o444)
+        tree.chmod(0o555)
+        os.rename(work, dest)      # the release appears only once it is complete
+    except BaseException:
+        if work.exists():
+            _make_writable(work)
+            shutil.rmtree(work, ignore_errors=True)
+        raise
     dest.chmod(0o555)
     return dest
 
@@ -168,6 +201,19 @@ def verify_release(release_dir: Path) -> dict:
 
 def state_path(releases_dir: Path) -> Path:
     return releases_dir / "active.json"
+
+
+def load_state(releases_dir: Path) -> dict | None:
+    path = state_path(releases_dir)
+    if not path.exists():
+        return None
+    try:
+        state = json.loads(path.read_text())
+    except (OSError, ValueError) as error:
+        raise ReleaseError(f"{path} is unreadable ({error}); repair or move it aside first") from None
+    if not isinstance(state, dict) or state.get("format") != FORMAT or "status" not in state:
+        raise ReleaseError(f"{path} is not a {FORMAT} journal; repair or move it aside first")
+    return state
 
 
 def snapshot(tool_dir: Path) -> dict:
@@ -191,68 +237,86 @@ def _write_selectors(tool_dir: Path, wanted: dict) -> None:
         (site / name).write_text(content)
 
 
-def activate(release_dir: Path, releases_dir: Path, tool_dir: Path, bin_dir: Path,
-             allow_live: bool = False, python: str | None = None) -> dict:
-    manifest = verify_release(release_dir)
-    guard_prefix(tool_dir, bin_dir, allow_live)
-    previous = snapshot(tool_dir)
-    _reinstall(tool_dir, bin_dir, [str(release_dir / "source")], python)
-    selector = {SELECTOR_NAME: f"import sys; sys.path.insert(0, {str(release_dir / 'source' / 'src')!r})\n"}
-    _write_selectors(tool_dir, selector)
-    record = {"format": FORMAT, "at": now(), "active": manifest["id"], "release_dir": str(release_dir),
-              "tool_dir": str(tool_dir), "bin_dir": str(bin_dir), "previous": previous,
-              "selector_sha256": hashlib.sha256(next(iter(selector.values())).encode()).hexdigest()}
-    history = []
-    path = state_path(releases_dir)
-    if path.is_file():
-        old = json.loads(path.read_text())
-        history = old.get("history", []) + [{k: old[k] for k in ("at", "active") if k in old}]
-    record["history"] = history
-    path.write_text(json.dumps(record, indent=1, sort_keys=True) + "\n")
-    return status(tool_dir)
-
-
-def rollback(releases_dir: Path, tool_dir: Path, bin_dir: Path, allow_live: bool = False,
-             python: str | None = None) -> dict:
-    guard_prefix(tool_dir, bin_dir, allow_live)
-    path = state_path(releases_dir)
-    if not path.is_file():
-        raise ReleaseError("nothing to roll back: no active.json")
-    record = json.loads(path.read_text())
-    if Path(record["tool_dir"]).resolve() != tool_dir.resolve():
-        raise ReleaseError("active.json was written for a different tool directory")
-    previous = record["previous"]
-    receipt = previous.get("receipt")
+def _spec_from_receipt(receipt: str | None) -> list:
     if not receipt:
         raise ReleaseError("previous state had no installed tool; remove the prefix by hand")
     editable = re.search(r'editable\s*=\s*"([^"]+)"', receipt)
     directory = re.search(r'directory\s*=\s*"([^"]+)"', receipt)
     if editable:
-        spec = ["-e", editable.group(1)]
-    elif directory:
-        spec = [directory.group(1)]
-    else:
-        raise ReleaseError("previous receipt names neither an editable worktree nor a directory")
+        return ["-e", editable.group(1)]
+    if directory:
+        return [directory.group(1)]
+    raise ReleaseError("previous receipt names neither an editable worktree nor a directory")
+
+
+def activate(release_dir: Path, releases_dir: Path, tool_dir: Path, bin_dir: Path,
+             allow_live: bool = False, python: str | None = None) -> dict:
+    release_dir, releases_dir = release_dir.resolve(), releases_dir.resolve()
+    tool_dir, bin_dir = tool_dir.resolve(), bin_dir.resolve()
+    manifest = verify_release(release_dir)
+    guard_prefix(tool_dir, bin_dir, allow_live)
+    state = load_state(releases_dir)
+    if state and state["status"] in ("activating", "rolling-back"):
+        raise ReleaseError(f"a previous {state['status']} did not complete; run rollback or inspect "
+                           f"{state_path(releases_dir)} first")
+    previous = snapshot(tool_dir)
+    history = (state or {}).get("history", [])
+    if state:
+        history = history + [{"at": state["at"], "active": state.get("active"), "status": state["status"]}]
+    selector = {SELECTOR_NAME: f"import sys; sys.path.insert(0, {str(release_dir / 'source' / 'src')!r})\n"}
+    journal = {"format": FORMAT, "status": "activating", "at": now(), "active": manifest["id"],
+               "release_dir": str(release_dir), "tool_dir": str(tool_dir), "bin_dir": str(bin_dir),
+               "previous": previous, "selector": selector,
+               "selector_sha256": hashlib.sha256(next(iter(selector.values())).encode()).hexdigest(),
+               "history": history}
+    atomic_write_json(state_path(releases_dir), journal)   # undo data is durable before any change
+    _reinstall(tool_dir, bin_dir, [str(release_dir / "source")], python)
+    _write_selectors(tool_dir, selector)
+    journal.update(status="active", completed=now())
+    atomic_write_json(state_path(releases_dir), journal)
+    return status(tool_dir)
+
+
+def rollback(releases_dir: Path, tool_dir: Path, bin_dir: Path, allow_live: bool = False,
+             python: str | None = None) -> dict:
+    releases_dir, tool_dir, bin_dir = releases_dir.resolve(), tool_dir.resolve(), bin_dir.resolve()
+    guard_prefix(tool_dir, bin_dir, allow_live)
+    state = load_state(releases_dir)
+    if state is None:
+        raise ReleaseError("nothing to roll back: no active.json")
+    if Path(state["tool_dir"]).resolve() != tool_dir:
+        raise ReleaseError("active.json was written for a different tool directory")
+    if state["status"] == "rolling-back":
+        raise ReleaseError("a previous rollback did not complete; inspect active.json")
+    if state["status"] == "rolled-back":
+        raise ReleaseError("already rolled back; activate a release to change the prefix again")
+    previous = state["previous"]
+    spec = _spec_from_receipt(previous.get("receipt"))
+    journal = {"format": FORMAT, "status": "rolling-back", "at": now(),
+               "rolled_back_from": state.get("active"), "interrupted": state["status"] == "activating",
+               "previous": previous, "restored": {"spec": spec, "selectors": sorted(previous.get("selectors", {}))},
+               "tool_dir": str(tool_dir), "bin_dir": str(bin_dir),
+               "history": state.get("history", []) + [{"at": state["at"], "active": state.get("active"),
+                                                        "status": state["status"]}]}
+    atomic_write_json(state_path(releases_dir), journal)
     _reinstall(tool_dir, bin_dir, spec, python)
     _write_selectors(tool_dir, previous.get("selectors", {}))
-    done = {"format": FORMAT, "at": now(), "rolled_back_from": record["active"],
-            "restored": {"spec": spec, "selectors": sorted(previous.get("selectors", {}))},
-            "tool_dir": str(tool_dir), "bin_dir": str(bin_dir),
-            "history": record.get("history", []) + [{"at": record["at"], "active": record["active"]}]}
-    path.write_text(json.dumps(done, indent=1, sort_keys=True) + "\n")
+    journal.update(status="rolled-back", completed=now())
+    atomic_write_json(state_path(releases_dir), journal)
     return status(tool_dir)
 
 
 # ---------------------------------------------------------------- status ----
 
 def status(tool_dir: Path) -> dict:
+    tool_dir = tool_dir.resolve()
     python = tool_dir / "agent-memory" / "bin" / "python"
     report = {"tool_dir": str(tool_dir), "python": str(python), "installed": python.is_file()}
     if not python.is_file():
         return report
     probe = run([str(python), "-I", "-c",
                  "import json, sys, agent_memory; print(json.dumps({'file': agent_memory.__file__, "
-                 "'version': agent_memory.__version__, 'executable': sys.executable}))"])
+                 "'version': agent_memory.__version__, 'executable': sys.executable}))"], cwd="/")
     report.update(json.loads(probe.stdout))
     package = Path(report["file"]).parent
     release_json = package.parent.parent.parent / "release.json"
@@ -307,9 +371,9 @@ def main(argv=None) -> int:
     try:
         if args.command == "stage":
             dest = stage(args.source, args.rev, args.releases_dir)
-            print(json.dumps({"staged": str(dest), **json.loads((dest / 'release.json').read_text())
-                              | {"files": len(json.loads((dest / 'release.json').read_text())['files'])}},
-                             indent=1, sort_keys=True))
+            manifest = json.loads((dest / "release.json").read_text())
+            print(json.dumps({"staged": str(dest), "id": manifest["id"], "rev": manifest["rev"],
+                              "files": len(manifest["files"])}, indent=1, sort_keys=True))
         elif args.command == "activate":
             print(json.dumps(activate(args.release, args.releases_dir, args.tool_dir, args.bin_dir,
                                       args.allow_live, args.python), indent=1, sort_keys=True))

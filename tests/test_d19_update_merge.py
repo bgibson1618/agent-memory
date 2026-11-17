@@ -11,6 +11,7 @@ as a regression test.
 
 import fcntl
 import json
+import os
 import subprocess
 import sys
 import time
@@ -410,6 +411,28 @@ def test_long_body_replacement_warning_is_elided(mem, kb):
 
 
 @contextmanager
+def wait_until_queued_on_lock(procs, lock_path, timeout=20.0):
+    """Linux: a `mem save` that reached the write lock holds the lock file open
+    while it waits, so every contender is provably queued once each process
+    has that path among its descriptors. Bounded; fails loudly otherwise."""
+    deadline = time.monotonic() + timeout
+    wanted = str(lock_path)
+    while time.monotonic() < deadline:
+        ready = 0
+        for proc in procs:
+            try:
+                fds = os.listdir(f"/proc/{proc.pid}/fd")
+                if any(os.readlink(f"/proc/{proc.pid}/fd/{fd}") == wanted for fd in fds):
+                    ready += 1
+            except OSError:
+                pass
+        if ready == len(procs):
+            return
+        time.sleep(0.02)
+    raise AssertionError("not every contender reached the write lock in time")
+
+
+@contextmanager
 def held_write_lock(kb):
     """Hold the KB's write lock (the same flock `mem save` takes) so spawned
     savers pile up behind it; releasing starts the race for real. Mirrors
@@ -448,7 +471,7 @@ def test_concurrent_partial_updates_from_one_read_have_one_winner(mem, kb):
                         "--topics", "race-topic")
         p2 = spawn_save(kb, "--slug", SLUG, "--update", "--expected-version", token,
                         "--related", "race-related")
-        time.sleep(2.5)  # let both processes boot and block on the lock
+        wait_until_queued_on_lock((p1, p2), kb.kb / ".index" / "write.lock")
 
     outcomes = []
     for proc in (p1, p2):

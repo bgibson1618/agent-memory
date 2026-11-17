@@ -52,6 +52,20 @@ line; `mem doctor` starts with a `runtime` line naming the release id (or
 "worktree" / "installed copy"), the package path, any selector with its hash
 prefix, and the interpreter. Use these, not assumptions, to say what runs.
 
+## What these tools write, and retention
+
+`stage` writes one read-only directory per revision under the releases
+directory (about the size of the source tree, a few hundred kilobytes) plus
+its manifest; a failed staging is built in a temporary sibling and leaves
+nothing. `activate` and `rollback` rewrite one `active.json` journal (with a
+short history list) in the releases directory and rebuild the named uv tool
+venv; uv also fills its own cache. `scripts/hold-shared-writes.py` writes one
+small receipt per operation (owner-only) and renames, never copies, the
+profile it holds. None of this grows on its own: directories and receipts
+accumulate only with operator actions. Keep every receipt and the previously
+active release until a rollback is no longer plausible; remove older staged
+releases by hand, never automatically, and never the one `active.json` names.
+
 ## Activation on a real machine
 
 Activation changes a running system and may invalidate a wrapper's pinned

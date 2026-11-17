@@ -29,16 +29,27 @@ def profile(tmp_path):
     return p
 
 
+def _git(repo, *args):
+    return subprocess.run(["git", "-C", str(repo), *args], capture_output=True, text=True, check=True,
+                          env={"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(repo.parent),
+                               "GIT_CONFIG_NOSYSTEM": "1", "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@x",
+                               "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@x"}).stdout
+
+
+def _make_repo(path):
+    path.mkdir()
+    subprocess.run(["git", "init", "-q", str(path)], check=True)
+    (path / "f").write_text("x\n")
+    _git(path, "add", "f")
+    _git(path, "commit", "-q", "-m", "seed")
+    return path
+
+
 @pytest.fixture
 def repo(tmp_path):
-    r = tmp_path / "repo"
-    r.mkdir()
-    env = {"PATH": os.environ.get("PATH", "/usr/bin:/bin"), "HOME": str(tmp_path), "GIT_CONFIG_NOSYSTEM": "1"}
-    subprocess.run(["git", "init", "-q", str(r)], check=True, env=env)
-    subprocess.run(["git", "-C", str(r), "remote", "add", "synthetic-host",
-                    "ssh://synthetic@host.invalid/srv/git/kb.git"], check=True, env=env)
-    subprocess.run(["git", "-C", str(r), "remote", "set-url", "--push", "synthetic-host",
-                    "ssh://synthetic@host.invalid/srv/git/kb-push.git"], check=True, env=env)
+    r = _make_repo(tmp_path / "repo")
+    _git(r, "remote", "add", "synthetic-host", "ssh://synthetic@host.invalid/srv/git/kb.git")
+    _git(r, "remote", "set-url", "--push", "synthetic-host", "ssh://synthetic@host.invalid/srv/git/kb-push.git")
     return r
 
 
@@ -57,7 +68,7 @@ def test_hold_profile_is_recorded_and_reversible(profile, tmp_path):
     restored = hold.restore_profile(receipt, dry_run=False)
     assert profile.is_file() and hold.sha256(profile) == digest
     assert profile.stat().st_mode & 0o777 == 0o600
-    assert Path(restored["restore_receipt"]).is_file()
+    assert Path(restored["receipt"]).is_file() and restored["status"] == "done"
     with pytest.raises(hold.HoldError, match="already exists"):
         hold.restore_profile(receipt, dry_run=False)
 
@@ -83,26 +94,83 @@ def test_hold_profile_refuses_symlink_and_missing(tmp_path):
         hold.hold_profile(link, tmp_path / "r", dry_run=True)
 
 
-def test_remove_remote_is_recorded_and_reversible(repo, tmp_path):
+def _remote_state(repo, name):
+    config = subprocess.run(["git", "-C", str(repo), "config", "--local", "--get-regexp",
+                             f"^remote\\.{name}\\."], capture_output=True, text=True).stdout.strip().splitlines()
+    refs = _git(repo, "for-each-ref", "--format=%(refname) %(objectname)", f"refs/remotes/{name}/").split()
+    return sorted(config), refs
+
+
+def test_remove_remote_preserves_every_setting_and_tracking_ref(repo, tmp_path):
     receipts = tmp_path / "receipts"
+    _git(repo, "config", "--add", "remote.synthetic-host.url", "ssh://synthetic@host.invalid/srv/git/kb-second.git")
+    _git(repo, "config", "remote.synthetic-host.tagOpt", "--no-tags")
+    _git(repo, "config", "remote.synthetic-host.push", "refs/heads/main:refs/heads/main")
+    _git(repo, "config", "remote.synthetic-host.prune", "true")
+    head = _git(repo, "rev-parse", "HEAD").strip()
+    _git(repo, "update-ref", "refs/remotes/synthetic-host/main", head)
+    before = _remote_state(repo, "synthetic-host")
+    assert len(before[0]) >= 6 and before[1] == ["refs/remotes/synthetic-host/main", head]
+
     plan = hold.remove_remote(repo, "synthetic-host", receipts, dry_run=True)
-    assert plan["dry_run"] and "synthetic-host" in subprocess.run(
-        ["git", "-C", str(repo), "remote"], capture_output=True, text=True).stdout
+    assert plan["dry_run"] and _remote_state(repo, "synthetic-host") == before
     done = hold.remove_remote(repo, "synthetic-host", receipts, dry_run=False)
-    assert done["fetch_url"].endswith("/kb.git") and done["push_url"].endswith("/kb-push.git")
-    assert done["fetch_refspecs"] == ["+refs/heads/*:refs/remotes/synthetic-host/*"]
-    assert subprocess.run(["git", "-C", str(repo), "remote"], capture_output=True, text=True).stdout == ""
+    assert done["status"] == "done" and len(done["config"]) == len(before[0])
+    assert _git(repo, "remote").strip() == "" and _remote_state(repo, "synthetic-host") == ([], [])
     with pytest.raises(hold.HoldError, match="not configured"):
         hold.remove_remote(repo, "synthetic-host", receipts, dry_run=False)
-    hold.restore_remote(Path(done["receipt"]), dry_run=False)
-    urls = subprocess.run(["git", "-C", str(repo), "remote", "-v"], capture_output=True, text=True).stdout
-    assert "ssh://synthetic@host.invalid/srv/git/kb.git (fetch)" in urls
-    assert "ssh://synthetic@host.invalid/srv/git/kb-push.git (push)" in urls
-    refspec = subprocess.run(["git", "-C", str(repo), "config", "--get-all", "remote.synthetic-host.fetch"],
-                             capture_output=True, text=True).stdout.split()
-    assert refspec == ["+refs/heads/*:refs/remotes/synthetic-host/*"]
+
+    restored = hold.restore_remote(Path(done["receipt"]), dry_run=False)
+    assert restored["status"] == "done"
+    assert _remote_state(repo, "synthetic-host") == before
     with pytest.raises(hold.HoldError, match="already exists"):
         hold.restore_remote(Path(done["receipt"]), dry_run=False)
+
+
+def test_git_environment_overrides_cannot_redirect_the_mutation(repo, tmp_path, monkeypatch):
+    other = _make_repo(tmp_path / "other")
+    _git(other, "remote", "add", "synthetic-host", "ssh://synthetic@host.invalid/srv/git/other.git")
+    monkeypatch.setenv("GIT_DIR", str(other / ".git"))
+    monkeypatch.setenv("GIT_WORK_TREE", str(other))
+    done = hold.remove_remote(repo, "synthetic-host", tmp_path / "receipts", dry_run=False)
+    assert done["repo"] == str(repo.resolve())
+    assert _git(repo, "remote").strip() == ""                     # the named repo changed
+    assert _git(other, "remote").strip() == "synthetic-host"       # the override target did not
+
+
+def test_repo_identity_mismatch_is_refused(repo, tmp_path):
+    # A directory that looks like a repository (it has a .git entry) but whose
+    # git resolution walks up to the parent repository must be refused.
+    sub = repo / "sub"
+    (sub / ".git").mkdir(parents=True)
+    with pytest.raises(hold.HoldError, match="top level"):
+        hold.remove_remote(sub, "synthetic-host", tmp_path / "receipts", dry_run=False)
+    assert _git(repo, "remote").strip() == "synthetic-host"
+
+
+def test_receipt_is_written_before_the_change_and_marks_failure(profile, tmp_path, monkeypatch):
+    receipts = tmp_path / "receipts"
+
+    def boom(*a, **k):
+        raise OSError("synthetic rename failure")
+    monkeypatch.setattr(hold.os, "rename", boom)
+    with pytest.raises(OSError, match="synthetic rename failure"):
+        hold.hold_profile(profile, receipts, dry_run=False)
+    assert profile.exists()
+    written = list(receipts.glob("hold-profile-*.json"))
+    assert len(written) == 1 and json.loads(written[0].read_text())["status"] == "planned"
+    with pytest.raises(hold.HoldError, match="not done"):
+        hold.restore_profile(written[0], dry_run=False)
+
+
+def test_slash_in_remote_name_gets_a_safe_receipt_name(repo, tmp_path):
+    _git(repo, "remote", "add", "team/host", "ssh://synthetic@host.invalid/srv/git/team.git")
+    done = hold.remove_remote(repo, "team/host", tmp_path / "receipts", dry_run=False)
+    receipt = Path(done["receipt"])
+    assert receipt.parent == tmp_path / "receipts" and "/" not in receipt.name.replace(str(tmp_path), "")
+    assert receipt.name.startswith("remove-remote-team_host-")
+    hold.restore_remote(receipt, dry_run=False)
+    assert "team/host" in _git(repo, "remote").split()
 
 
 def test_cli_dry_run_changes_nothing(profile, tmp_path):

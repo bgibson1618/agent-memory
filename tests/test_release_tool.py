@@ -25,12 +25,22 @@ import release  # noqa: E402
 PYTHON = f"{sys.version_info.major}.{sys.version_info.minor}"
 
 
-def _fingerprint(tool_dir: Path) -> dict:
-    if not tool_dir.exists():
-        return {}
-    return {str(p): hashlib.sha256(p.read_bytes()).hexdigest()
-            for p in sorted(tool_dir.rglob("*"))
-            if p.is_file() and (p.suffix == ".pth" or p.name == "uv-receipt.toml")}
+def _selection_identity(tool_dir: Path, bin_dir: Path) -> dict:
+    """The files that decide what the live `mem` imports: every .pth and
+    receipt under the tool directory, the contents of its bin/ programs, and
+    the bin directory's entries with their symlink targets. (It does not cover
+    wrappers or plugin registries outside these two directories.)"""
+    out = {}
+    if tool_dir.exists():
+        for p in sorted(tool_dir.rglob("*")):
+            if p.is_file() and (p.suffix == ".pth" or p.name == "uv-receipt.toml"
+                                or p.parent.name == "bin"):
+                out[str(p)] = hashlib.sha256(p.read_bytes()).hexdigest()
+    if bin_dir.exists():
+        for p in sorted(bin_dir.iterdir()):
+            out[str(p)] = os.readlink(p) if p.is_symlink() else (
+                hashlib.sha256(p.read_bytes()).hexdigest() if p.is_file() else "dir")
+    return out
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -38,12 +48,10 @@ def live_prefix_untouched():
     if shutil.which("uv") is None:
         pytest.skip("uv is not installed")
     live_tool, live_bin = release.live_default()
-    before = (_fingerprint(live_tool),
-              sorted(p.name for p in live_bin.iterdir()) if live_bin.exists() else [])
+    before = _selection_identity(live_tool, live_bin)
     yield
-    after = (_fingerprint(live_tool),
-             sorted(p.name for p in live_bin.iterdir()) if live_bin.exists() else [])
-    assert after == before, "a release-tool test touched the live uv prefix"
+    assert _selection_identity(live_tool, live_bin) == before, \
+        "a release-tool test changed a selection-identity file in the live uv prefix"
 
 
 @pytest.fixture
@@ -138,6 +146,75 @@ def test_activate_installs_the_release_and_status_measures_it(prefix):
     assert out.stdout.count("\n") == 1
 
 
+def test_relative_release_path_is_canonicalized_and_imports_from_any_cwd(prefix, monkeypatch):
+    dest = release.stage(REPO, "HEAD", prefix["releases"])
+    monkeypatch.chdir(prefix["releases"].parent)
+    relative = Path(os.path.relpath(dest, prefix["releases"].parent))
+    assert not relative.is_absolute()
+    _install_or_skip(release.activate, relative, Path("releases"), prefix["tool"], prefix["bin"],
+                     python=PYTHON)
+    selector = release.site_packages(prefix["tool"]) / release.SELECTOR_NAME
+    assert str(dest.resolve() / "source" / "src") in selector.read_text()
+    state = json.loads(release.state_path(prefix["releases"]).read_text())
+    assert state["release_dir"] == str(dest.resolve()) and state["status"] == "active"
+    out = subprocess.run([str(prefix["bin"] / "mem"), "--version"], capture_output=True, text=True,
+                         cwd="/", env=release.uv_env(prefix["tool"], prefix["bin"]), timeout=60)
+    assert out.returncode == 0 and str(dest.resolve() / "source" / "src" / "agent_memory") in out.stdout
+
+
+def test_activate_journals_the_previous_state_before_any_change(prefix, monkeypatch):
+    _install_or_skip(release._reinstall, prefix["tool"], prefix["bin"], ["-e", str(REPO)], PYTHON)
+    site = release.site_packages(prefix["tool"])
+    pinned = "import sys; sys.path.insert(0, '/opt/synthetic/previous-release')\n"
+    (site / "zz_agent_memory_shared.pth").write_text(pinned)
+    receipt_before = release.receipt_path(prefix["tool"]).read_text()
+    dest = release.stage(REPO, "HEAD", prefix["releases"])
+
+    def boom(*a, **k):
+        raise release.ReleaseError("synthetic installer failure")
+    monkeypatch.setattr(release, "_reinstall", boom)
+    with pytest.raises(release.ReleaseError, match="synthetic installer failure"):
+        release.activate(dest, prefix["releases"], prefix["tool"], prefix["bin"], python=PYTHON)
+    state = json.loads(release.state_path(prefix["releases"]).read_text())
+    assert state["status"] == "activating"                    # journal written first
+    assert state["previous"]["receipt"] == receipt_before
+    assert state["previous"]["selectors"] == {"zz_agent_memory_shared.pth": pinned}
+    assert (site / "zz_agent_memory_shared.pth").read_text() == pinned   # nothing changed yet
+    with pytest.raises(release.ReleaseError, match="did not complete"):
+        release.activate(dest, prefix["releases"], prefix["tool"], prefix["bin"], python=PYTHON)
+    monkeypatch.undo()
+    # the interrupted activate is recoverable from its journal
+    restored = _install_or_skip(release.rollback, prefix["releases"], prefix["tool"], prefix["bin"],
+                                python=PYTHON)
+    assert restored["receipt"]["kind"] == "editable"
+    assert (site / "zz_agent_memory_shared.pth").read_text() == pinned
+    done = json.loads(release.state_path(prefix["releases"]).read_text())
+    assert done["status"] == "rolled-back" and done["interrupted"] is True
+
+
+def test_malformed_active_json_is_refused_before_any_change(prefix, monkeypatch):
+    dest = release.stage(REPO, "HEAD", prefix["releases"])
+    release.state_path(prefix["releases"]).write_text("{not json")
+    calls = []
+    monkeypatch.setattr(release, "_reinstall", lambda *a, **k: calls.append(a))
+    with pytest.raises(release.ReleaseError, match="unreadable"):
+        release.activate(dest, prefix["releases"], prefix["tool"], prefix["bin"], python=PYTHON)
+    with pytest.raises(release.ReleaseError, match="unreadable"):
+        release.rollback(prefix["releases"], prefix["tool"], prefix["bin"], python=PYTHON)
+    assert calls == []
+
+
+def test_failed_staging_leaves_no_directory(prefix, monkeypatch):
+    def boom(*a, **k):
+        raise release.ReleaseError("synthetic archive failure")
+    monkeypatch.setattr(release.tarfile, "open", boom)
+    with pytest.raises(release.ReleaseError, match="synthetic archive failure"):
+        release.stage(REPO, "HEAD", prefix["releases"])
+    assert list(prefix["releases"].iterdir()) == []
+    monkeypatch.undo()
+    release.stage(REPO, "HEAD", prefix["releases"])          # restaging the same revision works
+
+
 def test_rollback_restores_an_editable_worktree_and_its_selectors(prefix):
     # Previous state: an editable install of this worktree plus a pinned
     # selector, as a wrapper-verified deployment would have.
@@ -159,5 +236,5 @@ def test_rollback_restores_an_editable_worktree_and_its_selectors(prefix):
     assert (site / "zz_agent_memory_shared.pth").read_text() == pinned
     assert list(restored["selectors"]) == ["zz_agent_memory_shared.pth"]
     done = json.loads(release.state_path(prefix["releases"]).read_text())
-    assert done["rolled_back_from"] == state["active"]
+    assert done["rolled_back_from"] == state["active"] and done["status"] == "rolled-back"
     assert done["history"][-1]["active"] == state["active"]

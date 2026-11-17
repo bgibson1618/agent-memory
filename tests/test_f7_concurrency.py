@@ -15,6 +15,7 @@ lock at once (a real race, not just processes launched close together).
 
 import fcntl
 import json
+import os
 import subprocess
 import sys
 import time
@@ -39,6 +40,28 @@ def spawn_save(kb, *args) -> subprocess.Popen:
     )
 
 
+
+def wait_until_queued_on_lock(procs, lock_path, timeout=20.0):
+    """Linux: a `mem save` that reached the write lock holds the lock file open
+    while it waits, so every contender is provably queued once each process
+    has that path among its descriptors. Bounded; fails loudly otherwise."""
+    deadline = time.monotonic() + timeout
+    wanted = str(lock_path)
+    while time.monotonic() < deadline:
+        ready = 0
+        for proc in procs:
+            try:
+                fds = os.listdir(f"/proc/{proc.pid}/fd")
+                if any(os.readlink(f"/proc/{proc.pid}/fd/{fd}") == wanted for fd in fds):
+                    ready += 1
+            except OSError:
+                pass
+        if ready == len(procs):
+            return
+        time.sleep(0.02)
+    raise AssertionError("not every contender reached the write lock in time")
+
+
 @contextmanager
 def held_write_lock(kb):
     """Hold the KB's write lock (the same flock `mem save` takes) so spawned
@@ -58,7 +81,7 @@ def run_racing(kb, arg_sets) -> list:
     and return (returncode, stdout, stderr) per process."""
     with held_write_lock(kb):
         procs = [spawn_save(kb, *args) for args in arg_sets]
-        time.sleep(2.5)  # let every process boot and block on the lock
+        wait_until_queued_on_lock(procs, kb.kb / ".index" / "write.lock")
     results = []
     for proc in procs:
         out, err = proc.communicate(timeout=60)
