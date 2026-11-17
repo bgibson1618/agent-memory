@@ -484,3 +484,42 @@ comments); `disallowed_remotes()` lists every configured remote whose URL is not
 reports allowed ones; `store.warn_if_remote` warns only on disallowed ones. Both managed blocks say
 so. Tests: `tests/test_d1_allowed_remotes.py`. Release into the read-only copies on both machines and
 `mem init` (block refresh) are Brent's word, as every freeze is.
+
+## 2026-11-17 — Review and three-stage remediation (branch remediation-2026-11, isolated candidate)
+
+An assessment of the live tree (HEAD dc76e55 plus an uncommitted 2026-10-20 shared-write release)
+found that a source commit could silently redeploy the daily tool and remove the release selector;
+that source accepted stale local updates the installed release refused; that a never-built semantic
+index produced a silent empty result; that a required network-proof flag was stripped by a test
+fixture; and that documentation, served plugin copies and runtime selection had drifted apart. The
+remediation ran in an isolated candidate clone, one slice at a time, each with a receipt and an
+independent opposite-vendor review, with every existing KB left untouched and activation held.
+
+- **Stage 1 (318e12c..5e90a93):** the shared-write release imported as a curated commit with endpoint
+  values moved to an operator profile; the post-commit hook prints an identity line and never
+  installs (D22); every `--update` carries the version it was based on, compared under the writer
+  lock, plus the extraction link-remap race check (D21), with the old-contract tests reconciled;
+  the shipped instruction blocks made portable again with the safe-update contract; a profile that
+  is unusable never disturbs an unmarked root; `mem --version` and `mem doctor`'s `runtime` line name
+  the imported package; `scripts/release.py` (stage/activate/rollback/status, both install layers)
+  and `scripts/hold-shared-writes.py` (receipted, reversible). Four review rounds to PASS; suite
+  391 passed.
+- **Stage 2 (4e4848d..d076093):** an unbuilt or empty semantic index on a KB with concepts now
+  produces exactly one warning line while the JSON array contract is unchanged; `MEM_REQUIRE_NETNS`
+  survives the hermetic fixture and a controlled unavailable namespace fails when required and
+  skips visibly when optional (D23); a docs/CLI consistency test pins the ARCHITECTURE command row to
+  the parser; the staged-tree fsync ordering is asserted in full. Review PASS; suite 399 passed with
+  the outer namespace leg skipped in the builder's context and passed (8/8, required) in a
+  namespace-capable context on the same revision; direct regressions for each refusal branch added.
+- **Stage 3 (ab4b89e..):** documentation reconciled with the shipped behaviour and the shared
+  delivery workflow (D24), dated history preserved; decisions D1-amend, D2-amend, D20–D24 logged.
+  Bounded synthetic exercises through the candidate package on disposable KBs, with the delegate's
+  own `mem --version` as executable proof: ambient recall observed twice and unprompted capture not
+  observed in two attempts (F11 note); the extraction procedure observed end to end in inline-subagent
+  mode with the report matching the KB (F10 note); the designed safe-update opportunity observed
+  (read, version token, one update commit) with scripted missing/stale/malformed-token refusals
+  leaving content and history untouched. Lesson from the harness: a delegate's `mem` resolved to the
+  installed release until the launcher's own PATH prepend was understood; runs before the fix are
+  kept as evidence about the installed release, not the candidate.
+- **Held / pending:** host-mediated shared writes (D20); live runtime and plugin activation, with its
+  rollback, as a separately approved checklist; the laptop launcher bound to a release.

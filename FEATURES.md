@@ -228,6 +228,12 @@ available), ≥2 fresh-eyed reviewers verify, and only survivors reach `mem extr
 - The procedure also works without agent-roster (inline subagents) — observed once in that mode.
 - Observation protocol: bounded — if a run cannot complete within 3 attempts the feature flips
   to needs-you with findings; Brent judges whether the procedure behaved as designed.
+- **2026-11-17 re-observation (bounded synthetic exercise, candidate package, inline-subagent
+  mode):** a session given the shipped `/mem:extract` skill text and a 610-word synthetic document
+  printed the procedure, ran two fresh-eyed extractors and two fresh-eyed reviewers before any
+  write, ran `mem dedup` on the four survivors (all `novel`, logged) and then `mem extract`; the
+  added/skipped/rejected report matched the KB exactly. The agent-roster transport and the
+  duplicate-skip path were not exercised in that run. Records in `BUILD_LOG.md`.
 
 ## F11 — Ambient agent integration
 - **Proof:** `observed` (a fresh session in a different project uses mem unprompted)
@@ -250,6 +256,12 @@ not claimed.
   findings; Brent judges "unprompted".
 - For codex/agy, the AGENTS.md block being present and current is the whole v1 claim — covered
   by F1's install tests; no ambient observation outside Claude Code is required or claimed.
+- **2026-11-17 re-observation (two bounded synthetic sessions, installed instruction path, prompt
+  never naming the memory system):** unprompted recall was observed both times (five to six `mem
+  search --json` calls plus `mem get` reads; the written note carried the seeded facts); unprompted
+  capture was **not** observed in either attempt — the session judged the task's n=3 measurement
+  not yet durable and deferred the save for review. Attempts 2 of 3 under this protocol; a third,
+  if run, should present a result the task states as confirmed. Records in `BUILD_LOG.md`.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
