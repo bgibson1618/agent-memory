@@ -257,8 +257,10 @@ not claimed.
 - For codex/agy, the AGENTS.md block being present and current is the whole v1 claim — covered
   by F1's install tests; no ambient observation outside Claude Code is required or claimed.
 - **2026-11-17 re-observation (two bounded synthetic sessions, installed instruction path, prompt
-  never naming the memory system):** unprompted recall was observed both times (five to six `mem
-  search --json` calls plus `mem get` reads; the written note carried the seeded facts); unprompted
+  never naming the memory system; the first session ran the installed 0.2.1 release, the second the
+  candidate package, attribution by lane configuration since an ambient prompt cannot ask for a
+  version print):** unprompted recall was observed both times (five to six `mem search --json`
+  calls plus `mem get` reads; the written note carried the seeded facts); unprompted
   capture was **not** observed in either attempt — the session judged the task's n=3 measurement
   not yet durable and deferred the save for review. Attempts 2 of 3 under this protocol; a third,
   if run, should present a result the task states as confirmed. Records in `BUILD_LOG.md`.

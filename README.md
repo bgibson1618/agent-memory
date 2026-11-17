@@ -12,7 +12,7 @@ agent (F11) and the agent-side extraction procedure (F10) — are re-observed in
 exercises before a release is called verified (protocol in `FEATURES.md`; records in
 `BUILD_LOG.md`). Host-mediated shared writes (`SHARED-WRITES.md`) are a private deployment mode
 that is currently held: the four transport commands (`retry`, `pending`, `refresh`, `delete`)
-act only on an instance provisioned for it and refuse everywhere else.
+act only on an instance that a valid operator profile lists and refuse everywhere else (D20).
 
 Originally built (2026-07) with KodOS, a methodology-first agentic workflow; the project now
 follows a shared delivery workflow of small reviewed slices (see "Getting oriented"). The

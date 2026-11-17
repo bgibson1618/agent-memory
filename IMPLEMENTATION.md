@@ -38,5 +38,5 @@ rendered count.
 | F8 | External-edit resilience | test | proved | uv run pytest -> 70 passed after applying kodos-F8 patch (5 F8 tests incl. meaning-flip semantic refresh + fu… |
 | F9 | Extract-knowledge CLI | test | proved | uv run pytest -> 78 passed; REAL calibration executed by parent against live daemon (research/dedup-calibrati… |
 | F10 | Extraction procedure | observed | proved | run architect-iqj1 (work/agents/architect-iqj1/): fresh session pointed at research/architecture-review-2026-… |
-| F11 | Ambient agent integration | observed | proved | run architect-wve5 (tutor-scratch/work/agents/architect-wve5/): fresh session, pure teaching task (two-week a… |
+| F11 | Ambient agent integration | observed | proved | run architect-wve5 (a separate scratch project's work/agents/architect-wve5/; path redacted 2026-11-17): fresh session, pure teaching task (two-week a… |
 | F12 | Zero-egress guarantee | test | proved | MEM_REQUIRE_NETNS=1 uv run pytest -> 89 passed (5 F12 tests: audit-hook guard + netns driver running all 8 co… |

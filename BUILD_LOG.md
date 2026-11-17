@@ -147,7 +147,7 @@ gate): `uv tool install --editable` → `mem` 0.1.0 on PATH; real `mem init` →
 blocks in the real `~/.claude/CLAUDE.md` and `~/.agent-docs/AGENTS.md` (one block each,
 existing content intact, doctor 9/9); KB seeded with four genuine learning-science concepts.
 **Proof (observed, protocol-conformant):** staged session `f11-observe-1` — fresh claude
-session, different project (`~/projects/tutor-scratch`), task on record and free of any memory
+session, different project (a separate scratch project; path redacted 2026-11-17), task on record and free of any memory
 mention. Observed: **unprompted** `mem search --json` as the first substantive move → `mem get`
 ×4 → results grounded the deliverable; then **unprompted `mem save interleaving-effect`**
 (correctly linked + topiced) after the agent noticed a KB gap. Both observed criteria in one
@@ -476,7 +476,7 @@ and the procedure-v2 pin all cohere with disk. Last-CLEAN marker advanced to
 
 ## 2026-10-16 — D1: an allowlist for the KB's remote (0.2.1, branch d1-allowed-remotes)
 
-Brent ruled on 2026-10-15 (D1 of the work-host readiness) that the KB keeps a git remote on his
+Brent ruled on 2026-10-15 (D1 of the work host readiness) that the KB keeps a git remote on his
 tailnet host and that `mem doctor`'s no-remote check and the managed CLAUDE.md line change to match.
 Change: `gitkb.allowed_remotes()` reads `<kb root>/.allowed-remotes` (one URL per line, `#`
 comments); `disallowed_remotes()` lists every configured remote whose URL is not there. Doctor's
@@ -513,13 +513,20 @@ independent opposite-vendor review, with every existing KB left untouched and ac
   namespace-capable context on the same revision; direct regressions for each refusal branch added.
 - **Stage 3 (ab4b89e..):** documentation reconciled with the shipped behaviour and the shared
   delivery workflow (D24), dated history preserved; decisions D1-amend, D2-amend, D20–D24 logged.
-  Bounded synthetic exercises through the candidate package on disposable KBs, with the delegate's
-  own `mem --version` as executable proof: ambient recall observed twice and unprompted capture not
-  observed in two attempts (F11 note); the extraction procedure observed end to end in inline-subagent
-  mode with the report matching the KB (F10 note); the designed safe-update opportunity observed
-  (read, version token, one update commit) with scripted missing/stale/malformed-token refusals
-  leaving content and history untouched. Lesson from the harness: a delegate's `mem` resolved to the
-  installed release until the launcher's own PATH prepend was understood; runs before the fix are
-  kept as evidence about the installed release, not the candidate.
+  Bounded synthetic exercises on disposable KBs. Executable attribution per run: the extraction and
+  safe-update runs on the candidate printed `mem --version` in-run (candidate package path); the
+  first set of runs resolved `mem` to the installed 0.2.1 release (the launcher's own PATH prepend,
+  understood afterwards) and is kept as evidence about that release; the ambient runs cannot print
+  a version (their prompt must not name the tool), so the first is attributed to the installed
+  release and the second to the candidate by lane configuration and a diagnostic control. Observed:
+  ambient recall in both ambient runs and unprompted capture in neither (F11 note); the extraction
+  procedure end to end in inline-subagent mode with the report matching the KB (F10 note); the
+  designed safe-update opportunity (read, version token, one update commit) with scripted
+  missing/stale/malformed-token refusals leaving content and history untouched.
+- **Redaction (2026-11-17):** deployment-specific identifiers in dated entries of this file,
+  `DECISION_LOG.md`, `IMPLEMENTATION.md` and `SHARED-WRITES.md` (a retired engagement's KB instance
+  path and corpus id, a scratch project's path, the authority host's alias) were replaced by neutral
+  wording; the events, dates and decisions are unchanged and the original text is preserved in the
+  private provenance records.
 - **Held / pending:** host-mediated shared writes (D20); live runtime and plugin activation, with its
   rollback, as a separately approved checklist; the laptop launcher bound to a release.

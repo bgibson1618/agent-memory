@@ -6,13 +6,17 @@ provisioned by an operator profile and a KB marker. As of 2026-11-17 it is **hel
 transport commands (`retry`, `pending`, `refresh`, `delete`) refuse on any instance that is not
 both marked and configured; endpoint values live only in the operator profile, never in
 source; and nothing in this file grants permission to run these commands against a held
-replica. The original text follows unchanged for provenance.
+replica. Governance is `shared.profile_for`: a readable, valid operator profile that lists an
+instance's root governs it; the KB's git marker makes a listed-but-unconfigured or unusably
+configured instance fail closed rather than fall back to local writes. The original text follows
+for provenance, unchanged except that the authority host's alias is replaced by "the work host"
+(redaction recorded in `BUILD_LOG.md`, 2026-11-17).
 
 ---
 
 # Private shared KB writes
 
-Provisioned instances use work-host as the authority. Agents can draft and search
+Provisioned instances use the work host as the authority. Agents can draft and search
 on either machine concurrently. Only the short source transaction is serialized,
 independently for each KB. An explicit save invokes the private receiver over SSH;
 there is no daemon, hook, timer, or background retry.
@@ -81,7 +85,7 @@ based on a stale local read.
 
 ## Boundaries
 
-Only the laptop and work-host are approved destinations. Knowledge bases never go
+Only the laptop and the work host are approved destinations. Knowledge bases never go
 to GitHub or personal cloud storage. Source Git history contains only concepts and
 the existing ignore/endpoint policy. Requests, receipts, indexes, usage and dedup
 logs stay in private local runtime directories.

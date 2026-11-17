@@ -389,7 +389,7 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   sb-project ("what does the thing specify, as of when?").
 - **Proof:** no code change to prove; D10 tests pin marker + filter behavior for
   arbitrary non-`concept` types. Managed agent blocks updated to teach the extended
-  rule; first corpus applying it: apbpf-2026-08-06 (learning-science pipeline).
+  rule; first corpus applying it: the 2026-08-06 engagement corpus (learning-science pipeline; identifier redacted 2026-11-17).
 - **AI involvement:** Brent spotted that a CED is "just describing a thing" and
   asked whether a new tag was needed; the agent inventoried the type census, argued
   generalize-don't-mint from the D13 precedent (and the versioned-artifact rot risk
@@ -669,7 +669,7 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 ## D18 — design accepted (2026-09-02)
 
 - **Design:** `research/d18-dedup-detection-design-2026-09-02.md` (architect run
-  `d18-dedup-design`, opus, read-only; fence on `~/.agent-memory-apbpf` honored —
+  `d18-dedup-design`, opus, read-only; fence on the engagement's own KB instance honored (path redacted 2026-11-17) —
   calibration evidence drawn entirely from the fence-free
   `work/kbx-2026-08-21/r1-phase2/` archive joined to the live default KB).
   Headline measurements: shipping argmax-cosine detector recalls only 0.41 of
@@ -846,10 +846,10 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **Follow-up trigger (Brent, 2026-09-03):** the deferred S6 extract rewiring
   (transactional-batch spec above), G1 (per-instance calibration replay against
   a pinned clone), G2 (the 60-ruling false-suppression sweep, report-only,
-  escalation bar >=4/60) and the apbpf backup-cron wiring all fire together
+  escalation bar >=4/60) and that engagement's backup-cron wiring all fire together
   **when the ap-business agent is not spun up** — the same fence-lift condition
   as the sweep's precondition (1); none of them runs while that agent holds the
-  `~/.agent-memory-apbpf` instance. First task when it fires: the backlogged
+  engagement's KB instance (path redacted 2026-11-17). First task when it fires: the backlogged
   dedup union-recomputation hazard.
 - **Post-commit deploy seam (Brent, 2026-09-02):** `scripts/git-hooks/post-commit`
   auto-reinstalls the `mem` tool on any commit touching `src/`, `pyproject.toml`
@@ -887,15 +887,20 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 ## D20 — Host-mediated shared writes: built 2026-10-20, a held private deployment mode (2026-11-17)
 
 - **What exists:** `shared.py` / `coordinator.py` and the `retry · pending · refresh · delete`
-  commands implement host-mediated writes for an instance that is both marked
-  (`agent-memory.sharedWrites` in the KB's git config) and configured through an operator profile;
-  `init` refuses a provisioned shared KB rather than initialising it. Endpoint values (host alias,
-  address, user, port) live only in the profile, never in source (2026-11 curation).
-- **Status:** held. No instance in this repository's tests is provisioned; an unmarked instance
-  ignores any profile; a marked instance with no usable profile fails closed with no transport
-  attempt. Live transport is not exercised by the suite. `SHARED-WRITES.md` is kept as the
-  historical procedure under a banner saying so. Re-enabling it is an operator decision with its
-  own approval, not a code change.
+  commands implement host-mediated writes. Governance (`shared.profile_for`): an instance is
+  provisioned when the operator profile (owner-only file under the user's config directory) is
+  readable and valid and lists the instance's root; such a profile governs the root whether or not
+  the KB carries the `agent-memory.sharedWrites` git marker. The marker's job is fail-closed: a
+  marked root with a missing, unreadable, invalid or non-listing profile refuses local source
+  writes instead of falling back to local behaviour, while an unmarked root that no usable profile
+  lists is simply local. `init` refuses a provisioned shared KB. Endpoint values (host alias,
+  address, user, port) live only in the profile's `transport` entry, never in source (2026-11
+  curation); a laptop profile without that entry is invalid, so a marked root governed by it fails
+  closed.
+- **Status:** held. The suite exercises the transport only against synthetic profiles and synthetic
+  roots with the transport mocked (`tests/test_shared_writes.py`, `tests/test_coordinator.py`);
+  live transport is not exercised. `SHARED-WRITES.md` is kept as the historical procedure under a
+  banner saying so. Re-enabling it is an operator decision with its own approval, not a code change.
 
 ## D21 — Every update carries the version it was based on (2026-11-17)
 
@@ -940,6 +945,6 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 - **Backlog separation (2026-11-17):** D18 S6 (rewiring `mem extract`'s dedup decision onto
   `dedup.detect()`, with its transactional-batch spec) stays deferred and reusable. Items tied to a
   retired engagement or a retired machine layout — the G1 calibration replay, the G2 60-ruling
-  sweep, the apbpf backup cron, `scripts/agent-memory-backup`'s wiring, the personal-KB passport
+  sweep, the retired engagement's backup cron, `scripts/agent-memory-backup`'s wiring, the personal-KB passport
   backup plan and the 2026-09-21 frozen-copy scheme — are listed as obsolete candidates awaiting
   Brent's word; nothing is deleted.
