@@ -208,6 +208,35 @@ def test_receipt_directory_entry_is_durable_before_the_mutation(profile, tmp_pat
     assert ("fsync", str(receipts)) in after                     # the "done" rewrite is durable too
 
 
+def test_nested_receipt_directories_are_created_durably_before_the_mutation(profile, tmp_path, monkeypatch):
+    receipts = tmp_path / "a" / "b" / "receipts"
+    events = _trace_fs(monkeypatch, hold)
+    hold.hold_profile(profile, receipts, dry_run=False)
+    mutation = next(i for i, e in enumerate(events) if e[0] == "rename")
+    before = events[:mutation]
+    for ancestor in (tmp_path, tmp_path / "a", tmp_path / "a" / "b", receipts):
+        assert ("fsync", str(ancestor)) in before, (ancestor, before)
+    assert receipts.stat().st_mode & 0o777 == 0o700
+
+
+def test_restore_remote_accepts_a_legacy_two_field_ref_receipt(repo, tmp_path):
+    head = _git(repo, "rev-parse", "HEAD").strip()
+    _git(repo, "update-ref", "refs/remotes/synthetic-host/main", head)
+    done = hold.remove_remote(repo, "synthetic-host", tmp_path / "receipts", dry_run=False)
+    receipt = Path(done["receipt"])
+    data = json.loads(receipt.read_text())
+    data["refs"] = [entry[:2] for entry in data["refs"]]          # the earlier receipt format
+    receipt.write_text(json.dumps(data))
+    hold.restore_remote(receipt, dry_run=False)
+    assert _git(repo, "rev-parse", "refs/remotes/synthetic-host/main").strip() == head
+    bad = json.loads(receipt.read_text())
+    bad["refs"] = [["refs/remotes/synthetic-host/main"]]
+    receipt.write_text(json.dumps(bad))
+    _git(repo, "remote", "remove", "synthetic-host")
+    with pytest.raises(hold.HoldError, match="refs entry"):
+        hold.restore_remote(receipt, dry_run=False)
+
+
 def test_slash_in_remote_name_gets_a_safe_receipt_name(repo, tmp_path):
     _git(repo, "remote", "add", "team/host", "ssh://synthetic@host.invalid/srv/git/team.git")
     done = hold.remove_remote(repo, "team/host", tmp_path / "receipts", dry_run=False)

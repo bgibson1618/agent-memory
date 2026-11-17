@@ -218,6 +218,40 @@ def test_journal_directory_entry_is_durable_before_any_change(prefix, monkeypatc
     assert ("fsync", releases) in events[first_change:]          # the "active" rewrite too
 
 
+def test_fresh_releases_directory_and_staged_tree_are_durable_before_any_change(tmp_path, monkeypatch):
+    monkeypatch.delenv("UV_OFFLINE", raising=False)
+    tool, bins = tmp_path / "tools", tmp_path / "bin"
+    tool.mkdir(); bins.mkdir()
+    releases = tmp_path / "new" / "deeper" / "releases"          # none of these exist yet
+    events = []
+    real_fsync = os.fsync
+
+    def fsync(fd):
+        try:
+            target = os.readlink(f"/proc/self/fd/{fd}")
+        except OSError:
+            target = "?"
+        events.append(("fsync", target))
+        real_fsync(fd)
+    monkeypatch.setattr(release.os, "fsync", fsync)
+    dest = release.stage(REPO, "HEAD", releases)
+    staged = len(events)
+    targets = [e[1] for e in events]
+    for ancestor in (tmp_path, tmp_path / "new", tmp_path / "new" / "deeper"):
+        assert str(ancestor) in targets                            # each new ancestor's parent
+    assert str(releases) in targets                                # after the rename into place
+    assert any(t.startswith(str(releases) + "/.staging-") for t in targets)  # the tree itself
+    assert str(dest / "release.json").replace(str(dest), "") == "/release.json"
+    monkeypatch.setattr(release, "_reinstall", lambda *a, **k: events.append(("reinstall", "")))
+    monkeypatch.setattr(release, "_write_selectors", lambda *a, **k: events.append(("selectors", "")))
+    monkeypatch.setattr(release, "status", lambda tool_dir: {"stub": True})
+    release.activate(dest, releases, tool, bins, python=PYTHON)
+    first_change = next(i for i, e in enumerate(events) if e[0] == "reinstall")
+    journal_phase = events[staged:first_change]
+    assert ("fsync", str(releases.resolve())) in journal_phase        # journal entry before change
+    assert any(e[0] == "fsync" and e[1].endswith("/active.json.tmp") for e in journal_phase)
+
+
 def test_malformed_active_json_is_refused_before_any_change(prefix, monkeypatch):
     dest = release.stage(REPO, "HEAD", prefix["releases"])
     release.state_path(prefix["releases"]).write_text("{not json")

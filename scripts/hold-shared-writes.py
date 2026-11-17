@@ -60,14 +60,28 @@ def fsync_dir(path: Path) -> None:
         os.close(fd)
 
 
+def mkdir_durable(path: Path, mode: int = 0o700) -> list:
+    """Create every missing ancestor of `path`, fsyncing each new directory's
+    parent as it is created, so no directory entry on the way to a receipt can
+    be lost by a crash. Returns the directories created."""
+    missing = []
+    probe = path
+    while not probe.exists():
+        missing.append(probe)
+        probe = probe.parent
+    created = []
+    for directory in reversed(missing):
+        directory.mkdir(mode=mode)
+        fsync_dir(directory.parent)
+        created.append(directory)
+    return created
+
+
 def open_receipt(receipts: Path, name: str, plan: dict) -> Path:
     """Create the receipt exclusively, owner-only, with status "planned", and
-    make its directory entry durable, before anything changes. A failure here
-    stops the operation."""
-    created = not receipts.exists()
-    receipts.mkdir(mode=0o700, parents=True, exist_ok=True)
-    if created:
-        fsync_dir(receipts.parent)
+    make its directory entries durable, before anything changes. A failure
+    here stops the operation."""
+    mkdir_durable(receipts)
     path = receipts / f"{safe_name(name)}-{stamp()}-{os.getpid()}.json"
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
@@ -205,8 +219,24 @@ def remove_remote(repo: Path, name: str, receipts: Path, dry_run: bool) -> dict:
     return {**plan, "status": "done"}
 
 
+def ref_entries(data: dict) -> list:
+    """Refs as [refname, objectname, symbolic_target]. Receipts written before
+    symbolic targets were recorded hold [refname, objectname] pairs; those are
+    direct refs."""
+    entries = []
+    for entry in data.get("refs", []):
+        if isinstance(entry, list) and len(entry) == 2:
+            entry = [entry[0], entry[1], ""]
+        if (not isinstance(entry, list) or len(entry) != 3
+                or not all(isinstance(x, str) for x in entry)):
+            raise HoldError("receipt refs entry is not [refname, objectname, symbolic_target]")
+        entries.append(entry)
+    return entries
+
+
 def restore_remote(receipt: Path, dry_run: bool) -> dict:
     data = read_receipt(receipt, "remove-remote")
+    data["refs"] = ref_entries(data)
     repo, name = verify_repo(Path(data["repo"])), data["name"]
     if name in git(repo, "remote").stdout.split() or remote_config(repo, name):
         raise HoldError(f"remote {name!r} already exists in {repo}; nothing restored")

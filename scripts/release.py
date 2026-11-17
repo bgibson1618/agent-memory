@@ -81,14 +81,28 @@ def fsync_dir(path: Path) -> None:
         os.close(fd)
 
 
+def mkdir_durable(path: Path, mode: int = 0o755) -> list:
+    """Create every missing ancestor of `path`, fsyncing each new directory's
+    parent as it is created, so no new directory entry on the way to an undo
+    record can be lost by a crash. Returns the directories created."""
+    missing = []
+    probe = path
+    while not probe.exists():
+        missing.append(probe)
+        probe = probe.parent
+    created = []
+    for directory in reversed(missing):
+        directory.mkdir(mode=mode)
+        fsync_dir(directory.parent)
+        created.append(directory)
+    return created
+
+
 def atomic_write_json(path: Path, data: dict) -> None:
-    """Durable before it is visible: write a sibling temp file, fsync it,
-    rename it into place, then fsync the directory (and a newly created
-    directory's parent), so a crash after return cannot lose the journal."""
-    created = not path.parent.exists()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    if created:
-        fsync_dir(path.parent.parent)
+    """Durable before it is visible: every new ancestor is created durably,
+    the temp file is written and fsynced, renamed into place, and the
+    directory is fsynced, so a crash after return cannot lose the journal."""
+    mkdir_durable(path.parent)
     temp = path.with_name(path.name + ".tmp")
     with open(temp, "w", encoding="utf-8") as stream:
         stream.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
@@ -168,7 +182,7 @@ def stage(source: Path, rev: str, releases_dir: Path) -> Path:
     dest = releases_dir / release_id
     if dest.exists():
         raise ReleaseError(f"release {release_id} already staged at {dest}")
-    releases_dir.mkdir(parents=True, exist_ok=True)
+    mkdir_durable(releases_dir)
     work = releases_dir / f".staging-{release_id}-{os.getpid()}"
     if work.exists():
         _make_writable(work)
@@ -187,11 +201,21 @@ def stage(source: Path, rev: str, releases_dir: Path) -> Path:
         manifest = {"format": FORMAT, "id": release_id, "version": version, "source_repo": str(source),
                     "rev": sha, "created": now(), "files": files}
         (work / "release.json").write_text(json.dumps(manifest, indent=1, sort_keys=True) + "\n")
+        for path in list(work.rglob("*")) + [work]:   # the tree is durable before it appears
+            if path.is_dir():
+                fsync_dir(path)
+            else:
+                fd = os.open(path, os.O_RDONLY)
+                try:
+                    os.fsync(fd)
+                finally:
+                    os.close(fd)
         for path in tree.rglob("*"):
             path.chmod(0o555 if path.is_dir() else 0o444)
         (work / "release.json").chmod(0o444)
         tree.chmod(0o555)
         os.rename(work, dest)      # the release appears only once it is complete
+        fsync_dir(releases_dir)    # ...and its directory entry is durable
     except BaseException:
         if work.exists():
             _make_writable(work)
