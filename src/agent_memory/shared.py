@@ -78,9 +78,9 @@ def profile_for(root: Path) -> dict | None:
     """The profile entry governing `root`, or None for an unconfigured local KB.
 
     A marked KB (git marker or required-file) with no usable profile fails
-    closed. An unmarked root that the profile does not list is never judged by
-    the profile's contents, so a stale or partial profile cannot disturb an
-    unrelated instance."""
+    closed. An unmarked root is governed only by a readable profile that lists
+    it; an unreadable, malformed or unsafe profile, or one that lists other
+    roots, never disturbs an unrelated instance."""
     marked = git(root, "config", "--bool", "--get", MARKER).stdout.strip() == "true"
     marked = marked or (root / ".index/shared-write-required.json").exists()
     path = Path.home() / PROFILE_PATH
@@ -94,12 +94,21 @@ def profile_for(root: Path) -> dict | None:
         profile = json.loads(path.read_text())
         roots = profile.get("roots")
         if not isinstance(roots, dict):
-            raise ValueError("roots")
+            raise SharedError("shared-write profile is unreadable or invalid; writes are disabled")
         name = next((n for n, location in roots.items()
                      if isinstance(location, str) and Path(location).resolve() == root.resolve()),
                     None)
+    except SharedError:
+        # Governance is the KB's own marker, not the profile file: a marked
+        # root fails closed on an unusable profile; an unmarked root is simply
+        # not governed by it (2026-11-17 reviewer finding).
+        if marked:
+            raise
+        return None
     except (OSError, ValueError, TypeError, AttributeError):
-        raise SharedError("shared-write profile is unreadable or invalid; writes are disabled") from None
+        if marked:
+            raise SharedError("shared-write profile is unreadable or invalid; writes are disabled") from None
+        return None
     if name is None:
         if marked:
             raise SharedError("shared KB root is not in the approved private profile")

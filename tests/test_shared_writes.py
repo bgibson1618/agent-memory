@@ -261,6 +261,64 @@ class SharedWrites(unittest.TestCase):
         gitkb.init_repo(other)
         self.assertIsNone(shared.profile_for(other))
 
+    def _unusable_profiles(self):
+        path = self.home / ".config/agent-sync/shared-kb.json"
+        def restore():
+            path.write_text(json.dumps(self.profile)); path.chmod(0o600)
+        return path, restore, [
+            ("empty-object", lambda: path.write_text("{}")),
+            ("corrupt-json", lambda: path.write_text("{not json")),
+            ("roots-not-a-dict", lambda: path.write_text(json.dumps({"roots": 5}))),
+            ("lists-other-roots-only", lambda: path.write_text(json.dumps(
+                dict(self.profile, roots={"default": "/opt/elsewhere"})))),
+            ("world-readable", lambda: (restore(), path.chmod(0o644))),
+        ]
+
+    def test_unusable_profile_never_disturbs_an_unmarked_unrelated_root(self):
+        path, restore, cases = self._unusable_profiles()
+        other = self.home / ".agent-memory-elsewhere"
+        (other / "concepts").mkdir(parents=True)
+        gitkb.init_repo(other)
+        for case, setup in cases:
+            with self.subTest(case=case):
+                restore(); setup()
+                self.assertIsNone(shared.profile_for(other))
+
+    def test_unusable_profile_still_fails_closed_for_a_marked_root(self):
+        path, restore, cases = self._unusable_profiles()
+        gitkb._git(self.root, "config", shared.MARKER, "true")
+        for case, setup in cases:
+            with self.subTest(case=case):
+                restore(); setup()
+                with self.assertRaises(shared.SharedError):
+                    shared.profile_for(self.root)
+
+    def test_transport_field_rejection_matrix(self):
+        path = self.home / ".config/agent-sync/shared-kb.json"
+        bad = [("alias", "-oProxyCommand=x"), ("alias", "a b"), ("alias", ""),
+               ("hostname", "host;id"), ("hostname", "-h"), ("hostname", ""),
+               ("user", "Root"), ("user", "-x"), ("user", "a" * 33),
+               ("port", "22"), ("port", 0), ("port", 70000), ("port", True)]
+        for field, value in bad:
+            profile = json.loads(json.dumps(self.profile))
+            profile["transport"][field] = value
+            path.write_text(json.dumps(profile)); path.chmod(0o600)
+            with self.subTest(field=field, value=value):
+                with self.assertRaisesRegex(shared.SharedError, "transport"):
+                    shared.profile_for(self.root)
+        profile = json.loads(json.dumps(self.profile))
+        profile["transport"]["extra"] = 1
+        path.write_text(json.dumps(profile)); path.chmod(0o600)
+        with self.assertRaisesRegex(shared.SharedError, "transport"):
+            shared.profile_for(self.root)
+        for key in ("receiver", "receiver_python", "refresh"):
+            profile = json.loads(json.dumps(self.profile))
+            profile[key] = "relative/path"
+            path.write_text(json.dumps(profile)); path.chmod(0o600)
+            with self.subTest(key=key):
+                with self.assertRaisesRegex(shared.SharedError, "absolute path"):
+                    shared.profile_for(self.root)
+
     def test_refresh_runs_the_profile_refresh_program(self):
         with patch.object(subprocess, "run", return_value=subprocess.CompletedProcess(
                 [], 0, "", "")) as run, \
