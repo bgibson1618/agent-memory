@@ -16,6 +16,19 @@ import pytest
 from fakes import DEFAULT_MODEL, FakeOllamaServer
 
 
+# Proof-policy flags are not instance configuration: they decide whether a
+# skipped proof is a failure, and the suite must see them (the 2026-09-14
+# MEMORY-A1 finding: stripping them let the namespace proof skip silently
+# under the very flag documented to forbid that).
+PROOF_POLICY_FLAGS = ("MEM_REQUIRE_NETNS",)
+
+
+def ambient_mem_keys(environ) -> list:
+    """The MEM_* variables the hermetic fixture strips: every instance
+    setting, never a proof-policy flag."""
+    return [k for k in environ if k.startswith("MEM_") and k not in PROOF_POLICY_FLAGS]
+
+
 @pytest.fixture(autouse=True)
 def _hermetic_mem_env(monkeypatch):
     """Sanity 2026-09-03 (drift re-check finding, reproduced 2-failed pre-fix): the suite was not hermetic
@@ -26,7 +39,7 @@ def _hermetic_mem_env(monkeypatch):
     (the `kb` fixture builds an explicit env); in-process `config.*()` reads
     were not. Strip every ambient `MEM_*` variable for the test process so a
     test sees only what it sets itself (via monkeypatch or the kb env)."""
-    for key in [k for k in os.environ if k.startswith("MEM_")]:
+    for key in ambient_mem_keys(os.environ):
         monkeypatch.delenv(key, raising=False)
 
 class FakeOllama(FakeOllamaServer):

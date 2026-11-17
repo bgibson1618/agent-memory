@@ -181,6 +181,28 @@ def require_netns() -> None:
     )
 
 
+def test_required_flag_survives_the_hermetic_fixture():
+    """The autouse strip must keep proof-policy flags (MEMORY-A1)."""
+    from conftest import PROOF_POLICY_FLAGS, ambient_mem_keys
+    assert "MEM_REQUIRE_NETNS" in PROOF_POLICY_FLAGS
+    stripped = ambient_mem_keys({"MEM_REQUIRE_NETNS": "1", "MEM_DEDUP_LOW": "0.83", "HOME": "/x"})
+    assert stripped == ["MEM_DEDUP_LOW"]
+
+
+def test_unavailable_namespace_fails_when_required_and_skips_when_optional(monkeypatch):
+    """Controlled unavailability: with the flag set the outer leg is a
+    FAILURE naming the reason; without it, an explicit skip. Independent of
+    whether this host can create namespaces."""
+    monkeypatch.setattr(sys.modules[__name__], "netns_unavailable_reason",
+                        lambda: "synthetic: namespaces unavailable")
+    monkeypatch.setenv("MEM_REQUIRE_NETNS", "1")
+    with pytest.raises(pytest.fail.Exception, match="synthetic: namespaces unavailable"):
+        require_netns()
+    monkeypatch.delenv("MEM_REQUIRE_NETNS")
+    with pytest.raises(pytest.skip.Exception, match="synthetic: namespaces unavailable"):
+        require_netns()
+
+
 def test_full_surface_inside_loopback_only_namespace(tmp_path):
     require_netns()
     cfg = json.dumps({"workdir": str(tmp_path), "guard_dir": str(GUARD_DIR)})
