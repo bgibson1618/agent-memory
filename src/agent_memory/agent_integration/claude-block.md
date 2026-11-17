@@ -34,6 +34,16 @@ mine for the KB: run `mem extract --procedure` and follow the printed choreograp
 (fresh-eyed extractor fan-out, fresh-eyed review, `mem dedup` on the survivors
 with adjudications recorded, then `mem extract`).
 
+**Update safely (every instance).** Before changing an existing concept, read it:
+`mem get <slug> --json` returns a `version` (the digest of exactly what you read).
+Pass it back: `mem save --update --slug <slug> --expected-version <version> ...`.
+A missing or stale version is refused and nothing is written; re-read, reconcile
+your change with what is there now, and submit again with the new version — never
+retry blindly with a fresh token. On an instance provisioned for host-mediated
+shared writes the same command may report `pending` or `conflict`: `mem pending`
+lists unresolved requests and `mem retry <operation-id>` resends an exact request;
+a pending request is not a confirmed save.
+
 **Confidentiality (non-negotiable):**
 - **Instances (D15):** `MEM_KB_ROOT` points `mem` at an alternate KB instance (personal
   projects set it in their env to route at the personal KB); unset = the default
@@ -49,21 +59,11 @@ with adjudications recorded, then `mem extract`).
   knowledge, drop the identifiers); tag `sensitive` when they must be kept. Marked
   `[sensitive]` in results; `--no-sensitive` excludes; treat the marker as
   do-not-quote-onward.
-- The KB's only permitted remotes are the URLs listed in its `.allowed-remotes` file
-  (today: the work host over Tailscale, D1 2026-10-15): never a public, vendor or
-  personal-cloud remote; its content goes nowhere but those machines and localhost
-  (Ollama embeddings). `[work]`-marked results may be used in Claude and Codex
-  contexts only (approved vendors: Anthropic, OpenAI).
+- The KB's only permitted remotes are the exact URLs listed in its `.allowed-remotes`
+  file (one per line; D1): never a public, vendor or personal-cloud remote. Its
+  content goes nowhere but those listed machines and localhost (Ollama embeddings).
+  `[work]`-marked results may be used in Claude and Codex contexts only (approved
+  vendors: Anthropic, OpenAI).
 - `mem doctor` diagnoses the setup; if it fails, surface the failure - never store
   knowledge elsewhere as a workaround.
-
-**Shared writes (provisioned default and personal instances):** Use native
-`mem save`/`mem extract`; never directly edit or Git-commit KB Markdown. Read
-`mem get <slug> --json` before updating and pass its `version` with
-`--expected-version`. A conflict requires re-reading and reconciling the proposal.
-Retry an uncertain request with `mem retry <operation-id>`; keep its original ID.
-`mem pending` lists unresolved requests. Offline proposals remain explicitly pending.
-The host coordinates short save transactions; normal work can proceed concurrently
-on both machines. KB content stays solely between the laptop and work-host;
-indexes, usage and dedup logs remain local. This enables no unrelated hooks or jobs.
 <!-- END AGENT-MEMORY BLOCK -->

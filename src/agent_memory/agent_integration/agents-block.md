@@ -34,22 +34,21 @@ Pass `--type concept` to ground a claim only in vetted knowledge.
 prints the choreography to follow (approved-vendor subagents only; it includes a
 `mem dedup` pass on the reviewer survivors, adjudications recorded, before `mem extract`).
 
+**Update safely:** read first, `mem get <slug> --json`, and pass its `version` as
+`mem save --update --slug <slug> --expected-version <version> ...`. A missing or
+stale version is refused with nothing written: re-read, reconcile, resubmit with the
+new version; never retry blindly with a fresh token. On an instance provisioned for
+host-mediated shared writes the same command may report `pending` or `conflict`;
+`mem pending` lists unresolved requests, `mem retry <operation-id>` resends an exact
+request, and a pending request is not a confirmed save.
+
 Instances (D15): `MEM_KB_ROOT` points `mem` at an alternate KB instance (personal
 projects set it in their env to route at the personal KB); unset = the default
 work-adjacent KB. Never mix instances in one task; every rule here applies
 per-instance.
 
-The default and personal KBs use host-mediated saves when provisioned for shared
-writes. Use native `mem save` and `mem extract`; never edit/commit their Markdown
-directly. Before an update, read `mem get <slug> --json` and pass its `version` as
-`mem save --update --slug <slug> --expected-version <version> ...`. A conflict requires
-re-reading and reconciling; do not blindly overwrite with a new token. If a request
-is pending, use `mem retry <operation-id>` with the original ID. `mem pending`
-lists outstanding requests. An offline request is pending, not confirmed saved.
-
-KB content stays between Brent's Linux laptop and work-host through the exact
-private endpoints in `.allowed-remotes`, never GitHub or personal cloud storage.
-Indexes and usage/dedup logs stay on their respective machines. Shared saves and
-explicit `kb-sync` do not authorize hooks, background jobs, freshness checks, or
-other destinations. `mem doctor` diagnoses the setup.
+The KB's only permitted remotes are the exact URLs listed in its `.allowed-remotes`
+file (one per line; D1); never a public, vendor or personal-cloud remote, for any
+instance; its content goes nowhere but those listed machines and localhost Ollama.
+`mem doctor` diagnoses the setup.
 <!-- END AGENT-MEMORY BLOCK -->
