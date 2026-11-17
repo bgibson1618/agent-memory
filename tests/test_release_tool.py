@@ -192,6 +192,32 @@ def test_activate_journals_the_previous_state_before_any_change(prefix, monkeypa
     assert done["status"] == "rolled-back" and done["interrupted"] is True
 
 
+def test_journal_directory_entry_is_durable_before_any_change(prefix, monkeypatch):
+    dest = release.stage(REPO, "HEAD", prefix["releases"])
+    events = []
+    real_fsync = os.fsync
+
+    def fsync(fd):
+        try:
+            target = os.readlink(f"/proc/self/fd/{fd}")
+        except OSError:
+            target = "?"
+        events.append(("fsync", target))
+        real_fsync(fd)
+    monkeypatch.setattr(release.os, "fsync", fsync)
+    monkeypatch.setattr(release, "_reinstall", lambda *a, **k: events.append(("reinstall", "")))
+    monkeypatch.setattr(release, "_write_selectors", lambda *a, **k: events.append(("selectors", "")))
+    monkeypatch.setattr(release, "status", lambda tool_dir: {"stub": True})
+    release.activate(dest, prefix["releases"], prefix["tool"], prefix["bin"], python=PYTHON)
+    first_change = next(i for i, e in enumerate(events) if e[0] == "reinstall")
+    before = events[:first_change]
+    releases = str(prefix["releases"].resolve())
+    assert ("fsync", releases) in before, before                 # journal entry durable first
+    assert any(e[0] == "fsync" and e[1].startswith(releases + "/") for e in before)  # the journal file
+    assert [e[0] for e in events if e[0] in ("reinstall", "selectors")] == ["reinstall", "selectors"]
+    assert ("fsync", releases) in events[first_change:]          # the "active" rewrite too
+
+
 def test_malformed_active_json_is_refused_before_any_change(prefix, monkeypatch):
     dest = release.stage(REPO, "HEAD", prefix["releases"])
     release.state_path(prefix["releases"]).write_text("{not json")

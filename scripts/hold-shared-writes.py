@@ -51,16 +51,30 @@ def safe_name(text: str) -> str:
 
 # -------------------------------------------------------------- receipts ----
 
+def fsync_dir(path: Path) -> None:
+    """A file is not durable until its directory entry is."""
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def open_receipt(receipts: Path, name: str, plan: dict) -> Path:
-    """Create the receipt exclusively, owner-only, with status "planned",
-    before anything changes. A failure here stops the operation."""
+    """Create the receipt exclusively, owner-only, with status "planned", and
+    make its directory entry durable, before anything changes. A failure here
+    stops the operation."""
+    created = not receipts.exists()
     receipts.mkdir(mode=0o700, parents=True, exist_ok=True)
+    if created:
+        fsync_dir(receipts.parent)
     path = receipts / f"{safe_name(name)}-{stamp()}-{os.getpid()}.json"
     fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
     with os.fdopen(fd, "w", encoding="utf-8") as stream:
         stream.write(json.dumps({**plan, "status": "planned"}, indent=1, sort_keys=True) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
+    fsync_dir(receipts)
     return path
 
 
@@ -72,6 +86,7 @@ def finish_receipt(path: Path, plan: dict) -> None:
         stream.flush()
         os.fsync(stream.fileno())
     os.replace(temp, path)
+    fsync_dir(path.parent)
 
 
 def read_receipt(path: Path, action: str) -> dict:
@@ -123,7 +138,11 @@ def remote_config(repo: Path, name: str) -> list:
 
 
 def remote_refs(repo: Path, name: str) -> list:
-    out = git(repo, "for-each-ref", "--format=%(refname)%00%(objectname)", f"refs/remotes/{name}/")
+    """[refname, objectname, symbolic_target] per remote-tracking ref; the
+    symbolic target is "" for a direct ref (a remote's HEAD is normally
+    symbolic and must come back as one)."""
+    out = git(repo, "for-each-ref", "--format=%(refname)%00%(objectname)%00%(symref)",
+              f"refs/remotes/{name}/")
     return [line.split("\0") for line in out.stdout.splitlines() if line]
 
 
@@ -191,8 +210,8 @@ def restore_remote(receipt: Path, dry_run: bool) -> dict:
     repo, name = verify_repo(Path(data["repo"])), data["name"]
     if name in git(repo, "remote").stdout.split() or remote_config(repo, name):
         raise HoldError(f"remote {name!r} already exists in {repo}; nothing restored")
-    for refname, sha in data["refs"]:
-        if git(repo, "cat-file", "-e", sha, check=False).returncode:
+    for refname, sha, symref in data["refs"]:
+        if not symref and git(repo, "cat-file", "-e", sha, check=False).returncode:
             raise HoldError(f"object {sha} for {refname} is gone; cannot restore faithfully")
     plan = {"action": "restore-remote", "repo": str(repo), "name": name, "config": data["config"],
             "refs": data["refs"], "at": now(), "remove_receipt": str(receipt)}
@@ -202,8 +221,12 @@ def restore_remote(receipt: Path, dry_run: bool) -> dict:
     plan["receipt"] = str(restore)
     for key, value in data["config"]:
         git(repo, "config", "--local", "--add", key, value)
-    for refname, sha in data["refs"]:
-        git(repo, "update-ref", refname, sha)
+    for refname, sha, symref in data["refs"]:
+        if not symref:
+            git(repo, "update-ref", refname, sha)
+    for refname, sha, symref in data["refs"]:
+        if symref:
+            git(repo, "symbolic-ref", refname, symref)
     finish_receipt(restore, plan)
     return {**plan, "status": "done"}
 

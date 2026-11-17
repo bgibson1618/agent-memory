@@ -97,7 +97,8 @@ def test_hold_profile_refuses_symlink_and_missing(tmp_path):
 def _remote_state(repo, name):
     config = subprocess.run(["git", "-C", str(repo), "config", "--local", "--get-regexp",
                              f"^remote\\.{name}\\."], capture_output=True, text=True).stdout.strip().splitlines()
-    refs = _git(repo, "for-each-ref", "--format=%(refname) %(objectname)", f"refs/remotes/{name}/").split()
+    refs = _git(repo, "for-each-ref", "--format=%(refname) %(objectname) %(symref)",
+                f"refs/remotes/{name}/").split()
     return sorted(config), refs
 
 
@@ -109,8 +110,11 @@ def test_remove_remote_preserves_every_setting_and_tracking_ref(repo, tmp_path):
     _git(repo, "config", "remote.synthetic-host.prune", "true")
     head = _git(repo, "rev-parse", "HEAD").strip()
     _git(repo, "update-ref", "refs/remotes/synthetic-host/main", head)
+    _git(repo, "symbolic-ref", "refs/remotes/synthetic-host/HEAD", "refs/remotes/synthetic-host/main")
     before = _remote_state(repo, "synthetic-host")
-    assert len(before[0]) >= 6 and before[1] == ["refs/remotes/synthetic-host/main", head]
+    assert len(before[0]) >= 6
+    assert before[1] == ["refs/remotes/synthetic-host/HEAD", head, "refs/remotes/synthetic-host/main",
+                         "refs/remotes/synthetic-host/main", head]
 
     plan = hold.remove_remote(repo, "synthetic-host", receipts, dry_run=True)
     assert plan["dry_run"] and _remote_state(repo, "synthetic-host") == before
@@ -123,6 +127,8 @@ def test_remove_remote_preserves_every_setting_and_tracking_ref(repo, tmp_path):
     restored = hold.restore_remote(Path(done["receipt"]), dry_run=False)
     assert restored["status"] == "done"
     assert _remote_state(repo, "synthetic-host") == before
+    assert _git(repo, "symbolic-ref", "refs/remotes/synthetic-host/HEAD").strip() == \
+        "refs/remotes/synthetic-host/main"                       # symbolic, not a copied object id
     with pytest.raises(hold.HoldError, match="already exists"):
         hold.restore_remote(Path(done["receipt"]), dry_run=False)
 
@@ -161,6 +167,45 @@ def test_receipt_is_written_before_the_change_and_marks_failure(profile, tmp_pat
     assert len(written) == 1 and json.loads(written[0].read_text())["status"] == "planned"
     with pytest.raises(hold.HoldError, match="not done"):
         hold.restore_profile(written[0], dry_run=False)
+
+
+def _trace_fs(monkeypatch, module):
+    """Record fsync targets and renames in order (Linux: /proc resolves the fd)."""
+    events = []
+    real_fsync, real_rename, real_replace = os.fsync, os.rename, os.replace
+
+    def fsync(fd):
+        try:
+            target = os.readlink(f"/proc/self/fd/{fd}")
+        except OSError:
+            target = "?"
+        events.append(("fsync", target))
+        real_fsync(fd)
+
+    def rename(a, b):
+        events.append(("rename", str(a)))
+        real_rename(a, b)
+
+    def replace(a, b):
+        events.append(("replace", str(a)))
+        real_replace(a, b)
+    monkeypatch.setattr(module.os, "fsync", fsync)
+    monkeypatch.setattr(module.os, "rename", rename)
+    monkeypatch.setattr(module.os, "replace", replace)
+    return events
+
+
+def test_receipt_directory_entry_is_durable_before_the_mutation(profile, tmp_path, monkeypatch):
+    receipts = tmp_path / "receipts"
+    events = _trace_fs(monkeypatch, hold)
+    hold.hold_profile(profile, receipts, dry_run=False)
+    mutation = next(i for i, e in enumerate(events) if e[0] == "rename")
+    before = events[:mutation]
+    assert ("fsync", str(receipts)) in before, before            # the receipt's directory entry
+    assert ("fsync", str(tmp_path)) in before, before            # ...and the new directory's parent
+    assert any(e[0] == "fsync" and e[1].startswith(str(receipts) + "/") for e in before)  # the file
+    after = events[mutation + 1:]
+    assert ("fsync", str(receipts)) in after                     # the "done" rewrite is durable too
 
 
 def test_slash_in_remote_name_gets_a_safe_receipt_name(repo, tmp_path):

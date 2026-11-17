@@ -72,15 +72,30 @@ def run(argv, env=None, cwd=None, input=None) -> subprocess.CompletedProcess:
     return result
 
 
+def fsync_dir(path: Path) -> None:
+    """A file is not durable until its directory entry is."""
+    fd = os.open(path, os.O_RDONLY | os.O_DIRECTORY)
+    try:
+        os.fsync(fd)
+    finally:
+        os.close(fd)
+
+
 def atomic_write_json(path: Path, data: dict) -> None:
-    """Durable before it is visible: write a sibling temp file, fsync, rename."""
+    """Durable before it is visible: write a sibling temp file, fsync it,
+    rename it into place, then fsync the directory (and a newly created
+    directory's parent), so a crash after return cannot lose the journal."""
+    created = not path.parent.exists()
     path.parent.mkdir(parents=True, exist_ok=True)
+    if created:
+        fsync_dir(path.parent.parent)
     temp = path.with_name(path.name + ".tmp")
     with open(temp, "w", encoding="utf-8") as stream:
         stream.write(json.dumps(data, indent=1, sort_keys=True) + "\n")
         stream.flush()
         os.fsync(stream.fileno())
     os.replace(temp, path)
+    fsync_dir(path.parent)
 
 
 # ---------------------------------------------------------------- prefix ----
