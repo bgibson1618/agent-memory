@@ -234,13 +234,26 @@ def test_fresh_releases_directory_and_staged_tree_are_durable_before_any_change(
         events.append(("fsync", target))
         real_fsync(fd)
     monkeypatch.setattr(release.os, "fsync", fsync)
+    real_rename = os.rename
+
+    def rename(a, b):
+        events.append(("rename", str(a)))
+        real_rename(a, b)
+    monkeypatch.setattr(release.os, "rename", rename)
     dest = release.stage(REPO, "HEAD", releases)
     staged = len(events)
     targets = [e[1] for e in events]
     for ancestor in (tmp_path, tmp_path / "new", tmp_path / "new" / "deeper"):
         assert str(ancestor) in targets                            # each new ancestor's parent
-    assert str(releases) in targets                                # after the rename into place
-    assert any(t.startswith(str(releases) + "/.staging-") for t in targets)  # the tree itself
+    # Every file and directory of the staged tree is fsynced BEFORE the rename
+    # that makes the release appear, and the releases directory AFTER it.
+    rename_at = next(i for i, e in enumerate(events) if e[0] == "rename")
+    work = events[rename_at][1]
+    before_rename = {e[1] for e in events[:rename_at] if e[0] == "fsync"}
+    expected = {str(p) for p in Path(dest).rglob("*")}            # same tree, renamed
+    expected_as_work = {s.replace(str(dest), work, 1) for s in expected} | {work}
+    assert expected_as_work <= before_rename, sorted(expected_as_work - before_rename)[:5]
+    assert any(e == ("fsync", str(releases)) for e in events[rename_at + 1:])
     assert str(dest / "release.json").replace(str(dest), "") == "/release.json"
     monkeypatch.setattr(release, "_reinstall", lambda *a, **k: events.append(("reinstall", "")))
     monkeypatch.setattr(release, "_write_selectors", lambda *a, **k: events.append(("selectors", "")))
