@@ -91,7 +91,7 @@ def main(argv=None) -> int:
     p_save.set_defaults(func=store.cmd_save)
     p_save.add_argument(
         "--expected-version",
-        help="required for shared --update: version returned by the mem get --json read",
+        help="required for every --update: the version returned by the mem get --json read",
     )
     p_save.add_argument("--operation-id", help="optional UUID for a new shared write; retry via mem retry")
     p_save.add_argument("--json", action="store_true", help="shared-write acknowledgment as JSON")

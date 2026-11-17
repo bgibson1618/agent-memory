@@ -50,6 +50,12 @@ def save_seed(mem, **overrides):
     return mem(*argv)
 
 
+def read_version(mem, slug: str) -> str:
+    """Every update carries the version of the read it is based on (Stage 1,
+    2026-11): a missing or stale --expected-version is refused."""
+    return get_json(mem, slug)["version"]
+
+
 def last_err_line(result) -> str:
     return result.stderr.strip().splitlines()[-1]
 
@@ -63,7 +69,7 @@ def test_bare_update_keeps_every_field_and_only_bumps_updated(mem, kb):
     before = get_json(mem, SLUG)
     time.sleep(1.1)  # created/updated carry second precision
 
-    result = mem("save", "--slug", SLUG, "--update", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), input="")
     assert result.returncode == 0, result.stderr
     assert result.stderr.strip() == ""  # nothing explicit changed - no warnings
 
@@ -84,13 +90,13 @@ def test_type_and_sensitivity_kept_when_omitted_explicit_replaces(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem, type="position", sensitivity="work").returncode == 0
 
-    kept = mem("save", "--slug", SLUG, "--update", "--topics", "x", input="")
+    kept = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--topics", "x", input="")
     assert kept.returncode == 0, kept.stderr
     after = get_json(mem, SLUG)
     assert after["type"] == "position"
     assert after["sensitivity"] == "work"
 
-    replaced = mem("save", "--slug", SLUG, "--update", "--type", "concept",
+    replaced = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--type", "concept",
                     "--sensitivity", "normal", input="")
     assert replaced.returncode == 0, replaced.stderr
     assert "warning: --update replaces type:" in replaced.stderr
@@ -114,7 +120,7 @@ def test_d19_incident_replay_partial_update_does_not_clobber_fields(mem, kb):
     before = get_json(mem, SLUG)
     assert "ced-3-7" in before["related"]  # the R5-era retag
 
-    result = mem("save", "--slug", SLUG, "--update", "--title", before["title"],
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--title", before["title"],
                  "--body", "Revised wording for clarity.\n")
     assert result.returncode == 0, result.stderr
 
@@ -134,7 +140,7 @@ def test_explicit_field_replaces_and_warns(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--title", "Renamed Title", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--title", "Renamed Title", input="")
     assert result.returncode == 0, result.stderr
     assert "warning: --update replaces title:" in result.stderr
     assert get_json(mem, SLUG)["title"] == "Renamed Title"
@@ -144,7 +150,7 @@ def test_explicit_topics_and_related_replace_and_warn(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update",
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG),
                  "--topics", "new-topic", "--related", "other-concept", input="")
     assert result.returncode == 0, result.stderr
     assert "warning: --update replaces topics:" in result.stderr
@@ -158,7 +164,7 @@ def test_identical_explicit_value_emits_no_warning(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update",
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG),
                  "--topics", "accounting, balance-sheet", input="")
     assert result.returncode == 0, result.stderr
     assert result.stderr.strip() == ""
@@ -171,7 +177,7 @@ def test_clear_description_rederives_from_body(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "description", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "description", input="")
     assert result.returncode == 0, result.stderr
     assert "warning: --update replaces description:" in result.stderr
     after = get_json(mem, SLUG)
@@ -183,7 +189,7 @@ def test_clear_topics_empties_the_list(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "topics", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "topics", input="")
     assert result.returncode == 0, result.stderr
     assert get_json(mem, SLUG)["topics"] == []
 
@@ -192,7 +198,7 @@ def test_clear_related_empties_the_list(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "related", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "related", input="")
     assert result.returncode == 0, result.stderr
     assert get_json(mem, SLUG)["related"] == []
 
@@ -201,7 +207,7 @@ def test_clear_accepts_repeated_and_comma_separated_fields(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "topics,related", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "topics,related", input="")
     assert result.returncode == 0, result.stderr
     after = get_json(mem, SLUG)
     assert after["topics"] == []
@@ -212,7 +218,7 @@ def test_clear_source_is_refused(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "source", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "source", input="")
     assert result.returncode != 0
     assert last_err_line(result).startswith("error:")
     assert get_json(mem, SLUG)["source"] == "GAAP Codification 210-10"
@@ -222,7 +228,7 @@ def test_clear_body_is_refused(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "body", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "body", input="")
     assert result.returncode != 0
     assert last_err_line(result).startswith("error:")
 
@@ -231,7 +237,7 @@ def test_clear_title_is_refused(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "title", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "title", input="")
     assert result.returncode != 0
     assert last_err_line(result).startswith("error:")
 
@@ -260,7 +266,7 @@ def test_clear_empty_value_on_update_is_refused(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", "", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", "", input="")
     assert result.returncode != 0
     assert last_err_line(result).startswith("error:")
     assert get_json(mem, SLUG)["topics"] == ["accounting", "balance-sheet"]  # untouched
@@ -270,7 +276,7 @@ def test_clear_comma_only_value_on_update_is_refused(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--clear", ",", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--clear", ",", input="")
     assert result.returncode != 0
     assert last_err_line(result).startswith("error:")
 
@@ -279,7 +285,7 @@ def test_clear_conflicts_with_explicit_value(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update",
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG),
                  "--clear", "topics", "--topics", "new-topic", input="")
     assert result.returncode != 0
     assert last_err_line(result).startswith("error:")
@@ -293,7 +299,7 @@ def test_title_optional_on_update_with_slug(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", "--topics", "new-topic", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--topics", "new-topic", input="")
     assert result.returncode == 0, result.stderr
     assert get_json(mem, SLUG)["title"] == "Current And Noncurrent Balance Sheet Classifications"
 
@@ -302,7 +308,7 @@ def test_title_required_on_update_without_slug(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--update", "--topics", "new-topic", input="")
+    result = mem("save", "--update", "--expected-version", "0" * 64, "--topics", "new-topic", input="")
     assert result.returncode != 0
     assert last_err_line(result).startswith("error:")
 
@@ -323,7 +329,7 @@ def test_body_kept_when_stdin_empty_on_update(mem, kb):
     assert save_seed(mem).returncode == 0
     before = get_json(mem, SLUG)
 
-    result = mem("save", "--slug", SLUG, "--update", "--topics", "new-topic", input="")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), "--topics", "new-topic", input="")
     assert result.returncode == 0, result.stderr
     assert get_json(mem, SLUG)["body"].strip() == before["body"].strip()
 
@@ -332,7 +338,7 @@ def test_piped_body_replaces_on_update(mem, kb):
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
 
-    result = mem("save", "--slug", SLUG, "--update", input="Piped replacement body.\n")
+    result = mem("save", "--slug", SLUG, "--update", "--expected-version", read_version(mem, SLUG), input="Piped replacement body.\n")
     assert result.returncode == 0, result.stderr
     assert "warning: --update replaces body:" in result.stderr
     assert get_json(mem, SLUG)["body"].strip() == "Piped replacement body."
@@ -381,7 +387,7 @@ def test_long_source_replacement_warns_with_full_values(mem, kb):
     seed = mem("save", "--title", "Long Source Probe", "--body", "Body.\n", "--source", old_source)
     assert seed.returncode == 0, seed.stderr
 
-    result = mem("save", "--slug", "long-source-probe", "--update", "--source", new_source, input="")
+    result = mem("save", "--slug", "long-source-probe", "--update", "--expected-version", read_version(mem, "long-source-probe"), "--source", new_source, input="")
     assert result.returncode == 0, result.stderr
     assert old_source in result.stderr
     assert new_source in result.stderr
@@ -394,7 +400,7 @@ def test_long_body_replacement_warning_is_elided(mem, kb):
     assert seed.returncode == 0, seed.stderr
 
     long_body = "Line " * 40 + "\n"  # well over the 80-char elision threshold
-    result = mem("save", "--slug", "long-body-probe", "--update", input=long_body)
+    result = mem("save", "--slug", "long-body-probe", "--update", "--expected-version", read_version(mem, "long-body-probe"), input=long_body)
     assert result.returncode == 0, result.stderr
     assert "warning: --update replaces body:" in result.stderr
     assert "..." in result.stderr
@@ -425,32 +431,48 @@ def spawn_save(kb, *args) -> subprocess.Popen:
     )
 
 
-def test_concurrent_disjoint_partial_updates_both_land(mem, kb):
-    """D19 headline race: the merge must be computed from state read UNDER
-    the write lock, not before it - else two concurrent partial --update
-    invocations can both exit 0 while the second silently restores the field
-    the first one just changed (the exact incident class D19 fixes).
-
-    Holds the write lock while spawning both writers so they are provably
-    queued on the lock at once, then releases it - a real race, not just
-    processes launched close together (mirrors test_f7_concurrency.py)."""
+def test_concurrent_partial_updates_from_one_read_have_one_winner(mem, kb):
+    """Stage 1 (2026-11) replaces D19's both-land race. Every update carries
+    the version of the read it is based on, so two writers racing from the
+    SAME read cannot both land: exactly one wins, the other is refused as
+    stale with nothing written, and the loser's partial change never silently
+    overwrites the winner's. Both are provably queued on the write lock; the
+    loser then succeeds by re-reading and resubmitting with the new version."""
     assert mem("init").returncode == 0
     assert save_seed(mem).returncode == 0
     before = get_json(mem, SLUG)
+    token = before["version"]
 
     with held_write_lock(kb):
-        p1 = spawn_save(kb, "--slug", SLUG, "--update", "--topics", "race-topic")
-        p2 = spawn_save(kb, "--slug", SLUG, "--update", "--related", "race-related")
+        p1 = spawn_save(kb, "--slug", SLUG, "--update", "--expected-version", token,
+                        "--topics", "race-topic")
+        p2 = spawn_save(kb, "--slug", SLUG, "--update", "--expected-version", token,
+                        "--related", "race-related")
         time.sleep(2.5)  # let both processes boot and block on the lock
 
-    out1, err1 = p1.communicate(timeout=60)
-    out2, err2 = p2.communicate(timeout=60)
-    assert p1.returncode == 0, err1
-    assert p2.returncode == 0, err2
+    outcomes = []
+    for proc in (p1, p2):
+        out, err = proc.communicate(timeout=60)
+        outcomes.append((proc.returncode, out, err))
+    assert sorted(rc for rc, _, _ in outcomes) == [0, 1], outcomes
+    loser_err = next(err for rc, _, err in outcomes if rc != 0)
+    assert "stale local read version" in loser_err
 
     after = get_json(mem, SLUG)
-    assert after["topics"] == ["race-topic"]
-    assert after["related"] == ["race-related"]
+    assert after["version"] != token
+    if outcomes[0][0] == 0:  # topics writer won
+        assert after["topics"] == ["race-topic"] and after["related"] == before["related"]
+        retry = mem("save", "--slug", SLUG, "--update", "--expected-version", after["version"],
+                    "--related", "race-related", input="")
+    else:  # related writer won
+        assert after["related"] == ["race-related"] and after["topics"] == before["topics"]
+        retry = mem("save", "--slug", SLUG, "--update", "--expected-version", after["version"],
+                    "--topics", "race-topic", input="")
+    assert retry.returncode == 0, retry.stderr
+    final = get_json(mem, SLUG)
+    assert final["topics"] == ["race-topic"] and final["related"] == ["race-related"]
     # everything neither writer touched survives the race untouched
-    assert after["title"] == before["title"]
-    assert after["description"] == before["description"]
+    assert final["title"] == before["title"]
+    assert final["description"] == before["description"]
+
+

@@ -72,7 +72,7 @@ def test_update_keeps_mirrors_in_sync(kb, mem):
     mem("init")
     mem("save", "--title", "Sync probe", "--body", BODY, "--topics", "one")
     proc = mem(
-        "save", "--title", "Sync probe", "--update", "--body", BODY + "more\n",
+        "save", "--title", "Sync probe", "--update", "--expected-version", json.loads(mem("get", "sync-probe", "--json").stdout)["version"], "--body", BODY + "more\n",
         "--topics", "one,two",
         env_extra={"MEM_NOW": "2026-07-22T23:59:59Z"},
     )

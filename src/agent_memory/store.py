@@ -259,8 +259,13 @@ def _save(args) -> int:
                 "shared updates require --expected-version from the concept's mem get --json "
                 "read; refresh and reconcile before replacing a stale version"
             )
-        if expected is not None and (not args.update or not re.fullmatch(r"[a-f0-9]{64}", expected)):
-            raise StoreError("--expected-version must be the read version for an --update")
+    elif args.update and not expected:
+        raise StoreError(
+            "updates require --expected-version from the concept's mem get --json "
+            "read; re-read and reconcile before replacing a stale version"
+        )
+    if expected is not None and (not args.update or not re.fullmatch(r"[a-f0-9]{64}", expected)):
+        raise StoreError("--expected-version must be the read version for an --update")
     warn_if_remote(root)
 
     # D19: check the RAW argument, before CSV-parsing drops empty pieces - a
@@ -311,6 +316,11 @@ def _save(args) -> int:
                 existing = okf.parse(raw.decode("utf-8"))
             else:
                 existing = load(root, slug)  # errors "no concept '<slug>'" if absent
+                # Compared under the writer lock: the token is the sha256 of the
+                # bytes `mem get --json` showed, so a write that landed since
+                # that read refuses here instead of being overwritten.
+                if shared.version(path.read_bytes()) != expected:
+                    raise StoreError("stale local read version; re-read and reconcile the edit")
             created = existing.created
             prior_source = existing.source
 

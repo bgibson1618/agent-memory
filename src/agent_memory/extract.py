@@ -363,12 +363,20 @@ def _extract(args) -> int:
             for i, concept in saved:
                 if not rename:
                     break
+                before_remap = shared.version(okf.serialize(concept).encode("utf-8"))
                 changed = _remap_links(concept, rename)
                 if changed == 0:
                     continue
                 path = store.concept_path(root, concept.slug)
                 if not shared_profile:
                     with store.write_lock(root):
+                        # The card was saved moments ago outside this lock; if
+                        # another writer changed it since, do not clobber it.
+                        if not path.is_file() or shared.version(path.read_bytes()) != before_remap:
+                            raise ExtractError(
+                                f"concept '{concept.slug}' changed during extraction; earlier saves "
+                                "remain committed; re-read and reconcile before retrying"
+                            )
                         store.atomic_write(path, okf.serialize(concept))
                         gitkb.commit_path(
                             root, f"concepts/{concept.slug}.md",

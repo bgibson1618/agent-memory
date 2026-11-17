@@ -153,7 +153,7 @@ def test_new_and_updated_saves_are_immediately_searchable(mem, kb):
     assert search_json(mem, "interference")[0]["slug"] == "interference-theory"
 
     update = mem(
-        "save", "--title", "Interference Theory", "--update",
+        "save", "--title", "Interference Theory", "--update", "--expected-version", json.loads(mem("get", "interference-theory", "--json").stdout)["version"],
         "--topics", "memory", "--body", "Retroactive zymurgy overwrites older traces.\n",
     )
     assert update.returncode == 0, update.stderr

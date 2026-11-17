@@ -5,7 +5,8 @@ slugs) all land - every process exits 0, N files exist, N commits land, and
 no invocation trips over git's index.lock or SQLite's "database is locked".
 Same-slug contention resolves per the collision rule: exactly one
 non-`--update` writer wins and the rest error cleanly in one line;
-`--update` writers all serialize with no interleaved or corrupt file.
+`--update` writers racing from one read have exactly one winner (Stage 1,
+2026-11: the rest are refused as stale) with no interleaved or corrupt file.
 
 The test holds the KB's own inter-process write lock while spawning the
 contenders, then releases it - so every process is provably queued on the
@@ -135,29 +136,39 @@ def test_same_slug_race_has_exactly_one_winner(mem, kb):
     assert subjects[0] == "mem save: contested-save"
 
 
-def test_parallel_updates_serialize_without_corruption(mem, kb):
+def test_parallel_updates_from_one_read_have_exactly_one_winner(mem, kb):
     assert mem("init").returncode == 0
     seed = mem("save", "--title", "Contested Update", "--body", "Seed body.\n")
     assert seed.returncode == 0, seed.stderr
-    created = json.loads(mem("get", "contested-update", "--json").stdout)["created"]
+    read = json.loads(mem("get", "contested-update", "--json").stdout)
+    created, token = read["created"], read["version"]
     baseline = commit_subjects(kb)
 
     n = 8
     bodies = [f"Revision from writer {i}: marker-{i}.\n" for i in range(n)]
     results = run_racing(
-        kb, [("--title", "Contested Update", "--body", b, "--update") for b in bodies]
+        kb, [("--title", "Contested Update", "--body", b, "--update",
+              "--expected-version", token) for b in bodies]
     )
 
-    assert [code for code, _, _ in results] == [0] * n, results
+    codes = [code for code, _, _ in results]
+    assert codes.count(0) == 1 and codes.count(1) == n - 1, results
     assert_no_lock_errors(results)
+    for code, _, err in results:
+        if code:
+            lines = err.strip().splitlines()
+            assert len(lines) == 1 and "stale local read version" in lines[0], err
 
     data = json.loads(mem("get", "contested-update", "--json").stdout)
     assert data["created"] == created
+    winner = codes.index(0)
     markers = [i for i in range(n) if f"marker-{i}." in data["body"]]
-    assert len(markers) == 1  # the last writer's body, whole and un-interleaved
-    assert data["body"].strip() == bodies[markers[0]].strip()
+    assert markers == [winner]  # the winner's body, whole and un-interleaved
+    assert data["body"].strip() == bodies[winner].strip()
 
-    # distinct bodies mean every serialized update lands its own commit
+    # exactly one update landed, so exactly one commit
     subjects = commit_subjects(kb)
-    assert len(subjects) == len(baseline) + n
-    assert set(subjects[:n]) == {"mem update: contested-update"}
+    assert len(subjects) == len(baseline) + 1
+    assert subjects[0] == "mem update: contested-update"
+
+

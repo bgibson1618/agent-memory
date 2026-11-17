@@ -42,10 +42,10 @@ def test_save_without_source_gets_ambient_stamp(kb, mem):
 def test_update_without_source_preserves_citation(kb, mem):
     mem("init")
     mem("save", "--title", "Keeper probe", "--body", BODY, "--source", "Original citation")
-    mem("save", "--title", "Keeper probe", "--body", "Edited body.\n", "--update")
+    mem("save", "--title", "Keeper probe", "--body", "Edited body.\n", "--update", "--expected-version", json.loads(mem("get", "keeper-probe", "--json").stdout)["version"])
     assert frontmatter_source(kb, "keeper-probe") == "Original citation"
     # an explicit --source on update still wins
-    mem("save", "--title", "Keeper probe", "--body", "Edited again.\n", "--update",
+    mem("save", "--title", "Keeper probe", "--body", "Edited again.\n", "--update", "--expected-version", json.loads(mem("get", "keeper-probe", "--json").stdout)["version"],
         "--source", "Corrected citation")
     assert frontmatter_source(kb, "keeper-probe") == "Corrected citation"
 

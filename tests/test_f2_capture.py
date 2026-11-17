@@ -8,6 +8,7 @@ write path warns while a remote is configured (F1's held-over criterion).
 """
 
 import json
+import re
 import subprocess
 import time
 
@@ -48,6 +49,14 @@ def save_fixture(mem, env_extra=None, **overrides):
             argv.append(f"--{key}")
         elif value is not None:
             argv.extend([f"--{key}", value])
+    if overrides.get("update"):
+        # Every update carries the version of the read it is based on (Stage 1,
+        # 2026-11). A concept that does not exist yet gets a well-formed
+        # placeholder so the "no concept" refusal is what a test observes.
+        slug = args.get("slug") or re.sub(r"[^a-z0-9]+", "-", args["title"].lower()).strip("-")
+        probe = mem("get", slug, "--json", env_extra=env_extra)
+        token = json.loads(probe.stdout)["version"] if probe.returncode == 0 else "0" * 64
+        argv.extend(["--expected-version", token])
     return mem(*argv, env_extra=env_extra)
 
 
