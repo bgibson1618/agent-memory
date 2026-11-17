@@ -4,10 +4,15 @@ Each check reports ok / fail / skip on its own line; any failing check makes
 the exit code nonzero so an agent can act on the diagnosis instead of guessing.
 """
 
+import hashlib
 import json
 import sqlite3
+import sys
+import sysconfig
 from dataclasses import asdict, dataclass
+from pathlib import Path
 
+import agent_memory
 from agent_memory import blocks, config, gitkb, graph, ollama, vector
 
 
@@ -27,11 +32,49 @@ _BLOCK_PROBLEMS = {
 }
 
 
+def runtime_identity() -> dict:
+    """Which package this interpreter imports and how it got there: a frozen
+    release (release.json beside it), a worktree (an editable install), or an
+    installed copy; plus any zz_agent_memory_*.pth selector in this
+    interpreter's site-packages. Lets a stale or surprising deployment be seen
+    instead of assumed (Stage 1, 2026-11)."""
+    package = Path(agent_memory.__file__).resolve().parent
+    identity = {"package": str(package), "version": agent_memory.__version__,
+                "python": sys.executable, "release": None, "selectors": {}}
+    release_json = package.parent.parent.parent / "release.json"
+    if release_json.is_file():
+        try:
+            identity["release"] = json.loads(release_json.read_text()).get("id")
+        except ValueError:
+            identity["release"] = "unreadable"
+    site = Path(sysconfig.get_paths()["purelib"])
+    for pth in sorted(site.glob("zz_agent_memory_*.pth")):
+        identity["selectors"][pth.name] = hashlib.sha256(pth.read_bytes()).hexdigest()[:16]
+    if identity["release"]:
+        identity["kind"] = "release"
+    elif any(p.name.endswith(".pth") and "agent_memory" in p.name and not p.name.startswith("zz_")
+             for p in site.glob("*.pth")):
+        identity["kind"] = "worktree (editable install)"
+    elif site in package.parents:
+        identity["kind"] = "installed copy"
+    else:
+        identity["kind"] = "source checkout"
+    return identity
+
+
+def runtime_check() -> Check:
+    ident = runtime_identity()
+    where = f"release {ident['release']}" if ident["release"] else ident["kind"]
+    sel = ", ".join(f"{n} ({h})" for n, h in ident["selectors"].items()) or "none"
+    return Check("runtime", "ok", f"{where}: {ident['package']}; selector: {sel}; python {ident['python']}",
+                 required=False)
+
+
 def run_checks(mutate: bool = True) -> list[Check]:
     """mutate=False is the non-mutating diagnosis path (used by `mem init`):
     it reports queue depth without draining, so init never touches the
     derived index (F1 idempotence: KB home unchanged on a second run)."""
-    checks: list[Check] = []
+    checks: list[Check] = [runtime_check()]
     root = config.kb_root()
 
     kb_ok = (root / "concepts").is_dir() and (root / ".index").is_dir()

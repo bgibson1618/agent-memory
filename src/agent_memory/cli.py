@@ -8,12 +8,24 @@ import time
 from agent_memory import __version__, config, dedupcmd, doctor, extract, graph, initcmd, reindex, search, shared, store, usage, vector
 
 
+class _Version(argparse.Action):
+    """`mem --version` names the package path it imports (release or worktree),
+    printed verbatim: argparse's own version action re-wraps long lines."""
+
+    def __init__(self, option_strings, dest, **kwargs):
+        super().__init__(option_strings, dest, nargs=0, **kwargs)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print(f"mem {__version__} [{doctor.runtime_identity()['package']}]")
+        parser.exit()
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         prog="mem",
         description="Personal cross-agent knowledge base.",
     )
-    parser.add_argument("--version", action="version", version=f"mem {__version__}")
+    parser.add_argument("--version", action=_Version, help="print the version and the imported package path")
     sub = parser.add_subparsers(dest="command", required=True, metavar="command")
 
     p_init = sub.add_parser(
