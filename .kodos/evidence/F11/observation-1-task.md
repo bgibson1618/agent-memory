@@ -104,8 +104,8 @@ Rules:
 
 # Invocation Context
 
-Roster root: /home/brent-gibson/projects/agent-roster
-Workspace: /home/brent-gibson/projects/tutor-scratch
+Roster root: <agent-roster>
+Workspace: <scratch-project>
 
 # Task
 
@@ -115,21 +115,21 @@ You are doing early design work for mathtutor (read README.md first). Write LESS
 
 This run is observable through tmux and durable files.
 
-- Your run directory: /home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect
-- Output file: /home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/output.md
-- Terminal log: /home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/terminal.log
-- Pane file: /home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/pane
-- Questions for the user: /home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/questions.md
-- Notes from the user/orchestrator: /home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/inbox.md
+- Your run directory: <scratch-project>/work/agents/f11-observe-1/architect
+- Output file: <scratch-project>/work/agents/f11-observe-1/architect/output.md
+- Terminal log: <scratch-project>/work/agents/f11-observe-1/architect/terminal.log
+- Pane file: <scratch-project>/work/agents/f11-observe-1/architect/pane
+- Questions for the user: <scratch-project>/work/agents/f11-observe-1/architect/questions.md
+- Notes from the user/orchestrator: <scratch-project>/work/agents/f11-observe-1/architect/inbox.md
 
 You have file-write access this run, but you MUST confine every write to your own run
-directory: `/home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect`. Do NOT create, edit, move, or delete any file outside it — never
+directory: `<scratch-project>/work/agents/f11-observe-1/architect`. Do NOT create, edit, move, or delete any file outside it — never
 touch the user's project files or anything else in the workspace. Writing inside your run
 directory is not a project edit, so a "do not edit the project" instruction does not stop
 you from writing there.
 
-Write your final response to `/home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/output.md` and any questions for the user to
-`/home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/questions.md` before you stop. If a write is ever blocked, your terminal output
+Write your final response to `<scratch-project>/work/agents/f11-observe-1/architect/output.md` and any questions for the user to
+`<scratch-project>/work/agents/f11-observe-1/architect/questions.md` before you stop. If a write is ever blocked, your terminal output
 is captured automatically, so make your final response clearly visible there as a fallback.
 
 If your task is to produce files FOR THE PROJECT (code, configs, docs), deliver them per your
@@ -137,8 +137,8 @@ role's contract:
   - If your role delivers a reviewable **patch** (e.g. the implementer): stage and verify your
     change in your run dir and hand back a unified diff (`git diff`) — the orchestrator/user
     applies it. `agent-roster deliver` does NOT apply patches.
-  - Otherwise (the default): write the complete files under `/home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/deliverable/`, mirroring
-    their intended workspace paths (e.g. `/home/brent-gibson/projects/tutor-scratch/work/agents/f11-observe-1/architect/deliverable/src/foo.py` for a file that
+  - Otherwise (the default): write the complete files under `<scratch-project>/work/agents/f11-observe-1/architect/deliverable/`, mirroring
+    their intended workspace paths (e.g. `<scratch-project>/work/agents/f11-observe-1/architect/deliverable/src/foo.py` for a file that
     belongs at `src/foo.py`). The orchestrator promotes that tree into the workspace in one
     reviewed step with `agent-roster deliver`.
 Either way, nothing of yours lands outside the run dir until it's reviewed and applied/promoted.

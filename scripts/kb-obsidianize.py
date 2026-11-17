@@ -3,7 +3,8 @@
   kebab  - topics:/tags: block items -> kebab-case, deduped in-list
 Bodies are never touched; only lines inside the leading --- block.
 """
-import glob, re, sys
+import glob
+import os, re, sys
 
 if len(sys.argv) != 2 or sys.argv[1] not in ("links", "kebab"):
     sys.exit("usage: kb-obsidianize.py links|kebab")
@@ -16,7 +17,7 @@ def kebab(s):
     return re.sub(r"-{2,}", "-", s).strip("-")
 
 changed = 0
-for path in sorted(glob.glob("/home/brent-gibson/.agent-memory/concepts/*.md")):
+for path in sorted(glob.glob(os.path.expanduser("~/.agent-memory/concepts/*.md"))):
     lines = open(path, encoding="utf-8").read().split("\n")
     if not lines or lines[0] != "---":
         continue

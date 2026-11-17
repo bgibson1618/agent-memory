@@ -21,7 +21,7 @@ D3's 14 distinct pairs (same-domain hard negatives + easy negatives): n=14 min 0
 
 ## Stage 1b - the AP-BPF archive replay (fence-free; read-only)
 
-Archive: `/home/brent-gibson/work/ap-business-personal-finance/work/kbx-2026-08-21/r1-phase2/dup-rulings-r1p2.json` (md5 prefix asserted: `e66073d1`)
+Archive: `<engagement-project>/work/kbx-2026-08-21/r1-phase2/dup-rulings-r1p2.json` (md5 prefix asserted: `e66073d1`)
 Positives (dup-class, cited live_slug): 63; negatives (NEW-SAVE): 22
 
 | K | recall@K |

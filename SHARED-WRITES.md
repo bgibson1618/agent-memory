@@ -1,16 +1,19 @@
 # Historical procedure — a held private deployment mode
 
-This documents the host-mediated shared-write mode built on 2026-10-20 for instances
-provisioned by an operator profile and a KB marker. As of 2026-11-17 it is **held**
-(DECISION_LOG D20): no instance in this repository's tests is provisioned for it; the four
-transport commands (`retry`, `pending`, `refresh`, `delete`) refuse on any instance that is not
-both marked and configured; endpoint values live only in the operator profile, never in
-source; and nothing in this file grants permission to run these commands against a held
-replica. Governance is `shared.profile_for`: a readable, valid operator profile that lists an
-instance's root governs it; the KB's git marker makes a listed-but-unconfigured or unusably
-configured instance fail closed rather than fall back to local writes. The original text follows
-for provenance, unchanged except that the authority host's alias is replaced by "the work host"
-(redaction recorded in `BUILD_LOG.md`, 2026-11-17).
+This documents the host-mediated shared-write mode built on 2026-10-20 for instances governed by
+an operator profile. As of 2026-11-17 it is **held** (DECISION_LOG D20). How governance actually
+works (`shared.profile_for`): a readable, valid, owner-only operator profile that lists an instance's
+root governs that instance, whether or not the KB carries the `agent-memory.sharedWrites` git marker;
+the marker is the fail-closed lever — a marked root whose profile is missing, unreadable, invalid or
+does not list it refuses local source writes instead of falling back to local behaviour, while an
+unmarked root that no usable profile lists stays a local KB. The four transport commands (`retry`,
+`pending`, `refresh`, `delete`) act only on a governed instance and refuse elsewhere; `init` refuses
+a governed instance. Endpoint values live only in the profile's `transport` entry, never in source.
+The test suite exercises this logic against synthetic profiles that list synthetic roots, with the
+transport mocked; no live transport runs in the suite, and nothing in this file grants permission to
+run these commands against a held replica. The original text follows for provenance, unchanged
+except that the authority host's alias is written as "the work host" (redaction recorded in
+`BUILD_LOG.md`, 2026-11-17).
 
 ---
 

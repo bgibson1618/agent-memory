@@ -523,10 +523,17 @@ independent opposite-vendor review, with every existing KB left untouched and ac
   procedure end to end in inline-subagent mode with the report matching the KB (F10 note); the
   designed safe-update opportunity (read, version token, one update commit) with scripted
   missing/stale/malformed-token refusals leaving content and history untouched.
-- **Redaction (2026-11-17):** deployment-specific identifiers in dated entries of this file,
-  `DECISION_LOG.md`, `IMPLEMENTATION.md` and `SHARED-WRITES.md` (a retired engagement's KB instance
-  path and corpus id, a scratch project's path, the authority host's alias) were replaced by neutral
-  wording; the events, dates and decisions are unchanged and the original text is preserved in the
-  private provenance records.
+- **Redaction (2026-11-17, completed after review round 2):** deployment-specific identifiers were
+  replaced by neutral placeholders across every tracked file — this file, `DECISION_LOG.md`,
+  `IMPLEMENTATION.md`, `SHARED-WRITES.md`, `research/*.md`, `research/dedup_detection_calibration.py`,
+  `.kodos/evidence/**`, `.kodos/state.json`, the `refresh` help string in `cli.py`, the fixture URLs
+  in `tests/test_d1_allowed_remotes.py` (`kb-host`) and the hard-coded home path in
+  `scripts/kb-obsidianize.py` (now `~` expansion). Map: a retired engagement's KB instance path ->
+  `<engagement-kb>`, its project path -> `<engagement-project>`, its corpus prefix -> `engagement`;
+  a scratch project's path -> `<scratch-project>`; this repo's absolute path -> `<repo>`; other home
+  paths -> `<home>`, `<capstone-workspace>`, `<agent-roster>`, `<walkthrough-home>`; the authority
+  host's alias -> "the work host". The one retained literal is the guard in
+  `tests/test_shared_writes.py` that asserts the alias is absent from source. Events, dates and
+  decisions are unchanged; the original text is preserved in the private provenance records.
 - **Held / pending:** host-mediated shared writes (D20); live runtime and plugin activation, with its
   rollback, as a separately approved checklist; the laptop launcher bound to a release.

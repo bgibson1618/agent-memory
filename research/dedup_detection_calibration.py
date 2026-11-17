@@ -1,7 +1,7 @@
 """D18 S8 - dedup-DETECTION calibration (research/d18-dedup-detection-design-
 2026-09-02.md S4.7): Stage 1a (coverage mechanics + the FP side, fence-free,
 SYNTHETIC) and Stage 1b (the AP-BPF archive replay, fence-free: the archive
-is a work-repo artifact, not the `~/.agent-memory-apbpf` KB instance itself -
+is a work-repo artifact, not the `<engagement-kb>` KB instance itself -
 paths/counts/scores only ever cross into the artifact, never card bodies).
 
 Mirrors research/dedup_calibration.py's shape: a generated artifact with a

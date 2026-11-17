@@ -115,7 +115,7 @@ def main(argv=None) -> int:
     p_pending = sub.add_parser("pending", help="list unresolved shared-write operation IDs")
     p_pending.add_argument("--json", action="store_true")
     p_pending.set_defaults(func=shared.cmd_pending)
-    p_refresh = sub.add_parser("refresh", help="refresh this KB from the private work-host hub")
+    p_refresh = sub.add_parser("refresh", help="refresh this KB from its private shared-write host")
     p_refresh.set_defaults(func=shared.cmd_refresh)
     p_delete = sub.add_parser("delete", help="delete one shared concept with a stale-version check")
     p_delete.add_argument("slug")

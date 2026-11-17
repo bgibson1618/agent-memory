@@ -4,7 +4,7 @@ DIMENSIONS:
   - detection design completeness (brief items 1–9): PASS
   - decision traceability (rejected alternatives named): PASS
   - calibration-data catalog (paths/formats/counts): PASS
-  - fence compliance (no ~/.agent-memory-apbpf access, no writes): PASS
+  - fence compliance (no <engagement-kb> access, no writes): PASS
   - empirical grounding (recommendations measured, not asserted): PASS
 BLOCKING:
 RIGOR: tuned
@@ -14,7 +14,7 @@ RIGOR: tuned
 
 **Lane:** design-only (read-only seat). **Repo:** `agent-memory`. **Date:** 2026-09-02.
 **Implements:** `DECISION_LOG.md` D18 scope (a)–(g) incl. the 2026-08-25 addendum.
-**Fence honored:** no read, command, or lock touch against `~/.agent-memory-apbpf`; no writes anywhere; work-repo citations limited to paths, counts, field names, and score statistics.
+**Fence honored:** no read, command, or lock touch against `<engagement-kb>`; no writes anywhere; work-repo citations limited to paths, counts, field names, and score statistics.
 
 ---
 
@@ -409,7 +409,7 @@ Adjudication record, appended later by `mem dedup --adjudicate`:
 
 **Stage 2 — the full-detector replay (post-fence).** Reconstruct each labeled candidate's body (available fence-free: `report-r1p2.json` carries `body` for all 90 survivors) and score it with the real detector against the AP-BPF KB **at the pin the rulings were made against**.
 
-> **Calibrate against a pinned, read-only copy of the KB — never the live one.** Use `git clone --local <kb> /tmp/apbpf-cal-<date>` (hardlinks objects, writes nothing to the source), **not** `git worktree add` (which writes `.git/worktrees/` inside the source repo). Check out the handoff pin `015b5c9`; the live HEAD of record is `a1a5152`, i.e. the KB has moved since. Run `mem reindex` inside the clone with `MEM_KB_ROOT` pointed at it, and record `vector_meta`'s model + digest — if they differ from the original run's, the cosines are not comparable and the run must say so.
+> **Calibrate against a pinned, read-only copy of the KB — never the live one.** Use `git clone --local <kb> /tmp/engagement-cal-<date>` (hardlinks objects, writes nothing to the source), **not** `git worktree add` (which writes `.git/worktrees/` inside the source repo). Check out the handoff pin `015b5c9`; the live HEAD of record is `a1a5152`, i.e. the KB has moved since. Run `mem reindex` inside the clone with `MEM_KB_ROOT` pointed at it, and record `vector_meta`'s model + digest — if they differ from the original run's, the cosines are not comparable and the run must say so.
 
 **Split and validation.** n = 85 with 63 positives is too small for a single holdout.
 - **Stratified 5-fold CV** for threshold selection: report the operating point's mean and range across folds.
@@ -436,7 +436,7 @@ Adjudication record, appended later by `mem dedup --adjudicate`:
 
 ### 4.8 The (g) false-suppression sweep — EXECUTION PLAN ONLY
 
-**Preconditions, all three required before step 1.** (1) Brent lifts the `~/.agent-memory-apbpf` fence — **nothing in this plan may run before that, including the `git clone`**. (2) The detector has passed its own gate and Stage-2 calibration. (3) The **ap agent now owns that KB** (engagement closed and handed off 2026-09-01). Therefore: **the sweep produces a report, never a write.** An overturn is a change request routed through Brent to the ap agent — not a `mem save`.
+**Preconditions, all three required before step 1.** (1) Brent lifts the `<engagement-kb>` fence — **nothing in this plan may run before that, including the `git clone`**. (2) The detector has passed its own gate and Stage-2 calibration. (3) The **ap agent now owns that KB** (engagement closed and handed off 2026-09-01). Therefore: **the sweep produces a report, never a write.** An overturn is a change request routed through Brent to the ap agent — not a `mem save`.
 
 **Population.** Three defensible cuts; the intended one is the first:
 
@@ -450,7 +450,7 @@ Adjudication record, appended later by `mem dedup --adjudicate`:
 
 **Steps.**
 
-1. **Pin and clone.** `git -C ~/.agent-memory-apbpf log -1` → record as the sweep's HEAD-of-record. `git clone --local ~/.agent-memory-apbpf /tmp/apbpf-sweep-<date>` and check out the handoff pin `015b5c9`. `export MEM_KB_ROOT=/tmp/apbpf-sweep-<date>`; `mem reindex` **inside the clone** — a write, but to a throwaway clone, never the live KB. Record `vector_meta` (model + digest) into the sweep artifact.
+1. **Pin and clone.** `git -C <engagement-kb> log -1` → record as the sweep's HEAD-of-record. `git clone --local <engagement-kb> /tmp/engagement-sweep-<date>` and check out the handoff pin `015b5c9`. `export MEM_KB_ROOT=/tmp/engagement-sweep-<date>`; `mem reindex` **inside the clone** — a write, but to a throwaway clone, never the live KB. Record `vector_meta` (model + digest) into the sweep artifact.
 2. **Pin the input by hash, do not glob.** Use exactly `work/kbx-2026-08-21/r1-phase2/dup-rulings-r1p2.json` and assert its md5 prefix `e66073d1`. **Five mutually-inconsistent versions exist across 40 copies**, and most copies live under `work/agents/r1p2a-gate{3,4}/verifier/scratch-attacks/…` — *deliberately tampered adversarial fixtures* (`corrupt_counts_after_rebuild`, `tamper_after_gate_before_mutation_load`, …). Two of the five generations **lack the `method` field entirely**, so a `method == "prior-cycle"` filter silently returns 0 rows against them. A globbing sweep would quietly calibrate on attack fixtures.
 3. **Materialize candidates.** Build one candidates JSON of 60 objects. Bodies come from `report-r1p2.json.survivors[].body`; ids join on `id`. Normalize `live_slug` to list-of-str first — it is polymorphic across the four files (list / str / null for the same 90 records). Do not use `near-dup-check[].action`: it is **stale** (`new_save` 84/85, from before 58 became `NO-ACTION-DUP`) — that staleness is precisely what preserves the archived retrieval results for the dup-labeled records.
 4. **Run.** `mem dedup candidates.json --json --deep-k 50 --top-m 5 > sweep-<date>.json` with the Stage-2-calibrated AP-BPF thresholds set in the environment (they are echoed into the report's `config` block, so the run is self-describing).
@@ -635,9 +635,9 @@ Each has a stated default; the design is complete and buildable under all eight 
 
 # Appendix A — Calibration-data catalog
 
-Paths, formats, counts, field names, score statistics, and parsing hazards only. No card titles, bodies, or ruling text. Fence honored throughout: `~/.agent-memory-apbpf` untouched.
+Paths, formats, counts, field names, score statistics, and parsing hazards only. No card titles, bodies, or ruling text. Fence honored throughout: `<engagement-kb>` untouched.
 
-**Repo root:** `/home/brent-gibson/work/ap-business-personal-finance/`
+**Repo root:** `<engagement-project>/`
 **Canonical artifact dir:** `<root>/work/kbx-2026-08-21/r1-phase2/`
 **Gate run dirs:** `<root>/work/agents/r1p2a-gate{,2,3,4,5}/verifier/`
 
@@ -716,7 +716,7 @@ Hit `type`: `concept` 745, `reference` 84, `position` 21. Distinct matched slugs
 10. **`arbitration_outcome` is 89 enum values + 1 free-text sentence** (150+ chars, prefixed `arb agreement: fix0; …`). A strict enum decoder throws on exactly one row.
 11. **`disposition.md`'s header block is Python `repr`, not JSON** (single-quoted keys, `True`/`False`); longest line 2,177 chars.
 12. **Encoding is clean.** All canonical JSON is pure ASCII, no BOM. gate2/3/5 reports carry a few non-ASCII lines (em-dashes, typographic quotes); no non-UTF8, no BOM anywhere. 27/850 hit `snippet` values contain embedded newlines — a hazard for line-oriented tooling only.
-13. **Every path inside every `run.json` / `env.sh` is stale** — they point at `/home/brent-gibson/projects/ap-business-personal-finance/`, not the current `work/` location. Do not resolve artifact paths from run metadata.
+13. **Every path inside every `run.json` / `env.sh` is stale** — they point at `<engagement-project>/`, not the current `work/` location. Do not resolve artifact paths from run metadata.
 14. **No JSONL/YAML/CSV label artifact exists.** The only `.jsonl` under the gate runs is roster plumbing (`events.jsonl` ~830 B; `inbox.jsonl` all 0 B).
 
 ### A.5 The recommended calibration join

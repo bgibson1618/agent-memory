@@ -25,13 +25,13 @@ def test_allowlisted_remote_passes_and_unlisted_fails(kb, mem):
     assert mem("init").returncode == 0
     assert _doctor_check(mem, "no-remote")["status"] == "ok"
 
-    _git(kb, "remote", "add", "host", "ssh://user@work-host/srv/git/agent-memory-kb.git")
+    _git(kb, "remote", "add", "host", "ssh://user@kb-host/srv/git/agent-memory-kb.git")
     check = _doctor_check(mem, "no-remote")
     assert check["status"] == "fail"
     assert "host" in check["detail"] and ".allowed-remotes" in check["detail"]
 
     (kb.kb / ".allowed-remotes").write_text(
-        "# the work host over Tailscale (D1)\n\nssh://user@work-host/srv/git/agent-memory-kb.git\n",
+        "# the work host over Tailscale (D1)\n\nssh://user@kb-host/srv/git/agent-memory-kb.git\n",
         encoding="utf-8",
     )
     check = _doctor_check(mem, "no-remote")
@@ -46,7 +46,7 @@ def test_allowlisted_remote_passes_and_unlisted_fails(kb, mem):
 
 def test_write_path_warns_only_on_unlisted_remotes(kb, mem):
     assert mem("init").returncode == 0
-    _git(kb, "remote", "add", "host", "ssh://user@work-host/srv/git/agent-memory-kb.git")
+    _git(kb, "remote", "add", "host", "ssh://user@kb-host/srv/git/agent-memory-kb.git")
 
     r = mem("save", "--title", "Remote probe one", "--body", "A body.",
             "--description", "probe", "--topics", "d1")
@@ -54,7 +54,7 @@ def test_write_path_warns_only_on_unlisted_remotes(kb, mem):
     assert "not listed in .allowed-remotes" in r.stderr and "host" in r.stderr
 
     (kb.kb / ".allowed-remotes").write_text(
-        "ssh://user@work-host/srv/git/agent-memory-kb.git\n", encoding="utf-8")
+        "ssh://user@kb-host/srv/git/agent-memory-kb.git\n", encoding="utf-8")
     r = mem("save", "--title", "Remote probe two", "--body", "A body.",
             "--description", "probe", "--topics", "d1")
     assert r.returncode == 0, r.stderr

@@ -1,7 +1,7 @@
 # Extraction report: router_architecture_recommendations.md
 
 Ran `mem extract --procedure` v1 end to end on
-`/home/brent-gibson/projects/capstone-workspace/docs/router_architecture_recommendations.md`.
+`<capstone-workspace>/docs/router_architecture_recommendations.md`.
 **All 8 reviewer-approved concepts are now in the KB** — 6 landed via `mem extract`, 2 via the
 sanctioned `mem save` override after disposition review found both "duplicate" skips were
 umbrella/sibling matches, not true duplicates.

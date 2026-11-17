@@ -170,14 +170,14 @@
         {
           "method": "observed",
           "ok": true,
-          "ref": ".kodos/evidence/F11/ - real deployment (uv tool install; mem 0.1.0 on PATH), real mem init (blocks in ~/.claude/CLAUDE.md + ~/.agent-docs/AGENTS.md, one block each, existing content intact, doctor 9/9); staged observation f11-observe-1 (fresh claude session, tutor-scratch project, prompt on record never mentions the memory system): UNPROMPTED mem search --json as first substantive move, mem get x4, results grounded LESSON_DESIGN.md; UNPROMPTED mem save interleaving-effect (correctly linked+topiced) after finding a KB gap",
+          "ref": ".kodos/evidence/F11/ - real deployment (uv tool install; mem 0.1.0 on PATH), real mem init (blocks in ~/.claude/CLAUDE.md + ~/.agent-docs/AGENTS.md, one block each, existing content intact, doctor 9/9); staged observation f11-observe-1 (fresh claude session, <scratch-project> project, prompt on record never mentions the memory system): UNPROMPTED mem search --json as first substantive move, mem get x4, results grounded LESSON_DESIGN.md; UNPROMPTED mem save interleaving-effect (correctly linked+topiced) after finding a KB gap",
           "at": "2026-07-21T23:59:00Z",
           "note": "both observed criteria in ONE session (protocol allowed 3); run at/after wave-4 reconcile against deployed tree 8518aac; codex/agy claim = installation-only, covered by F1 tests + real AGENTS.md block verified; per protocol Brent judges 'unprompted' - task text preserved as evidence, veto open"
         },
         {
           "method": "observed",
           "ok": true,
-          "ref": "run architect-wve5 (tutor-scratch/work/agents/architect-wve5/): fresh session, pure teaching task (two-week algebra review schedule), prompt on record free of any memory mention, against the FINAL tree - ran mem search + mem get UNPROMPTED (terminal.log) and the deliverable is grounded in KB concepts (testing effect, expanding spacing, interleaving, with the KB entries' citations). Unprompted-save leg not re-triggered this session: zero mem save calls because the KB already covered the task's topics (no gap to fill) - the original wave-4 save observation stands; search+grounding is the integration-drift check this re-observe exists for",
+          "ref": "run architect-wve5 (<scratch-project>/work/agents/architect-wve5/): fresh session, pure teaching task (two-week algebra review schedule), prompt on record free of any memory mention, against the FINAL tree - ran mem search + mem get UNPROMPTED (terminal.log) and the deliverable is grounded in KB concepts (testing effect, expanding spacing, interleaving, with the KB entries' citations). Unprompted-save leg not re-triggered this session: zero mem save calls because the KB already covered the task's topics (no gap to fill) - the original wave-4 save observation stands; search+grounding is the integration-drift check this re-observe exists for",
           "at": "2026-07-22T16:20:00Z",
           "note": "closeout re-observe"
         }
