@@ -12,11 +12,12 @@ replaces it (warned on stderr), and --clear blanks a clearable field instead.
 import fcntl
 import json
 import os
+import re
 import sys
 from contextlib import contextmanager
 from pathlib import Path
 
-from agent_memory import config, gitkb, graph, lexical, okf, ollama, vector
+from agent_memory import config, coordinator, gitkb, graph, lexical, okf, ollama, shared, vector
 
 
 class StoreError(Exception):
@@ -117,7 +118,7 @@ def _derive_description(body: str) -> str:
 def cmd_save(args) -> int:
     try:
         return _save(args)
-    except (StoreError, okf.OKFError) as e:
+    except (StoreError, okf.OKFError, shared.SharedError, coordinator.CoordinatorError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
@@ -249,6 +250,17 @@ def _report_update_changes(existing: okf.Concept, new: okf.Concept) -> None:
 def _save(args) -> int:
     root = config.kb_root()
     require_kb(root)
+    shared_profile = shared.profile_for(root)
+    expected = getattr(args, "expected_version", None)
+    if shared_profile:
+        shared.clean_head(root)
+        if args.update and not expected:
+            raise StoreError(
+                "shared updates require --expected-version from the concept's mem get --json "
+                "read; refresh and reconcile before replacing a stale version"
+            )
+        if expected is not None and (not args.update or not re.fullmatch(r"[a-f0-9]{64}", expected)):
+            raise StoreError("--expected-version must be the read version for an --update")
     warn_if_remote(root)
 
     # D19: check the RAW argument, before CSV-parsing drops empty pieces - a
@@ -288,9 +300,17 @@ def _save(args) -> int:
         else:
             fresh_body_input = sys.stdin.read()
 
-    with write_lock(root):
+    with (coordinator.read_lock(root) if shared_profile else write_lock(root)):
         if args.update:
-            existing = load(root, slug)  # errors "no concept '<slug>'" if absent
+            if shared_profile:
+                if not path.is_file():
+                    raise StoreError(f"no concept '{slug}'; refresh the private replica first")
+                raw = path.read_bytes()
+                if shared.version(raw) != expected:
+                    raise StoreError("stale local read version; refresh, re-read, and reconcile the edit")
+                existing = okf.parse(raw.decode("utf-8"))
+            else:
+                existing = load(root, slug)  # errors "no concept '<slug>'" if absent
             created = existing.created
             prior_source = existing.source
 
@@ -366,11 +386,22 @@ def _save(args) -> int:
 
         text = okf.serialize(concept)
 
-        _sweep_dead_temps(concepts_dir(root))
-        atomic_write(path, text)
-        verb = "update" if args.update else "save"
-        committed = gitkb.commit_path(root, f"concepts/{slug}.md", f"mem {verb}: {slug}")
-        lexical.record_save(root, concept, path)
+        if not shared_profile:
+            _sweep_dead_temps(concepts_dir(root))
+            atomic_write(path, text)
+            verb = "update" if args.update else "save"
+            committed = gitkb.commit_path(root, f"concepts/{slug}.md", f"mem {verb}: {slug}")
+            lexical.record_save(root, concept, path)
+
+    if shared_profile:
+        result = shared.submit(root, [{
+            "slug": slug, "expected_version": expected if args.update else None,
+            "content": text,
+        }], operation_id=getattr(args, "operation_id", None))
+        rc = shared.report(result, json_output=getattr(args, "json", False))
+        if rc == 0 and getattr(args, "dedup_check", False) and result.get("replica_current"):
+            _dedup_check(root, concept)
+        return rc
 
     if not committed:
         # A no-op update (identical content, same-second stamp) is not a
@@ -391,8 +422,12 @@ def cmd_get(args) -> int:
     root = config.kb_root()
     try:
         require_kb(root)
-        concept = load(root, args.slug)
-    except StoreError as e:
+        raw = concept_path(root, args.slug).read_bytes()
+        concept = okf.parse(raw.decode("utf-8"))
+    except FileNotFoundError:
+        print(f"error: no concept '{args.slug}'", file=sys.stderr)
+        return 1
+    except (StoreError, okf.OKFError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
 
@@ -407,11 +442,13 @@ def cmd_get(args) -> int:
         # slug can disagree and would point consumers at a ghost path.
         data["slug"] = data["id"] = args.slug
         data["path"] = str(concept_path(root, args.slug))
+        data["version"] = shared.version(raw)
         if neighbors is not None:
             data["neighbors"] = neighbors
         print(json.dumps(data, indent=2, ensure_ascii=False))
     else:
         print(f"slug: {args.slug}")
+        print(f"version: {shared.version(raw)}")
         print(f"title: {concept.title}")
         print(f"type: {concept.type}")
         print(f"sensitivity: {concept.sensitivity}")

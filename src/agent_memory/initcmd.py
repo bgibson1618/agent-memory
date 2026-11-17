@@ -13,6 +13,15 @@ from agent_memory import blocks, config, doctor, gitkb, store
 
 def cmd_init(args) -> int:
     root = config.kb_root()
+    from agent_memory import shared
+    try:
+        if shared.profile_for(root):
+            print("error: shared KB already provisioned; use mem doctor or kb-sync. "
+                  "Initialization cannot rewrite its source or agent guidance.", file=sys.stderr)
+            return 1
+    except shared.SharedError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 1
     fresh = not gitkb.is_repo(root)
 
     (root / "concepts").mkdir(parents=True, exist_ok=True)

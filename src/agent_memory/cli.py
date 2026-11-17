@@ -5,7 +5,7 @@ import subprocess
 import sys
 import time
 
-from agent_memory import __version__, config, dedupcmd, doctor, extract, graph, initcmd, reindex, search, store, usage, vector
+from agent_memory import __version__, config, dedupcmd, doctor, extract, graph, initcmd, reindex, search, shared, store, usage, vector
 
 
 def main(argv=None) -> int:
@@ -89,6 +89,28 @@ def main(argv=None) -> int:
              " (the save-path bypass stays the designed recourse; D3)",
     )
     p_save.set_defaults(func=store.cmd_save)
+    p_save.add_argument(
+        "--expected-version",
+        help="required for shared --update: version returned by the mem get --json read",
+    )
+    p_save.add_argument("--operation-id", help="optional UUID for a new shared write; retry via mem retry")
+    p_save.add_argument("--json", action="store_true", help="shared-write acknowledgment as JSON")
+
+    p_retry = sub.add_parser("retry", help="retry a durable shared write with its original payload")
+    p_retry.add_argument("operation_id")
+    p_retry.add_argument("--json", action="store_true")
+    p_retry.set_defaults(func=shared.cmd_retry)
+    p_pending = sub.add_parser("pending", help="list unresolved shared-write operation IDs")
+    p_pending.add_argument("--json", action="store_true")
+    p_pending.set_defaults(func=shared.cmd_pending)
+    p_refresh = sub.add_parser("refresh", help="refresh this KB from the private work-host hub")
+    p_refresh.set_defaults(func=shared.cmd_refresh)
+    p_delete = sub.add_parser("delete", help="delete one shared concept with a stale-version check")
+    p_delete.add_argument("slug")
+    p_delete.add_argument("--expected-version", required=True)
+    p_delete.add_argument("--operation-id")
+    p_delete.add_argument("--json", action="store_true")
+    p_delete.set_defaults(func=shared.cmd_delete)
 
     p_search = sub.add_parser(
         "search",
@@ -141,6 +163,7 @@ def main(argv=None) -> int:
         help="print the agent-side extract-knowledge procedure and exit",
     )
     p_extract.add_argument("--json", action="store_true", help="machine-readable output")
+    p_extract.add_argument("--operation-id", help="optional UUID for the complete shared extraction")
     p_extract.set_defaults(func=extract.cmd_extract)
 
     p_reindex = sub.add_parser(
@@ -235,7 +258,7 @@ def main(argv=None) -> int:
 
     # Bounded opportunistic drain: any ordinary invocation moves the embed
     # queue along a little; doctor/reindex drain fully themselves.
-    if args.command not in ("init", "doctor", "reindex", "stats"):
+    if args.command not in ("init", "doctor", "reindex", "stats", "retry", "pending", "refresh", "delete"):
         try:
             vector.opportunistic_drain(config.kb_root())
         except Exception:

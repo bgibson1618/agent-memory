@@ -5,8 +5,8 @@ test_f12_egress.py launches this script inside a fresh network namespace
 Python, git, anything - can reach a non-localhost peer, and every syscall-level
 escape attempt fails with ENETUNREACH. Inside, the driver brings `lo` up,
 verifies the airgap, starts a deterministic fake Ollama on loopback, and runs
-the full `mem` surface (init / doctor / save / search / get / list / extract /
-reindex / links / stats — parity with the CLI's subcommand set is asserted by
+the full unconfigured-local `mem` surface (init / doctor / save / search / get /
+list / extract / reindex / links / stats / dedup / retry / pending / refresh / delete — parity with the CLI's subcommand set is asserted by
 test_f12_egress.py, so a new command cannot silently outgrow this proof) three
 ways:
 
@@ -18,6 +18,11 @@ ways:
               doctor fails the ollama check, reindex leaves embeds queued);
   remote-leg  MEM_OLLAMA_URL pointing off-box: refused before a single
               socket opens (zero connect attempts recorded).
+
+Shared-write commands must refuse an unconfigured KB without contacting any
+peer or changing source. Explicitly configured private SSH writes are a separate
+authorized transport mode, covered by the shared-write integration tests; this
+driver does not claim that mode is loopback-only.
 
 Also importable by the test module for its fake-Ollama and concept fixtures.
 Stdout is one JSON report; exit 0 iff every check passed.
@@ -283,6 +288,30 @@ def main(config_json: str) -> int:
     except ValueError:
         got_title = None
     rep.check("up-get", r.returncode == 0 and got_title == SEED["title"], r.stdout + r.stderr)
+
+    # A local-only KB cannot implicitly opt into the private shared transport.
+    # Exercise each new command with valid arguments so the profile boundary,
+    # rather than argparse or an invalid operation ID, is what refuses it.
+    shared_source = home / ".agent-memory/concepts" / f"{SEED_SLUG}.md"
+    source_before = shared_source.read_bytes()
+    connects_before = read_log(log_up)
+
+    r = mem(up, "retry", "12345678-1234-4234-8234-123456789abc", "--json")
+    rep.check("up-shared-retry-unconfigured-refused", r.returncode == 1
+              and "not configured for shared writes" in r.stderr, r.stdout + r.stderr)
+    r = mem(up, "pending", "--json")
+    rep.check("up-shared-pending-unconfigured-refused", r.returncode == 1
+              and "not configured for shared writes" in r.stderr, r.stdout + r.stderr)
+    r = mem(up, "refresh")
+    rep.check("up-shared-refresh-unconfigured-refused", r.returncode == 1
+              and "not configured for shared writes" in r.stderr, r.stdout + r.stderr)
+    r = mem(up, "delete", SEED_SLUG, "--expected-version", "0" * 64, "--json")
+    rep.check("up-shared-delete-unconfigured-refused", r.returncode == 1
+              and "not configured for shared writes" in r.stderr, r.stdout + r.stderr)
+    rep.check("up-shared-unconfigured-zero-connects", read_log(log_up) == connects_before,
+              "shared commands refused before opening any network connection")
+    rep.check("up-shared-unconfigured-preserves-source", shared_source.read_bytes() == source_before,
+              "refused shared commands leave the local concept unchanged")
 
     r = mem(up, "search", "spaced repetition intervals", "--json")
     try:

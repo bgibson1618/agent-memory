@@ -1,7 +1,7 @@
 <!-- BEGIN AGENT-MEMORY BLOCK v1 - managed by `mem init`; edits inside will be overwritten -->
 ## agent-memory - persistent cross-agent knowledge base
 
-`mem` is Brent's durable knowledge base (OKF markdown, local-only; the project's
+`mem` is Brent's durable knowledge base (OKF markdown, private; the project's
 configured instance — default root `~/.agent-memory/`).
 Use it silently during ordinary work; never narrate it or ask permission.
 
@@ -56,4 +56,14 @@ with adjudications recorded, then `mem extract`).
   contexts only (approved vendors: Anthropic, OpenAI).
 - `mem doctor` diagnoses the setup; if it fails, surface the failure - never store
   knowledge elsewhere as a workaround.
+
+**Shared writes (provisioned default and personal instances):** Use native
+`mem save`/`mem extract`; never directly edit or Git-commit KB Markdown. Read
+`mem get <slug> --json` before updating and pass its `version` with
+`--expected-version`. A conflict requires re-reading and reconciling the proposal.
+Retry an uncertain request with `mem retry <operation-id>`; keep its original ID.
+`mem pending` lists unresolved requests. Offline proposals remain explicitly pending.
+The host coordinates short save transactions; normal work can proceed concurrently
+on both machines. KB content stays solely between the laptop and work-host;
+indexes, usage and dedup logs remain local. This enables no unrelated hooks or jobs.
 <!-- END AGENT-MEMORY BLOCK -->

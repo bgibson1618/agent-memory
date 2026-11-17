@@ -26,7 +26,7 @@ import re
 import sys
 from pathlib import Path
 
-from agent_memory import blocks, config, gitkb, lexical, okf, ollama, store, vector
+from agent_memory import blocks, config, coordinator, gitkb, lexical, okf, ollama, shared, store, vector
 
 # Mirrors graph._WIKILINK_RE, but captures the |alias / #heading tail so a
 # remap preserves it: [[target]], [[target|alias]], [[target#heading]].
@@ -172,6 +172,8 @@ def _save_novel(root: Path, concept: okf.Concept) -> tuple:
     commit, in-line lexical index). extract never overwrites: a taken slug
     gets the first free -N suffix, chosen under the lock. Returns
     (concept, suffixed: bool)."""
+    if shared.profile_for(root):
+        raise shared.SharedError("shared extracts must submit the complete prepared batch")
     with store.write_lock(root):
         base = concept.slug
         slug, n = base, 2
@@ -249,7 +251,8 @@ def cmd_extract(args) -> int:
         return 1
     try:
         return _extract(args)
-    except (ExtractError, store.StoreError, okf.OKFError, vector.VectorError) as e:
+    except (ExtractError, store.StoreError, okf.OKFError, vector.VectorError,
+            shared.SharedError, coordinator.CoordinatorError) as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
     except ollama.OllamaError as e:
@@ -261,6 +264,12 @@ def cmd_extract(args) -> int:
 def _extract(args) -> int:
     root = config.kb_root()
     store.require_kb(root)
+    shared_profile = shared.profile_for(root)
+    if shared_profile:
+        with coordinator.read_lock(root):
+            expected_head = shared.clean_head(root)
+            taken = {path.stem for path in store.concepts_dir(root).glob("*.md")}
+    planned = []
     store.warn_if_remote(root)
     dedup_low, dedup_high = _band_config()
 
@@ -325,8 +334,17 @@ def _extract(args) -> int:
                     }
                     continue
                 intended = concept.slug
-                concept, suffixed = _save_novel(root, concept)
-                _store_vector(con, concept.slug, text, vec)
+                if shared_profile:
+                    suffix = 2
+                    while concept.slug in taken:
+                        concept.slug = f"{intended}-{suffix}"
+                        suffix += 1
+                    taken.add(concept.slug)
+                    suffixed = concept.slug != intended
+                    planned.append(concept)
+                else:
+                    concept, suffixed = _save_novel(root, concept)
+                    _store_vector(con, concept.slug, text, vec)
                 q = np.asarray(vec, dtype=np.float32)
                 entries.append((concept.slug, q / float(np.linalg.norm(q))))
                 results[i] = {
@@ -349,16 +367,17 @@ def _extract(args) -> int:
                 if changed == 0:
                     continue
                 path = store.concept_path(root, concept.slug)
-                with store.write_lock(root):
-                    store.atomic_write(path, okf.serialize(concept))
-                    gitkb.commit_path(
-                        root, f"concepts/{concept.slug}.md",
-                        f"mem extract: link remap {concept.slug}",
-                    )
-                    lexical.record_save(root, concept, path)
+                if not shared_profile:
+                    with store.write_lock(root):
+                        store.atomic_write(path, okf.serialize(concept))
+                        gitkb.commit_path(
+                            root, f"concepts/{concept.slug}.md",
+                            f"mem extract: link remap {concept.slug}",
+                        )
+                        lexical.record_save(root, concept, path)
                 results[i]["remapped_links"] = changed
                 remapped.append((concept.slug, vector.embed_text(concept)))
-            if remapped:
+            if remapped and not shared_profile:
                 # Re-embed rewritten bodies so stored content hashes stay
                 # true; on daemon trouble fall back to the durable queue.
                 try:
@@ -376,6 +395,21 @@ def _extract(args) -> int:
         finally:
             con.close()
 
+    shared_result = None
+    if shared_profile:
+        with coordinator.read_lock(root):
+            if shared.clean_head(root) != expected_head:
+                raise ExtractError(
+                    "KB changed during extraction; refresh and repeat dedup before saving"
+                )
+        shared_result = shared.submit(root, [{
+            "slug": concept.slug, "expected_version": None,
+            "content": okf.serialize(concept),
+        } for concept in planned], expected_head=expected_head,
+            operation_id=getattr(args, "operation_id", None))
+        if shared_result["status"] != "applied":
+            return shared.report(shared_result, json_output=args.json)
+
     counts = {
         "added": 0, "skipped-duplicate": 0, "skipped-duplicate-confident": 0, "invalid": 0,
     }
@@ -392,6 +426,8 @@ def _extract(args) -> int:
             "links_remapped": links_remapped,
             "results": results,
         }
+        if shared_result is not None:
+            payload["shared_write"] = shared_result
         if dedup_high is not None:
             # Additive-only: these two keys never appear in default (no
             # MEM_DEDUP_HIGH) output, keeping it byte-identical to pre-D17.
@@ -399,6 +435,8 @@ def _extract(args) -> int:
             payload["skipped_duplicate_confident"] = counts["skipped-duplicate-confident"]
         print(json.dumps(payload, indent=2, ensure_ascii=False))
     else:
+        if shared_result is not None:
+            shared.report(shared_result)
         for r in results:
             if r["disposition"] == "added":
                 note = f" [{r['note']}]" if "note" in r else ""

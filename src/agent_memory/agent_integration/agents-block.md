@@ -1,7 +1,7 @@
 <!-- BEGIN AGENT-MEMORY BLOCK v1 - managed by `mem init`; edits inside will be overwritten -->
 ## agent-memory - persistent cross-agent knowledge base
 
-`mem` is Brent's durable knowledge base (OKF markdown, local-only; the project's
+`mem` is Brent's durable knowledge base (OKF markdown, private; the project's
 configured instance — default root `~/.agent-memory/`),
 shared by his coding agents. Use it silently during ordinary work.
 
@@ -39,8 +39,17 @@ projects set it in their env to route at the personal KB); unset = the default
 work-adjacent KB. Never mix instances in one task; every rule here applies
 per-instance.
 
-The KB's only permitted remotes are the URLs listed in its `.allowed-remotes` file
-(today: the work host over Tailscale, D1 2026-10-15); never a public, vendor or
-personal-cloud remote, for any instance; its content goes nowhere but those machines
-and localhost Ollama. `mem doctor` diagnoses the setup.
+The default and personal KBs use host-mediated saves when provisioned for shared
+writes. Use native `mem save` and `mem extract`; never edit/commit their Markdown
+directly. Before an update, read `mem get <slug> --json` and pass its `version` as
+`mem save --update --slug <slug> --expected-version <version> ...`. A conflict requires
+re-reading and reconciling; do not blindly overwrite with a new token. If a request
+is pending, use `mem retry <operation-id>` with the original ID. `mem pending`
+lists outstanding requests. An offline request is pending, not confirmed saved.
+
+KB content stays between Brent's Linux laptop and work-host through the exact
+private endpoints in `.allowed-remotes`, never GitHub or personal cloud storage.
+Indexes and usage/dedup logs stay on their respective machines. Shared saves and
+explicit `kb-sync` do not authorize hooks, background jobs, freshness checks, or
+other destinations. `mem doctor` diagnoses the setup.
 <!-- END AGENT-MEMORY BLOCK -->
