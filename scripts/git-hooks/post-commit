@@ -1,47 +1,24 @@
 #!/usr/bin/env bash
-# Reinstall the `mem` CLI when a commit touches its source.
+# post-commit: a local commit never deploys.
 #
-# The shell `mem` is a uv tool install — a snapshot of this repo, not the live
-# worktree — so source commits don't reach the CLI agents actually invoke until
-# a reinstall. This hook closes that gap on every commit that changes src/,
-# pyproject.toml, or uv.lock. Wired via: git config core.hooksPath scripts/git-hooks
-#
-# Post-commit hooks cannot fail the commit; on reinstall failure this warns and
-# leaves the previously installed snapshot in place.
-#
-# Skip seam (2026-09-02): MEM_HOOK_NO_REINSTALL=1 defers the deploy - the
-# commit lands but the installed `mem` keeps running the previous snapshot
-# (announced loudly so a deferred deploy can't be mistaken for a done one).
-# Deliberate later rollout: uv tool install --reinstall .
-
+# Until 2026-11 this hook reinstalled the `mem` uv tool whenever a commit
+# touched src/, pyproject.toml or uv.lock. That tied deployment to committing
+# and could replace a runtime that a release selector (.pth) had deliberately
+# pinned, flipping bare `mem` to the worktree and breaking a wrapper that
+# verifies the selector. Deployment now belongs to the explicit staged release
+# tool (scripts/release.py, documented in RELEASE.md). This hook only reports,
+# in one line, what the `mem` on PATH would import right now, so a stale
+# deployment is visible at the moment source changes. It installs nothing.
 set -u
-
-if [ "${MEM_HOOK_NO_REINSTALL:-0}" = "1" ]; then
-    echo "post-commit: MEM_HOOK_NO_REINSTALL=1 -> 'mem' NOT reinstalled (still the previous snapshot; deploy later with: uv tool install --reinstall .)"
-    exit 0
-fi
 
 if ! git diff-tree --no-commit-id --name-only -r HEAD | grep -qE '^(src/|pyproject\.toml$|uv\.lock$)'; then
     exit 0
 fi
 
-if ! command -v uv >/dev/null 2>&1; then
-    echo "post-commit: uv not found; 'mem' NOT reinstalled (stale snapshot still installed)" >&2
-    exit 0
-fi
-
-root="$(git rev-parse --show-toplevel)"
-
-# Frozen release (2026-09-21): other projects run `mem` from a read-only release copy of this repo. While the
-# installed `mem` comes from anywhere but this worktree, a commit here must not replace it; a release moves it
-# instead (plugin-freeze.sh mem release <sha>). Before a freeze, and after a rollback, it comes from here.
-receipt="$(uv tool dir 2>/dev/null)/agent-memory/uv-receipt.toml"
-if [ -f "$receipt" ] && ! grep -qF -e "directory = \"$root\"" -e "editable = \"$root\"" "$receipt"; then
-    echo "post-commit: 'mem' is deployed from a release copy, not this worktree -> NOT reinstalled (release with: plugin-freeze.sh mem release <sha>)"
-    exit 0
-fi
-if uv tool install --reinstall --quiet "$root" >/dev/null 2>&1; then
-    echo "post-commit: source changed -> 'mem' reinstalled ($(mem --version 2>/dev/null || echo 'version n/a'))"
+if command -v mem >/dev/null 2>&1; then
+    runtime="$(timeout 5 mem --version 2>/dev/null || echo 'mem --version unavailable')"
 else
-    echo "post-commit: uv tool install FAILED; 'mem' still running the previous snapshot" >&2
+    runtime="no mem on PATH"
 fi
+echo "post-commit: source changed; NOT deployed (a commit never installs). On PATH now: ${runtime}. Deploy deliberately: scripts/release.py (see RELEASE.md)."
+exit 0
