@@ -123,5 +123,5 @@ session is effectively lost to every other agent and project.
   `--no-sensitive` (search); the subcommand surface shipped as
   settled in ARCHITECTURE (v1: `init · save · search · get · list · extract · reindex ·
   doctor`; post-v1 growth: + `links · stats` per D12/D8, + `dedup` per D18 W2 (2026-09-02)
-  — ARCHITECTURE carries the current command surface, pinned to the CLI by the F12
-  parity test; this sentence names no count that ARCHITECTURE does not also carry).
+  — ARCHITECTURE carries the current command surface, pinned to the CLI by
+  `tests/test_docs_cli_consistency.py`; this sentence names no count that ARCHITECTURE does not also carry).
