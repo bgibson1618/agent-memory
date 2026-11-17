@@ -27,7 +27,7 @@ agent; the CLI is never interactive and every read command speaks `--json`.
 | Component | Responsibility | Notes |
 | --- | --- | --- |
 | `store` | OKF markdown read/write — one concept per file, atomic write; **a single inter-process write lock** serializes store mutation + git commit (retry w/ backoff, never fail an agent's save); auto-commit to the local git | The only irreplaceable state; everything else rebuilds from it. Deterministic slugs (lowercase alnum-hyphen, NFKD-folded); saving onto an existing slug **errors unless `--update`** — no silent overwrite |
-| `okf` | The OKF schema contract: frontmatter (id/slug, title, description, type, `topics[]`, `sensitivity`, timestamps, `related[]`, `source` — provenance citation, D9; a mem key, not OKF v0.1 vocabulary, like `related`) + body with `[[wikilinks]]` | Conformance verified against the **official OKF v0.1 spec** (snapshot: `research/okf-spec-v0.1.md`; D2/D5). Interop: serializer mirrors the spec-recommended `tags`/`timestamp`, parser accepts them as fallback for external files, and the reserved filenames `index`/`log` are refused as concept slugs |
+| `okf` | The OKF schema contract: frontmatter (id/slug, title, description, type, `topics[]`, `sensitivity`, timestamps, `related[]`, `source` — provenance citation, D9; a mem key, not OKF v0.1 vocabulary, like `related`) + body with `[[wikilinks]]` | Conformance verified against the **official OKF v0.1 spec** (snapshot: `research/okf-spec-v0.1.md`; D2/D5). Interop: serializer mirrors the spec-recommended `tags`/`timestamp`, parser accepts them as fallback for external files, and the reserved filenames `index`/`log` are refused as concept slugs. **OKF v0.2 reviewed 2026-11-17** (GoogleCloudPlatform/open-knowledge-format `SPEC.md`): ordinary concept files remain compatible (parseable YAML frontmatter, non-empty `type`, no reserved names); `timestamp` is now a legacy fallback to `generated.at` and body citations to `sources[]`; no migration (D2 amendment, 2026-11-17) |
 | `index.lexical` | SQLite **FTS5** table over title/description/body/topics; BM25 ranking | Capstone-measured over hand-rolled keyword index (0.842 vs 0.825 recall@10, ~5× faster writes); ships in stdlib `sqlite3` |
 | `index.vector` | Ollama `/api/embed` client; vectors as BLOBs in SQLite; **numpy brute-force cosine** at query time; pending-embed queue | ~30 MB / <10 ms at the 10k ceiling; model tag + digest + dims stamped in metadata, mixed-dim writes refused; `num_ctx` set explicitly; **embed calls carry strict per-purpose client budgets — save/opportunistic-drain 500 ms (timeout ⇒ enqueue, never block); query 2.5 s (`MEM_EMBED_QUERY_TIMEOUT` seam — absorbs moderate model-reload windows; a full cold reload (~3.8 s measured) instead degrades that one query to lexical+graph and warms the model for the next — learning L4, wave-6 evidence); full drain (doctor/reindex) 30 s**; sqlite-vec ANN is a later seam, not a v1 dep |
 | `index.graph` | Parse `[[wikilinks]]` + frontmatter `related` into direct edges and `topics` into **topic nodes** (concept → topic → concept — never materialized pairwise edges, so a broad tag can't go quadratic); mtime-invalidated cache; in-process traversal (pure Python — 1–2-hop expansion needs no traversal lib; networkx/rustworkx remain a later seam) | The research-gated "derived graph" — no graph daemon; Obsidian renders the same links natively |
@@ -36,7 +36,7 @@ agent; the CLI is never interactive and every read command speaks `--json`.
 | `index.chunks` | D18 opt-in sub-card retrieval windows in a new `chunks` table (SQLite): heading-then-markdown-block chunker (~1,000-char target / 4,000 hard cap / 50% overlap; a heading-less card ≤1,000 chars yields exactly one chunk, byte-identical to its whole-card text); lazy retrieval-driven population + `mem reindex --chunks` eager build; each row stamped with the model/digest it was embedded under | A NEW table, not new `vectors` rows (a synthetic `slug#N` key was one bug away from leaking chunk hits into `mem search`); `vectors`/`mem search` stay byte-unchanged; fully disposable |
 | `index.claims` | D18 S7 opt-in per-claim retrieval-scoped embeddings in a new `claim_vectors` table (SQLite), same identity-stamping/disposability posture as `index.chunks`; lazy, retrieval-scoped population (only deep-K hit cards' claims embed) + `mem reindex --claims` eager build | Powers the semantic claim leg (`MEM_DEDUP_CLAIM_SEM`, shipped off — the paraphrase lever); `claims.py` owns both segmentation (S1) and this storage |
 | `dedup` | D18 detection layer behind `mem dedup` and `mem save --dedup-check` (extract rewiring = S6, deferred): fused deep-K retrieval (lexical BM25 + whole-KB document cosine + chunk cosine + graph ordering via `fusion.rrf`) then claim-grain directional coverage scoring — lexical OR semantic (S7) — → `verdict`/`flagged`/`recommended_action`; `.index/dedup-log.jsonl` durable detection/adjudication log | Un-misreadable report contract (no `score`/`semantic_similarity` key anywhere, `fusion_rank` is the only fusion number); coverage flag **on** by default in `mem dedup`, **off** in `mem extract` pending per-instance log evidence (D18 §4.4); the semantic claim leg ships **off** everywhere (`MEM_DEDUP_CLAIM_SEM` unset) |
-| `cli` | `mem` entry point: `init · save · search · get · list · extract · dedup · reindex · doctor · links · stats · retry · pending · refresh · delete` (links = dangling-link health, D12; stats = usage counts from the local invocation log, D8; retry/pending/refresh/delete = host-mediated shared-write transport, which act only on an instance provisioned for shared writes and refuse everywhere else; `tests/test_docs_cli_consistency.py` pins this list to the parser) | stdlib argparse; never interactive; meaningful exit codes; `--json` on every read; one-line errors. **`mem init` owns setup**: creates `~/.agent-memory` + git init, verifies Ollama/models/FTS5, and installs/refreshes the agent-integration instruction blocks into the global `CLAUDE.md`/`AGENTS.md` (managed marker section); `mem doctor` re-checks all of it. `mem save --dedup-check` (D18 S8): advisory-only, full detector report to stderr, never blocks the save or changes its exit code — the save-path dedup bypass stays D3's designed recourse |
+| `cli` | `mem` entry point: `init · save · search · get · list · extract · dedup · reindex · doctor · links · stats · retry · pending · refresh · delete` (links = dangling-link health, D12; stats = usage counts from the local invocation log, D8; retry/pending/refresh/delete = host-mediated shared-write transport, which act only on an instance provisioned for shared writes and refuse everywhere else — a private deployment mode, held as of 2026-11, see `SHARED-WRITES.md`; `tests/test_docs_cli_consistency.py` pins this list to the parser) | stdlib argparse; never interactive; meaningful exit codes; `--json` on every read; one-line errors. **`mem init` owns setup**: creates `~/.agent-memory` + git init, verifies Ollama/models/FTS5, and installs/refreshes the agent-integration instruction blocks into the global `CLAUDE.md`/`AGENTS.md` (managed marker section); `mem doctor` re-checks all of it. `mem save --dedup-check` (D18 S8): advisory-only, full detector report to stderr, never blocks the save or changes its exit code — the save-path dedup bypass stays D3's designed recourse |
 | `agent-integration/` | Shipped **as data, not code**: the CLAUDE.md + AGENTS.md instruction blocks (when to save/search unprompted) and the **extract-knowledge procedure** | The invisibility mechanism, vendor-scoped per DECISION_LOG D1: ambient awareness is claimed and proved on Claude; the AGENTS.md block carries the same instructions to approved-vendor consumers (Codex), but for codex/agy v1 claims installation only (F11); Antigravity/Gemini-backed agents are excluded from memory work entirely |
 
 **The extract-knowledge procedure** (agent-side, per Brent's design): ≥2 fresh-eyed extractor
@@ -86,7 +86,7 @@ Source of truth: `~/.agent-memory/concepts/*.md`. Since D15 the root is an env s
 **`MEM_KB_ROOT`** points the whole CLI (init through stats) at an alternate KB *instance* —
 a second, fully isolated store with its own git repo, indexes, and recall scope (first
 consumer: the personal KB, kept out of work-session ambient recall); unset, the default
-`~/.agent-memory` is unchanged, and every invariant (local-only, no remote, OKF) applies
+`~/.agent-memory` is unchanged, and every invariant (local-only, no remote beyond `.allowed-remotes`, OKF) applies
 per-instance. The derived stores — `.index/mem.db` (FTS5 +
 vectors + the D18 chunk table + the D18 S7 claim-vector table + embed-queue + metadata, one
 SQLite file) and `.index/graph.json`
@@ -104,19 +104,19 @@ the dedup detection/adjudication log) are NOT derived — reindex preserves both
   .index/graph.json     # derived: graph edge cache (wikilink/related/topic edges)
   .index/dedup-log.jsonl # NOT derived: dedup detection/adjudication log (D18 S4.5) — reindex leaves it alone
   .index/usage.jsonl    # NOT derived: usage telemetry (D8) — reindex leaves it alone
-  .git/                 # local history, auto-commit per write, NO remote
+  .git/                 # local history, auto-commit per write; remotes only per .allowed-remotes (D1)
 ```
 
 ## External Dependencies
 | Dependency | Purpose | Constraint |
 | --- | --- | --- |
-| Python 3.12+ via `uv` | Runtime + packaging (`uv tool install`, `uv run pytest`) | WSL2 Linux side only |
+| Python 3.12+ via `uv` | Runtime + packaging (`uv tool install`, `uv run pytest`) | Linux (the WSL2 Linux side at the 2026-07 intake) |
 | Ollama | Local embedding daemon — `nomic-embed-text:v1.5` default, `qwen3-embedding:0.6b` step-up | localhost only; `num_ctx` explicit (packaging default 2K); systemd-managed, `OLLAMA_KEEP_ALIVE` pinned; the ONLY permitted network target on the storage/index/search path. **Provisioning is owned by `/kodos:preflight`**, not any feature. The base URL honors **`MEM_OLLAMA_URL`** (default `localhost:11434`) — the sanctioned test seam for up/down/hung daemon states; tests always run against an isolated `HOME`/KB root, never the real service or KB |
 | numpy | Vector math (cosine scan) | Boring, ubiquitous |
 | PyYAML | OKF frontmatter parse/serialize | — |
 | ~~networkx~~ — not shipped | 1–2-hop expansion proved to need no traversal lib (pure Python in `graph.py`) | Re-enters as a seam only if deeper traversal ever lands (rustworkx the likely pick) |
-| git (system binary, via subprocess) | KB history/auto-commit | Local repo, no remote — hard confidentiality line |
-| pytest (dev) | Verification (`uv run pytest`) | The KodOS verification command |
+| git (system binary, via subprocess) | KB history/auto-commit | Local repo; remotes only per `.allowed-remotes` (D1, 2026-10-15) — hard confidentiality line |
+| pytest (dev) | Verification (`uv run pytest`) | The verification command |
 
 No paid services, no cloud, no copyleft/SSPL components — $0 and Apache/MIT/PSF throughout.
 
@@ -124,7 +124,7 @@ No paid services, no cloud, no copyleft/SSPL components — $0 and Apache/MIT/PS
 - **The 10k-concept ceiling holds.** Brute-force cosine and in-process traversal are sized to
   it. If the KB grows ~10×, the seams flip on: sqlite-vec for ANN, cached traversal for graph —
   without changing the markdown source of truth or the CLI contract.
-- **Ollama GPU passthrough works on this WSL2 host as researched.** If not, CPU embedding of
+- **Ollama GPU passthrough worked on the 2026-07 WSL2 host as researched** (dated; any Linux host running Ollama serves). If not, CPU embedding of
   note-sized inputs still fits the < 1 s save budget at this scale.
 - **FTS5 is compiled into the system Python's sqlite3.** Verify at preflight; fallback is a
   keyword index (worse, known cost from the capstone).

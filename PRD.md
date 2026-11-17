@@ -7,6 +7,8 @@
 
 - **Owner:** Brent (@bgibson1618)
 - **Status:** Draft v0.1 — refined with Brent at the PRD session
+- **2026-11-17:** historical discovery document, preserved; constraints amended after the build
+  are dated in place. Shipped as 0.2.1; current criteria live in `FEATURES.md`.
 - **Last updated:** 2026-07-21
 - **Source:** `INTAKE.md`
 
@@ -90,15 +92,17 @@ session is effectively lost to every other agent and project.
 
 ## 8. Constraints
 
-- WSL2 Ubuntu; Python 3.12+ via `uv`; `uv run pytest` is the verification command.
+- Linux (Ubuntu; WSL2 Ubuntu at the 2026-07 intake); Python 3.12+ via `uv`; `uv run pytest` is
+  the verification command.
 - **OKF format is mandatory** for the markdown store.
 - **Embeddings are local-only** (employer confidentiality — content never leaves the machine at
   storage/index time): `nomic-embed-text:v1.5` default, `qwen3-embedding:0.6b` step-up; `num_ctx`
   must be set explicitly (Ollama's packaging defaults to 2K vs. the model's native 8K).
 - Graph is **derived** from wikilinks/frontmatter, traversed in-process — no graph daemon.
 - **KB data lives at `~/.agent-memory/`** — a dedicated directory that is itself a git repo with
-  **no remote** (free history/diffs/recovery; backup remains a local concern). Never inside this
-  code repo; never pushed to a personal remote. (v1 stated a single root; since D15,
+  **no remote other than the exact URLs listed in the instance's `.allowed-remotes` file** (D1
+  amendment, 2026-10-15; free history/diffs/recovery; backup remains a local concern). Never inside
+  this code repo; never pushed to a public, vendor-hosted or personal-cloud remote. (v1 stated a single root; since D15,
   2026-08-14, `~/.agent-memory/` is the *default instance* — `MEM_KB_ROOT` selects an
   alternate instance, and every constraint here applies per-instance.)
 - CLI name: **`mem`**.

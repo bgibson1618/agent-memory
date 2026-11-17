@@ -33,7 +33,8 @@
 - **AuthN / AuthZ:** n/a — single local user on a personal machine.
 - **Data handling:** all data at rest as plain files under the selected instance root —
   default `~/.agent-memory/`; `MEM_KB_ROOT` selects an alternate instance (D15) — each a
-  local git repo with **no remote**. **Zero network egress on the storage/index/search path** except localhost
+  local git repo whose only permitted remotes are the exact URLs in its `.allowed-remotes` file (D1
+  amendment, 2026-10-15). **Zero network egress on the storage/index/search path** except localhost
   Ollama — provable by the offline test (PRD criterion 5). No encryption at rest (OS/disk
   encryption is the platform's job). Memories persist until deleted; no auto-expiry.
 - **Sensitivity semantics (confirmed; revised after the pre-build review, 2026-07-21):**
@@ -65,15 +66,17 @@
   never fails because the embedder is down.
 - **Backups / durability (confirmed):** every write **auto-commits to the local git repo** at
   `~/.agent-memory/` — free history, diffs, and undo. Off-machine backup remains a manual,
-  Brent-owned concern (no remote allowed).
+  Brent-owned concern (no remote beyond `.allowed-remotes`).
 
 ### Environment & Constraints
-- **Runtime / platform:** WSL2 Ubuntu (`/home/...` side only); Python 3.12+ via `uv`.
-  RTX 3070 8 GB available to Ollama via WSL2 CUDA passthrough.
+- **Runtime / platform:** Linux (Ubuntu); Python 3.12+ via `uv`. (At the 2026-07 intake: WSL2
+  Ubuntu, `/home/...` side only, RTX 3070 8 GB via WSL2 CUDA passthrough — dated.)
 - **Toolchain:** `uv`, `pytest` (`uv run pytest` is the verification command), `git`, Ollama
   (systemd service; `OLLAMA_KEEP_ALIVE` pinned so the embedder stays warm).
 - **Deployment / distribution:** installed from this repo via `uv tool install` (editable), so
-  `mem` is on PATH for every shell and agent. No packaging/publishing in v1.
+  `mem` is on PATH for every shell and agent; a frozen release copy may be selected ahead of the
+  editable install by an explicit, separately approved activation (`RELEASE.md`, 2026-11). No
+  packaging/publishing in v1.
 - **External dependencies & limits:** Ollama with `nomic-embed-text:v1.5` (default; `num_ctx`
   set explicitly — packaging defaults to 2K) and optionally `qwen3-embedding:0.6b` (step-up).
   Model tag + digest + dimensions stamped into index metadata; mixed-dimension writes refused.

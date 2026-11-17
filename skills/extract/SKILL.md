@@ -19,7 +19,10 @@ before any other step.
 
 ## 2. Preflight
 
-Run `mem doctor`. Gate on the extraction path:
+Run `mem doctor`. Its first line, `runtime`, names the package actually imported — if that is not
+the release you expect to extract with, stop and say so. `mem doctor` drains pending embeddings
+(it writes to the instance's index), so run it only against the instance you are extracting
+into. Gate on the extraction path:
 
 - **Must pass:** kb-home, git-repo, no-remote, fts5, ollama, embed-model, embed-queue.
   Any of these failing → surface the doctor line(s) and stop; `mem doctor` output names
@@ -43,6 +46,10 @@ you to, restated for emphasis:
   match and similarity. Adjudicate umbrella-vs-member cases (DECISION_LOG D3) — a
   distinct-but-related concept may be saved via direct `mem save` with a `related:`
   backlink, and that override must be reported, never silent.
+
+- **Safe updates only**: when step 4's adjudication folds a candidate into an existing card,
+  read the card first (`mem get <slug> --json`) and pass its `version` as `--expected-version`
+  to `mem save --update`; a refusal means re-read and reconcile, never a fresh-token retry.
 
 Set expectations honestly: the run takes **minutes, not seconds** (DECISION_LOG D4) —
 report progress as each stage completes.

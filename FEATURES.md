@@ -9,7 +9,12 @@ during a build.
 **Proof methods:** `test` (automated), `observed` (agent runs it and watches the behavior),
 `sign-off` (human confirms). Flat ids; `depends_on` drives build order and parallelism.
 
-**Environment root (pre-F1):** Ollama provisioning — systemd enabled in WSL2, the daemon
+> **2026-11-17:** the KodOS state file (`.kodos/state.json`) is retired history; status is no longer
+> tracked there. Criteria amended after the build are dated in place. The two observed features
+> (F10, F11) are re-observed in bounded synthetic exercises before a release is called verified;
+> records in `BUILD_LOG.md`.
+
+**Environment root (pre-F1, as written 2026-07):** Ollama provisioning — systemd enabled in WSL2, the daemon
 installed, `nomic-embed-text:v1.5` pulled with `num_ctx` configured, FTS5 present in the
 system Python — is owned by **`/kodos:preflight`** and must pass before F1 is attempted. No
 feature installs the daemon; the build loop must not burn attempts against an unprovisioned
@@ -23,7 +28,8 @@ host. Tests exercise daemon states (up / down / hung) through the sanctioned end
 - **Depends on:** —
 
 **Functionality:** Brent (or an agent) runs `mem init` once and has a working, verified KB home:
-`~/.agent-memory/` with `concepts/`, the index, and a local git repo with no remote — plus the
+`~/.agent-memory/` with `concepts/`, the index, and a local git repo with no remote beyond
+`.allowed-remotes` (D1 amendment, 2026-10-15) — plus the
 managed agent-instruction blocks installed. `mem doctor` diagnoses the environment at any time,
 including confidentiality-invariant decay.
 
@@ -63,6 +69,10 @@ inspectably stored: valid OKF markdown with history, retrievable by slug, listab
   DECISION_LOG entry (the ARCHITECTURE open question, resolved at F2 start).
 - Slugs are deterministic (lowercase alnum-hyphen, NFKD-folded); saving onto an existing slug
   exits nonzero with a one-line error unless `--update`; `--update` bumps the updated timestamp.
+- (2026-11, D21) `--update` must carry `--expected-version` equal to the `version` that
+  `mem get <slug> --json` returned for what the caller read; a missing, malformed or stale token is
+  refused with nothing written and no commit, and the caller re-reads and reconciles rather than
+  retrying with a fresh token.
 - Every successful save produces exactly one commit in the local git history identifying the slug.
 - `mem list` shows saved concepts with their topics, so Brent can audit what has accumulated.
 - A save interrupted mid-write never leaves a corrupt or partial concept file (atomic rename).
@@ -80,6 +90,10 @@ embedding daemon absent — and returns results an agent can act on.
 - Each hit carries slug, title, score, and a snippet — enough for the calling agent to decide
   whether to `mem get` the full concept without a second guess.
 - An empty result set exits 0 with an empty list and one quiet line — no error noise for agents.
+- (2026-11) When the KB holds concepts but the semantic index is unbuilt or empty, `mem search`
+  still answers lexically and prints exactly one `warning: semantic leg skipped (...)` line on
+  stderr naming the remedy; stdout keeps its contract (a plain JSON array with `--json`). An empty
+  KB or a genuine no-match stays quiet.
 
 ## F4 — Semantic recall
 - **Proof:** `test` (paraphrase fixture recovered; bounded-drain and timeout semantics machine-asserted)
@@ -136,6 +150,9 @@ visible.
   `--no-work` excludes them entirely.
 - With Ollama down, fused search still answers from lexical + graph with exactly one warning
   line and exit 0 — degraded, never broken.
+- (2026-11) The same single warning line covers an unbuilt or empty semantic index on a KB with
+  concepts; a silent empty semantic leg is a defect. When the daemon is unreachable *and* the index
+  is unbuilt, the warning names the daemon.
 - Hits keep the agent-parseable contract (slug / title / score / snippet), one screen by default.
 
 ## F7 — Concurrent-session write safety
@@ -250,7 +267,10 @@ regression fails the test suite.
   socket guard runs as the fast inner layer.
 - With Ollama up, the guard asserts the only network peer across all operations is the local
   Ollama endpoint.
-- The guard runs inside `uv run pytest`, so an egress regression can never land silently.
+- The guard runs inside `uv run pytest`. The outer (namespace) leg needs an unprivileged user
+  namespace: with `MEM_REQUIRE_NETNS=1` its unavailability is a test failure (required acceptance
+  runs from a capable context, and the flag survives the suite's hermetic environment fixture);
+  without the flag an unavailable namespace is an explicit, visible skip — never silent (2026-11).
 
 ---
 

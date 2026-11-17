@@ -127,8 +127,11 @@ threshold), and the top hit's `relation` (`equivalent` | `candidate-subset` |
   `mem get <slug> --json` on the named hit and judge: **DUP** (same concept -
   drop), **DISTINCT** (umbrella/member, sibling - keep for step 5), or **FOLD**
   (the candidate adds material to the existing card - merge it INTO that card
-  with `mem save --update --slug <slug> --body ...`; D19 merge semantics keep
-  every field you omit; then drop the candidate from the batch). A
+  with `mem save --update --slug <slug> --expected-version <the version from
+  that mem get> --body ...`; a missing or stale version is refused with
+  nothing written - re-read and reconcile, never retry with a fresh token;
+  D19 merge semantics keep every field you omit; then drop the candidate
+  from the batch). A
   `candidate-superset` is never auto-skipped: skipping would discard the new
   material.
 - **Record every judgment** so the detector can be recalibrated mechanically

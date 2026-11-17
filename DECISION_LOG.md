@@ -859,3 +859,87 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   command). Rationale: the D19 commit hot-deployed merge semantics under a live
   engagement without a decision point; the seam restores one without giving up
   deploy-on-commit as the default. Not a product feature; repo tooling.
+
+## D1 — Amended: an allowlist for the KB's remote (ruled 2026-10-15; logged 2026-11-17)
+
+- **Decision (Brent, 2026-10-15):** a KB instance may keep a git remote whose exact URL is listed
+  in `<kb root>/.allowed-remotes` (one URL per line, `#` comments); every other remote remains a
+  `mem doctor` failure and a write-path warning. Public, vendor-hosted and personal-cloud remotes
+  are never allowed. Shipped in 0.2.1 (`BUILD_LOG.md` 2026-10-16: `gitkb.allowed_remotes()`,
+  `tests/test_d1_allowed_remotes.py`); the managed blocks say so. Logged here because the
+  2026-10-16 build entry carried the ruling without a decision entry.
+
+## D2 — Amended again: OKF v0.2 reviewed, no migration (2026-11-17)
+
+- **Basis:** the pinned v0.1 snapshot (`research/okf-spec-v0.1.md`) came from a repository that is
+  now a frozen copy; the specification moved to `GoogleCloudPlatform/open-knowledge-format`
+  (`SPEC.md`, "Version 0.2", read 2026-11-17).
+- **Finding, limited to what was checked:** ordinary concept files remain compatible with v0.2
+  consumers — parseable YAML frontmatter, non-empty `type`, no reserved file names. v0.2 supersedes
+  `timestamp` with `generated.{by,at}` (consumers may fall back to `timestamp`) and body citations
+  with frontmatter `sources[]`; it adds `verified`, `status`, `stale_after`, `resource`, an actor
+  convention and an Attested Computation type with its own required keys, which we never emit.
+  This is not a claim about every v0.2 type.
+- **Decision:** no format upgrade; the serializer's `tags`/`timestamp` mirrors stay as legacy-
+  compatible interop. Additive `generated`/`sources` emission is backlog, taken up only if interop
+  with a v0.2 provenance consumer is wanted.
+
+## D20 — Host-mediated shared writes: built 2026-10-20, a held private deployment mode (2026-11-17)
+
+- **What exists:** `shared.py` / `coordinator.py` and the `retry · pending · refresh · delete`
+  commands implement host-mediated writes for an instance that is both marked
+  (`agent-memory.sharedWrites` in the KB's git config) and configured through an operator profile;
+  `init` refuses a provisioned shared KB rather than initialising it. Endpoint values (host alias,
+  address, user, port) live only in the profile, never in source (2026-11 curation).
+- **Status:** held. No instance in this repository's tests is provisioned; an unmarked instance
+  ignores any profile; a marked instance with no usable profile fails closed with no transport
+  attempt. Live transport is not exercised by the suite. `SHARED-WRITES.md` is kept as the
+  historical procedure under a banner saying so. Re-enabling it is an operator decision with its
+  own approval, not a code change.
+
+## D21 — Every update carries the version it was based on (2026-11-17)
+
+- **Decision:** `mem save --update` requires `--expected-version` equal to the `version` returned
+  by the preceding `mem get <slug> --json`, compared under the writer lock; missing, malformed or
+  stale tokens are refused with nothing written and no commit. Extraction's link remap re-checks
+  each touched card under the lock and refuses a card that changed during extraction. The shipped
+  instruction blocks carry the read → version → update contract and forbid blind retries with a
+  fresh token.
+- **Why:** the privately installed release already enforced this (2026-11-11) while source still
+  accepted stale local updates, so a future source-based release could have lost the protection.
+  A deliberate public update-contract change; D19's merge semantics are unchanged.
+
+## D22 — A commit never deploys; release, activation and rollback are explicit (2026-11-17)
+
+- **Decision:** the post-commit hook no longer reinstalls the tool (it prints one identity line:
+  what `mem` on PATH imports now). `scripts/release.py` stages a revision into a read-only release
+  directory with a manifest, and activation into a uv tool prefix (non-editable install plus a
+  selector `.pth`) or rollback is a separate, receipted operator action that refuses the live
+  default prefix unless explicitly allowed. `mem --version` and `mem doctor`'s `runtime` line name
+  the imported package, selector and interpreter.
+- **Why:** a reinstall silently removed any release selector and changed what bare `mem` ran, which
+  a pinned wrapper then refused. This supersedes the 2026-09-02 "post-commit deploy seam" handoff
+  note above; `MEM_HOOK_NO_REINSTALL` is no longer needed.
+
+## D23 — Zero-egress outer leg: required where a user namespace is available (2026-11-17)
+
+- **Decision:** `MEM_REQUIRE_NETNS` survives the test suite's hermetic environment fixture; with it
+  set, an unavailable user+network namespace is a failure, without it an explicit visible skip.
+  Required acceptance runs from a context that can create the namespace; a context that cannot
+  (for example a shell confined so that unprivileged user namespaces are refused) records the
+  skip with its reason. No security-setting change is made to obtain the capability.
+
+## D24 — Lifecycle: the shared delivery workflow replaces KodOS for this project (2026-11-17)
+
+- **Decision:** development proceeds in small reviewed slices with one receipt per candidate
+  (command, source and configuration identity, duration, exit status, counts, evidence paths),
+  independent review of each slice, and separately approved activation. The KodOS artifacts
+  (`INTAKE.md`, `PRD.md`, `NFR_UX.md`, `IMPLEMENTATION.md`, `BUILD_LOG.md`, `.kodos/`) are
+  preserved as dated history and are not regenerated; the repository's `AGENTS.md`/`CLAUDE.md`
+  point at the shared workflow.
+- **Backlog separation (2026-11-17):** D18 S6 (rewiring `mem extract`'s dedup decision onto
+  `dedup.detect()`, with its transactional-batch spec) stays deferred and reusable. Items tied to a
+  retired engagement or a retired machine layout — the G1 calibration replay, the G2 60-ruling
+  sweep, the apbpf backup cron, `scripts/agent-memory-backup`'s wiring, the personal-KB passport
+  backup plan and the 2026-09-21 frozen-copy scheme — are listed as obsolete candidates awaiting
+  Brent's word; nothing is deleted.

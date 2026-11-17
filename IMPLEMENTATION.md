@@ -3,6 +3,11 @@
 > **Generated snapshot** (D21 / F30) — rendered by `scripts/render-snapshot.mjs` from
 > `FEATURES.md` + `.kodos/state.json`. **Do not hand-edit** — re-render instead.
 > Rendered: 2026-09-03T18:12:46Z.
+>
+> **Historical snapshot (note added 2026-11-17).** The KodOS renderer (`scripts/render-snapshot.mjs`,
+> `scripts/schedule.mjs`, `.kodos/state.json` scheduling) is retired with the KodOS lifecycle; those
+> scripts are not in the tree and this file is no longer regenerated. It records the build state on
+> 2026-09-03. Current status: `README.md` (Status) and `BUILD_LOG.md`.
 
 ## Status
 

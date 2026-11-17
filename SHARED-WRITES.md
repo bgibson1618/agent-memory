@@ -1,3 +1,15 @@
+# Historical procedure — a held private deployment mode
+
+This documents the host-mediated shared-write mode built on 2026-10-20 for instances
+provisioned by an operator profile and a KB marker. As of 2026-11-17 it is **held**
+(DECISION_LOG D20): no instance in this repository's tests is provisioned for it; the four
+transport commands (`retry`, `pending`, `refresh`, `delete`) refuse on any instance that is not
+both marked and configured; endpoint values live only in the operator profile, never in
+source; and nothing in this file grants permission to run these commands against a held
+replica. The original text follows unchanged for provenance.
+
+---
+
 # Private shared KB writes
 
 Provisioned instances use work-host as the authority. Agents can draft and search
