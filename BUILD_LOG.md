@@ -588,3 +588,17 @@ within a minute from the provenance diff and independently verified (16 of 16 ha
 lessons drawn from it (literal writes only; explicit working directory; never the served checkout).
 Publication is additionally gated: the outgoing history carries, at the import commit, lines with the
 alias that was later redacted, so a push needs an explicitly authorized treatment first (D27).
+
+## 2026-11-18 — The original checkout's `main` fast-forwarded (D27 executed)
+
+The prepared operation was executed by the coordinator at 12:01 CST after a fresh precondition
+check and with the hook's no-reinstall seam: the checkout's uncommitted 2026-10-20 tree became
+commit 0b02228 on the local branch `preserve/dirty-tree-2026-10-20` (fifteen files, each
+byte-identical to its provenance copy; the branch is never pushed), and `main` was fast-forwarded
+from dc76e55 to cbad20c. Verified afterwards, independently of the executor: the private review
+record still untracked and unchanged, the identity-only hook and the corrected skill at head,
+`mem --version` and every recorded runtime, wrapper, selector and plugin-registration hash
+unchanged, the candidate clone unchanged. Development happens in this checkout's `main` from here.
+Documentation only (this entry, D27's amendment, the README's "Where development happens"); the
+focused documentation and consistency tests re-run. Nothing pushed, published or deleted;
+publication remains blocked (D27).

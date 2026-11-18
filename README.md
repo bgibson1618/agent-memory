@@ -109,14 +109,15 @@ review of each slice, and explicit, separately approved activation.
 
 ### Where development happens (2026-11-17 closeout)
 
-- **Canonical development location:** this repository's `main` branch, once it has been
-  fast-forwarded to the closeout commit (the tip of branch `closeout-2026-11`, which contains the
-  reviewed remediation branch `remediation-2026-11`). Verify with `git log --oneline -1` and
+- **Canonical development location:** this repository's `main` branch, fast-forwarded on
+  2026-11-18 to the closeout commit (the tip of branch `closeout-2026-11`, which contains the
+  reviewed remediation branch `remediation-2026-11`). The checkout's previously uncommitted
+  2026-10-20 tree is commit 0b02228 on the local branch `preserve/dirty-tree-2026-10-20`, never to
+  be pushed (D27). Verify with `git log --oneline -1` and
   `git status`: the only expected untracked path is a private historical review record under
   `.kodos/evidence/`, deliberately not committed (D27).
 - **The isolated candidate clone** used for the 2026-11 remediation (a sibling directory named
-  `agent-memory-candidate`) was the workspace in which every reviewed commit was made. Until the
-  fast-forward is confirmed, development happens on its `closeout-2026-11` branch. After the
+  `agent-memory-candidate`) was the workspace in which every reviewed commit was made. Since the
   fast-forward its *tracked* content is all in `main`; its git-ignored `work/` directory holds
   rehearsal scratch **and** unique review-run evidence (reviewer terminal logs and event streams that
   were not copied into the private records) — archiving that evidence is a prerequisite to removing

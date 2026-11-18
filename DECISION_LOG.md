@@ -1008,3 +1008,12 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   can again be the ordinary place to develop. Preserving the uncommitted tree in two forms — a local
   preservation branch made with the hook's no-reinstall seam, and the provenance copies outside the
   repository — is what makes the fast-forward safe to propose without any stash, reset or deletion.
+- **Amendment (2026-11-18):** done. The coordinator executed the prepared operation at 12:01 CST
+  after a fresh precondition check: the uncommitted tree became commit 0b02228 on the local branch
+  `preserve/dirty-tree-2026-10-20` (fifteen files, each byte-identical to its provenance copy; the
+  hook's no-reinstall seam used), and `main` was fast-forwarded from dc76e55 to cbad20c. Verified
+  afterwards, independently of the executor: the private review record still untracked and
+  unchanged, the identity-only hook and the corrected skill at head, `mem --version` and every
+  recorded runtime, wrapper, selector and plugin-registration hash unchanged, the candidate clone
+  unchanged. Development happens in this checkout's `main` from here; nothing was pushed, published
+  or deleted, and publication stays blocked as stated above.
