@@ -1002,7 +1002,9 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   the tree, and a push of `main` would publish those blobs; rewriting history is not authorized by
   this decision. Until the fast-forward is confirmed, the candidate clone's `closeout-2026-11` is where
   development happens; afterwards it is the original checkout's `main`.
-- **Why:** the checkout had been the served source for the Claude plugin and carried a hook that
-  reinstalled the runtime on commit; with the frozen release and snapshots active and the hook
-  replaced, it can again be the ordinary place to develop. Preserving the dirty tree in three forms
-  (history, stash, provenance) is what made the fast-forward safe to propose.
+- **Why:** the checkout had been the served source for the Claude plugin and still carries the hook
+  that reinstalls the runtime on a source commit; with the frozen release and snapshots active, and
+  with the identity-only hook (D22) reaching the checkout through the pending fast-forward itself, it
+  can again be the ordinary place to develop. Preserving the uncommitted tree in two forms — a local
+  preservation branch made with the hook's no-reinstall seam, and the provenance copies outside the
+  repository — is what makes the fast-forward safe to propose without any stash, reset or deletion.
