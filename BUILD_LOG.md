@@ -615,3 +615,27 @@ normal use passes without issue (D27, second amendment).
 points there), the deferrals in the decision log, the advisory findings of the 2026-08 and 2026-09
 quality reviews and the PRD's deferred product directions. Each code finding was re-checked against
 the source first; two had been fixed and are listed as such. Documentation only.
+
+## 2026-11-18 — The printed procedure names the caller's entrypoint (D28)
+
+`mem extract --procedure --entrypoint NAME` prints every command the procedure shows as `NAME …`
+and leaves preflight to the caller, so a guarded entrypoint's held `doctor` is never a step; the
+`/mem:extract` skill prints it that way and keeps its hand mapping only as the fallback for a
+runtime without the option. Values a shell would split or expand are refused. Without the option
+the output is the unchanged package artifact. Full suite 435 passed (one namespace-leg skip, D23);
+the new tests failed against three deliberate mutations (a dropped form, the default preflight
+kept, spaces accepted).
+
+Skill handoff, observed once in a bounded synthetic exercise on the development source: a contained
+Claude session (Roster implementer, sonnet, inline subagents) was given the skill text, a 610-word
+synthetic document and a guarded synthetic entrypoint over a three-concept synthetic instance that
+holds `doctor` and the operator commands, with neither the ordinary CLI nor the private wrapper on
+its PATH. It printed the procedure with `--entrypoint`, ran two extractors and two reviewers
+before any write, ran `dedup` before `extract`, routed every memory command through the
+entrypoint (the instance's usage log shows only those), ran no held command, judged one
+duplicate-skip as distinct and saved it through the documented override, and its report matched
+the synthetic KB: four added, one rejected in review, two adjudications logged. About two and a
+half minutes. The fallback trigger was checked separately: the frozen release refuses the option
+with `unrecognized arguments: --entrypoint`, the message the skill names. No real instance was
+read or written; the frozen release and plugin snapshot on the laptop are unchanged. Records:
+private operations directory.
