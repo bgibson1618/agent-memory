@@ -537,3 +537,47 @@ independent opposite-vendor review, with every existing KB left untouched and ac
   decisions are unchanged; the original text is preserved in the private provenance records.
 - **Held / pending:** host-mediated shared writes (D20); live runtime and plugin activation, with its
   rollback, as a separately approved checklist; the laptop launcher bound to a release.
+
+## 2026-11-17 (evening) — Activation, plugin routing correction, closeout (branch closeout-2026-11)
+
+Activation of the remediation on the development laptop, on the operator's direct approval, from a
+reviewed pre-activation packet (checklist with a check and a rollback per live step; protected-state
+copies; rehearsal in a disposable prefix; seven review rounds to a passing packet). Executed in
+order: the staged runtime release `0.2.1+a1c3a6319b61` activated into the uv tool prefix (journal
+first; `mem --version` and `doctor` name the release; fingerprint deltas exactly the receipt layer and
+the selector set); the guarded personal wrapper re-pinned (non-writing `stats` check; the private
+instance's metadata unchanged); both harnesses pointed at a frozen plugin snapshot — Claude through its
+registry files, Codex through its own remove/add/re-add route, after that route had been reproduced on
+a byte copy of the full live config because a pre-existing unrelated marketplace entry made the global
+listing fail; the two receipted holds (profile aside, obsolete remote removed); an end-to-end proof of
+save, token-checked update, stale/missing-token refusals and held commands on a wholly synthetic
+instance. Independent live verification: 31 of 31 checks. No existing instance was written at any step.
+
+Findings during activation, each recorded with its lesson in the private records: a process scan
+matched the command's own shell twice (abort before mutation, harmless); the reproduction of the Codex
+route was home-isolated, not network-isolated, and must be named so; the plugin was disabled in the
+user's settings since earlier that day (registered, enabled and loaded are three facts); and the frozen
+skill still routed to bare `mem`, a default instance, `doctor` and `init`.
+
+The skill was corrected (D26) in two commits — a portable entrypoint resolution with an explicit mapping
+and an honest preflight, plus tests pinning the contracts — after a first review found the preflight
+overstated what `stats` proves, the tests missed fenced command forms and mapping destinations, and the
+plan's fingerprint baseline was stale; the recheck passed. A new snapshot was frozen and both harnesses
+switched to it (one semantic change in the Codex config; the two Claude registry hashes), verified 14 of
+14. A fresh contained session then loaded the corrected skill from the snapshot and selected the
+guarded entrypoint from the policy, but its own `claude plugin list` named the worktree: the user's
+`extraKnownMarketplaces` setting re-merges into the registry at every fresh start (D25). The operator
+pinned that one setting value; a fresh start then wrote the snapshot path (verified 11 of 11), and a
+restart of the Codex desktop app loaded the corrected skill there.
+
+Closeout: a reconciliation map of the original checkout's sixteen preserved changes (six byte-identical
+at head, eight entered the candidate byte-identical at the curated import and were changed only by
+reviewed commits, two had private endpoint values removed at import with the originals preserved and
+the delta recorded, one historical evidence record deliberately not imported); runtime release and
+plugin snapshot confirmed byte-identical to head for every archived file; this entry, D25–D27, the
+README's status and "Where development happens", `RELEASE.md`'s laptop state and plugin-snapshot
+procedure, and the deferred backlog in `FEATURES.md`. Documentation-only; the focused documentation and
+consistency tests re-run; the full suite's last run (406 passed on 8207268) still covers the unchanged
+source. The fast-forward of the original checkout's `main`, the publication of the branch and any
+removal of superseded copies are prepared as proposals for the operator; nothing was pushed, published
+or deleted. Records: private operations directory (outside the repository).

@@ -235,6 +235,13 @@ available), ≥2 fresh-eyed reviewers verify, and only survivors reach `mem extr
   added/skipped/rejected report matched the KB exactly. The agent-roster transport and the
   duplicate-skip path were not exercised in that run. Records in `BUILD_LOG.md`.
 
+- **2026-11-17 (evening) skill routing (D26):** the `/mem:extract` skill shipped in `skills/extract/`
+  now resolves its entrypoint from the governing memory policy before any tool call, maps every
+  command form of the printed procedure onto it, confines `doctor` to the route that permits it
+  and never suggests `init`; `tests/test_extract_skill_routing.py` pins this against the procedure
+  text. Served to both harnesses from the frozen plugin snapshot of that revision; a fresh Claude
+  session was observed loading it and selecting the laptop's guarded entrypoint (records private).
+
 ## F11 — Ambient agent integration
 - **Proof:** `observed` (a fresh session in a different project uses mem unprompted)
 - **Depends on:** F1, F6
@@ -296,3 +303,24 @@ after F2; F7 alongside F5 once F3 lands; F9 alongside F6 once F4 lands; F10 and 
 at the tail, with F12 joining once F8 also lands. The long pole is F1 → F2 → F4 → F9 → F10.
 Environment provisioning (Ollama + models + FTS5) precedes everything via `/kodos:preflight` —
 it is deliberately not a feature.
+
+---
+
+## Deferred backlog (2026-11-17 closeout)
+
+Not part of the closeout; each is a separate, later decision. Nothing here is claimed.
+
+- **F11 third observation:** unprompted capture was not observed in two bounded synthetic attempts
+  (recall was). A third attempt under the same protocol should present a result the task states as
+  confirmed; if still unobserved, F11 flips to needs-you with findings.
+- **D18 S6:** rewire `mem extract`'s dedup decision onto `dedup.detect()` with the transactional-batch
+  specification.
+- **Procedure entrypoint:** parametrise the printed extract-knowledge procedure so its command
+  examples name the resolved entrypoint instead of bare `mem` (today the skill's mapping covers it);
+  this is a runtime change and needs a new release.
+- **Repository/CLI rename** (the "Folio" working name), **performance work**, and the **OKF format
+  migration** (D2) remain deferred.
+- **Private historical evidence** under `.kodos/evidence/` that is not committed: keep untracked or
+  move to the private records — operator's choice (D27).
+- **Obsolete candidates awaiting the operator's word** (listed under D24): retired-engagement and
+  retired-machine items; nothing deleted.

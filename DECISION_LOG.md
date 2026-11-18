@@ -948,3 +948,52 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   sweep, the retired engagement's backup cron, `scripts/agent-memory-backup`'s wiring, the personal-KB passport
   backup plan and the 2026-09-21 frozen-copy scheme — are listed as obsolete candidates awaiting
   Brent's word; nothing is deleted.
+
+## D25 — Frozen plugin serving: the harness's declaration is the registration (2026-11-17)
+
+- **Decision:** both agent harnesses serve the `mem` plugin from a read-only plugin snapshot frozen
+  from one revision (`<releases-dir>/plugin-<version>+<sha12>`, manifest, 0555/0444), never from a
+  worktree. For Claude Code the authoritative registration is the user's `extraKnownMarketplaces`
+  setting, which the harness re-merges into its marketplace registry at every fresh start; the
+  registry files are derived state and the installed plugin's `installPath` is what loads. For
+  Codex the registration is its config's marketplace source, changed only through its own CLI
+  (remove, add, re-add) and verified by a semantic comparison of the config and the cache bytes.
+- **Why:** on 2026-11-17 the registry had been repointed at a snapshot and a fresh Claude start
+  silently restored the worktree path from the setting while the loaded skill still came from the
+  snapshot; the two facts had to be separated and the setting pinned. Serving from a worktree
+  meant that a dirty checkout, or any later commit, was what agents loaded.
+
+## D26 — `/mem:extract` resolves its entrypoint from the governing memory policy (2026-11-17)
+
+- **Decision:** the shipped skill names no default instance and no laptop-specific command. Before
+  any tool call or delegate it resolves ENTRYPOINT from the policy in effect: a guarded entrypoint
+  for one instance (a wrapper that selects the instance and holds `doctor`, `init`, `retry`,
+  `pending`, `refresh`, `delete`), or the ordinary `mem` for an authorized instance; with no
+  authorized route it stops and asks — an unset instance is not permission to use a default, and a
+  held instance is never a fallback. Every command form the printed procedure uses is mapped
+  explicitly; policy restrictions override procedure examples. The preflight claims only what each
+  check proves: `--version` for runtime identity (and, under a guard, the wrapper's own instance
+  validation), `doctor` where permitted and named as a write, otherwise a read-only daemon/model
+  probe that cannot see the embed queue or FTS5, with a stop before any fan-out.
+  `tests/test_extract_skill_routing.py` pins these contracts against the procedure text.
+- **Why:** the earlier skill told a session to use a held default instance, to run `doctor` (a
+  derived-state write) and to suggest `init`; on an installation whose policy routes through a
+  guarded wrapper those steps were outside the permitted path and would have been attempted first.
+  The skill text is a shipped, portable artifact; the laptop's routing belongs to its policy.
+
+## D27 — Closeout of the 2026-11 remediation: where development happens (2026-11-17)
+
+- **Decision:** the reviewed branch `remediation-2026-11` plus the closeout commit (branch
+  `closeout-2026-11`) is the development line; the original checkout's `main` is fast-forwarded to
+  it, after its uncommitted 2026-10-20 release tree is stashed with untracked files (kept, never
+  dropped) — every one of those sixteen files is either byte-identical at the new head, present in
+  git history at the curated import commit, or preserved outside the repository with its delta
+  recorded (the reconciliation map in the private records). The one file deliberately not imported,
+  a private historical review record under `.kodos/evidence/`, stays untracked and is not
+  committed to a publishable branch; whether to move it out is the operator's decision. The isolated
+  candidate clone, superseded plugin snapshots and rehearsal scratch are retained until the operator
+  closes the rollback window; nothing is deleted in the closeout, and nothing is pushed or published.
+- **Why:** the checkout had been the served source for the Claude plugin and carried a hook that
+  reinstalled the runtime on commit; with the frozen release and snapshots active and the hook
+  replaced, it can again be the ordinary place to develop. Preserving the dirty tree in three forms
+  (history, stash, provenance) is what made the fast-forward safe to propose.
