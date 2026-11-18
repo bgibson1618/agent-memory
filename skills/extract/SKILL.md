@@ -46,23 +46,31 @@ before any other step.
 ## 2. Preflight — honest about what each check proves
 
 1. **Runtime identity.** `ENTRYPOINT --version` must name the package or release the policy
-   expects (a guarded entrypoint refuses on drift by itself). Anything else → stop and say so.
-2. **Instance reachability.** `ENTRYPOINT stats` must succeed; it is non-writing. A refusal
-   names the problem — surface it and stop.
-3. **Embedding daemon and model** — the dependency `extract` and `dedup` need:
+   expects. Anything else → stop and say so. Under a guarded entrypoint a successful `--version`
+   also means the wrapper validated its instance before dispatching (it refuses otherwise); that
+   validation is the wrapper's evidence, not this skill's.
+2. **Instance readiness** — the instance must exist, be a repository, carry no disallowed remote
+   and have a working index:
    - Where ENTRYPOINT permits `doctor` (ordinary CLI): run `ENTRYPOINT doctor` against the
      instance you are extracting into, and only that one — it drains pending embeddings, which
      writes that instance's index. Must pass: kb-home, git-repo, no-remote, fts5, ollama,
      embed-model, embed-queue. Any failure → surface the doctor line(s) and stop. `blocks-*`
      staleness alone is non-blocking: note it; do not run `init` from this skill.
-   - Under a guarded entrypoint that holds `doctor`: probe the daemon read-only through your own
-     shell at the loopback endpoint the policy or wrapper configures (default
-     `http://127.0.0.1:11434`): `GET /api/version` must answer, and `GET /api/tags` must list
-     the configured embedding model (default `nomic-embed-text:v1.5`). These establish daemon
-     and model presence; they do NOT check the instance's embed queue or FTS5, which only
-     `doctor` can see. If the probe fails, stop before authoring any fan-out. If `dedup` or
-     `extract` later refuse for a reason this preflight could not see, stop and report — do not
-     drain, reindex or retry by hand.
+   - Under a guarded entrypoint that holds `doctor`: the wrapper's pre-dispatch validation
+     (check 1) is the instance evidence. `ENTRYPOINT stats` is non-writing telemetry you may run,
+     but its success proves nothing about the instance — the ordinary CLI's `stats` succeeds even
+     when the KB is missing.
+   - If neither the selected wrapper nor a policy-permitted check establishes the instance, stop
+     before authoring any fan-out.
+3. **Embedding daemon and model** — the dependency `extract` and `dedup` need:
+   - Ordinary route: covered by `doctor` above (ollama, embed-model, embed-queue, fts5).
+   - Under a guarded entrypoint: probe the daemon read-only through your own shell at the loopback
+     endpoint the policy or wrapper configures (default `http://127.0.0.1:11434`): `GET /api/version`
+     must answer, and `GET /api/tags` must list the configured embedding model (default
+     `nomic-embed-text:v1.5`). These establish daemon and model presence; they do NOT check the
+     instance's embed queue or FTS5, which only `doctor` can see. If the probe fails, stop before
+     authoring any fan-out. If `dedup` or `extract` later refuse for a reason this preflight could
+     not see, stop and report — do not drain, reindex or retry by hand.
 
 Never store knowledge elsewhere as a workaround for a failed preflight.
 
