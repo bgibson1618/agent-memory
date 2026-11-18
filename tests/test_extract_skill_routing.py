@@ -7,9 +7,13 @@ The skill is text, so these are textual contracts a fresh agent can be held to:
     spelled out (a guarded wrapper for one instance; the ordinary CLI for an authorized
     instance), a stop rule when neither is established, and no fallback to a default or
     held instance, a root override or bare `mem`;
+  - the skill prints the procedure with `--entrypoint ENTRYPOINT` (D28), so its commands
+    already name ENTRYPOINT; the hand mapping is only the fallback for a runtime that
+    refuses the option, and any other refusal is a stop;
   - every `mem <subcommand>` form the printed procedure (extract-knowledge.md) uses -
-    inline or in a fenced block - is mapped explicitly: permitted forms to the same
-    subcommand and arguments under ENTRYPOINT, held forms to their restriction;
+    inline or in a fenced block - is mapped explicitly for that fallback: permitted forms
+    to the same subcommand and arguments under ENTRYPOINT, held forms to their
+    restriction; the permitted set is exactly what `--entrypoint` substitutes;
   - the skill's own command examples use ENTRYPOINT, never bare `mem`;
   - `doctor` is confined to the route that permits it and named as a write, `init` is
     never a step, no default instance path is baked in, and the preflight claims only
@@ -80,7 +84,8 @@ def test_skill_examples_use_entrypoint_not_bare_mem():
         assert probe.startswith("- `mem ") or probe.startswith("|") or "never fall back" in probe, line
     norm = _norm(SKILL)
     for needle in ("`ENTRYPOINT --version`", "`ENTRYPOINT doctor`", "`ENTRYPOINT stats`",
-                   "`ENTRYPOINT extract --procedure`", "`ENTRYPOINT extract --candidates`",
+                   "`ENTRYPOINT extract --procedure --entrypoint ENTRYPOINT`",
+                   "`ENTRYPOINT extract --candidates`",
                    "`ENTRYPOINT get <slug> --json`", "`ENTRYPOINT save --update`", "direct `ENTRYPOINT save`"):
         assert needle in norm, needle
 
@@ -110,3 +115,25 @@ def test_report_names_entrypoint_and_limits():
     report = SKILL.split("## 4. Report", 1)[1]
     assert "ENTRYPOINT and instance used" in report
     assert "preflight limit" in report
+
+
+def test_procedure_is_printed_with_the_entrypoint_and_the_mapping_is_only_a_fallback():
+    norm = _norm(SKILL)
+    step3 = _norm(SKILL.split("## 3. Run the choreography", 1)[1].split("## 4.", 1)[0])
+    assert "`ENTRYPOINT extract --procedure --entrypoint ENTRYPOINT`" in step3
+    assert "every command it names is already `ENTRYPOINT …`" in step3
+    assert "its preflight section defers to step 2" in step3
+    assert "applying the step-0 mapping to every command" not in norm      # the old primary route is gone
+    assert "Older runtimes only" in norm and "`unrecognized arguments: --entrypoint`" in norm
+    assert "Any other refusal of that command" in norm and "is a stop, not a reason to drop the option" in norm
+    assert "one command name or one absolute path" in norm
+
+
+def test_fallback_mapping_covers_exactly_what_the_cli_substitutes():
+    from agent_memory import blocks
+
+    permitted = {m.group("sub") for m in PERMITTED_MAP.finditer(SKILL)}
+    assert permitted == set(blocks.PROCEDURE_FORMS)
+    # the procedure's only other form is its preflight `doctor`, which --entrypoint removes
+    assert _forms(PROCEDURE) - set(blocks.PROCEDURE_FORMS) == {"doctor"}
+    assert "doctor" not in _forms(blocks.render_procedure("ENTRYPOINT").replace("ENTRYPOINT ", "mem "))

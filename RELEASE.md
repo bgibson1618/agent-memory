@@ -109,7 +109,9 @@ else, so the harness plugin is frozen separately: copy `.claude-plugin/marketpla
 `.claude-plugin/plugin.json` and `skills/extract/SKILL.md` from the exact revision (`git show
 <rev>:<path>`) into `<releases-dir>/plugin-<version>+<sha12>/`, write `SNAPSHOT-SOURCE.txt`
 (`rev <sha> created <UTC>`), write `SNAPSHOT-MANIFEST.sha256` over those four files (it excludes
-itself), make directories 0555 and files 0444, and check with `sha256sum --check`. The plugin
+itself), make directories 0555 and files 0444, and check with `sha256sum --check`. When the skill
+depends on a CLI option the running release lacks (D28's `--entrypoint`), freeze the runtime
+release and the plugin snapshot from the same revision and switch them together. The plugin
 version stays the CLI's version; the snapshot id carries the commit. A snapshot that nothing
 serves any more may be removed by hand, never automatically.
 

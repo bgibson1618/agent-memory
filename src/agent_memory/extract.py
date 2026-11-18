@@ -241,10 +241,20 @@ def _store_vector(con, slug: str, text: str, vec: list) -> None:
 
 
 def cmd_extract(args) -> int:
+    entrypoint = getattr(args, "entrypoint", None)
+    if entrypoint is not None and not args.procedure:
+        print("error: --entrypoint applies only to --procedure", file=sys.stderr)
+        return 1
     if args.procedure:
         # The agent-side choreography, shipped as package data. Printing it
-        # needs neither a KB nor the daemon.
-        sys.stdout.write(blocks.render_block(blocks.EXTRACT_PROCEDURE))
+        # needs neither a KB nor the daemon. With --entrypoint (D28) every
+        # command names the caller's policy-resolved entrypoint.
+        try:
+            text = blocks.render_procedure(entrypoint)
+        except ValueError as e:
+            print(f"error: {e}", file=sys.stderr)
+            return 1
+        sys.stdout.write(text)
         return 0
     if not args.candidates:
         print("error: extract requires --candidates (or --procedure)", file=sys.stderr)

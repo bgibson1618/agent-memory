@@ -241,6 +241,11 @@ available), ≥2 fresh-eyed reviewers verify, and only survivors reach `mem extr
   and never suggests `init`; `tests/test_extract_skill_routing.py` pins this against the procedure
   text. Served to both harnesses from the frozen plugin snapshot of that revision; a fresh Claude
   session was observed loading it and selecting the laptop's guarded entrypoint (records private).
+- **2026-11-18 entrypoint in the printed procedure (D28):** `mem extract --procedure --entrypoint
+  NAME` prints every command as `NAME …` and leaves preflight to the caller; the skill prints it
+  that way, so an agent no longer translates commands by hand (the mapping remains only as the
+  fallback for a runtime without the option). `tests/test_procedure_entrypoint.py` pins the CLI
+  contract.
 
 ## F11 — Ambient agent integration
 - **Proof:** `observed` (a fresh session in a different project uses mem unprompted)

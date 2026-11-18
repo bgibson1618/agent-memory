@@ -30,6 +30,52 @@ def render_block(name: str) -> str:
     return text.rstrip("\n") + "\n"
 
 
+# `mem extract --procedure --entrypoint NAME` (D28). The caller resolved NAME
+# from its memory policy and ran that policy's preflight; the printed procedure
+# then names NAME in every command it shows and leaves preflight to the caller,
+# so a guarded entrypoint's held `doctor` never appears as a step.
+PROCEDURE_FORMS = ("extract", "dedup", "get", "save")
+_FORM = re.compile(r"(?:^|(?<=`))mem (?=(?:extract|dedup|get|save)\b)", re.MULTILINE)
+_NAME_PART = re.compile(r"[A-Za-z0-9._+-]+\Z")
+_PREFLIGHT_HEAD = "## 0. Preflight\n\n"
+_NEXT_HEAD = "\n## 1. "
+_CALLER_PREFLIGHT = (
+    "`{name}` was resolved by your caller from its memory policy, and that\n"
+    "policy's preflight ran before this procedure was printed (for `/mem:extract`,\n"
+    "the skill's preflight step). Do not repeat it here, and never run a command\n"
+    "`{name}` holds - its refusals are final. `mem extract` and `mem dedup` need\n"
+    "the local embedding daemon; if either refuses for a reason that preflight\n"
+    "could not see, surface the refusal to Brent and stop - never store knowledge\n"
+    "elsewhere as a workaround.\n"
+)
+
+
+def check_entrypoint(name: str) -> str:
+    """One command name, or one absolute path; nothing a shell would split or expand."""
+    parts = name[1:].split("/") if name.startswith("/") else [name]
+    if not name or name.startswith("-") or not all(
+        _NAME_PART.match(part) and part not in (".", "..") for part in parts
+    ):
+        raise ValueError(
+            "--entrypoint takes one command name or one absolute path (letters, digits"
+            " and . _ + -, with / only between path components); no spaces, quotes or"
+            f" shell characters - use a wrapper script for a command with arguments; got {name!r}"
+        )
+    return name
+
+
+def render_procedure(entrypoint: str | None = None) -> str:
+    """The extract-knowledge procedure; with an entrypoint, as that caller runs it."""
+    text = render_block(EXTRACT_PROCEDURE)
+    if entrypoint is None:
+        return text
+    name = check_entrypoint(entrypoint)
+    start = text.index(_PREFLIGHT_HEAD) + len(_PREFLIGHT_HEAD)
+    end = text.index(_NEXT_HEAD, start)
+    text = text[:start] + _CALLER_PREFLIGHT.format(name=name) + text[end:]
+    return _FORM.sub(lambda _m: name + " ", text)
+
+
 def _atomic_write(path: Path, text: str) -> None:
     tmp = path.with_name(path.name + ".mem-tmp")
     tmp.write_text(text, encoding="utf-8")

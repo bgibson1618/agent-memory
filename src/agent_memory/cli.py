@@ -174,6 +174,12 @@ def main(argv=None) -> int:
         "--procedure", action="store_true",
         help="print the agent-side extract-knowledge procedure and exit",
     )
+    p_extract.add_argument(
+        "--entrypoint", metavar="NAME",
+        help="with --procedure: name every command as NAME (one command name or absolute path)"
+        " instead of `mem`, and leave preflight to the caller that resolved NAME from its"
+        " memory policy (D28)",
+    )
     p_extract.add_argument("--json", action="store_true", help="machine-readable output")
     p_extract.add_argument("--operation-id", help="optional UUID for the complete shared extraction")
     p_extract.set_defaults(func=extract.cmd_extract)

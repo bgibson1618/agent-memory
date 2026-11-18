@@ -11,7 +11,8 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 ## Suggested order
 
 1. **F11 third observation**: it answers whether ambient capture works at all.
-2. **Procedure entrypoint**: small, and it exercises the release flow end to end.
+2. **Release the procedure entrypoint** (done in source, D28): freeze the runtime release and
+   the plugin snapshot from one revision and switch both; it exercises the release flow end to end.
 3. **D18 S6 with the dedup performance items**: they touch the same engine.
 
 ## Features and correctness
@@ -25,9 +26,11 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   sequential detect-then-save loop under the write lock, and any failure rolls the batch back.
   Reserved seams already exist (`strict_claim_leg`, `precomputed_claim_vecs`, `fakes.die_after`).
   Until then the procedure runs `mem dedup` as an explicit step. Source: D18 (2026-09-03), D24.
-- **Procedure entrypoint.** Parametrise the printed extract-knowledge procedure so its command
-  examples name the resolved entrypoint instead of bare `mem`; the skill's mapping covers this
-  today. Runtime change, so it needs a new release. Source: README known limitations.
+- **Procedure entrypoint: release and activation.** Implemented in source on 2026-11-18 (D28,
+  `mem extract --procedure --entrypoint NAME`; the skill uses it). The laptop's frozen release and
+  plugin snapshot predate it; releasing it means one runtime release and one plugin snapshot from
+  the same revision, switched together on the operator's word. The skill's fallback mapping
+  covers the older runtime meanwhile.
 - **Extraction does not see unindexed external edits.** `mem extract` drains queued embeddings and
   checks duplicates against the index without first reconciling concept files edited outside
   `mem`, so a hand-edited concept can be missed as a duplicate. The 2026-08-14 review called this

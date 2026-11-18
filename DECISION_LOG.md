@@ -1024,3 +1024,26 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   addresses or non-synthetic endpoints in the outgoing history). Task branches are not pushed; the
   preservation branch is never pushed. The rollback window is to be closed on 2026-11-25 if a week
   of normal use passes without issue; every saved copy stays until then.
+
+## D28 — The printed procedure names the caller's entrypoint (2026-11-18)
+
+- **Decision:** `mem extract --procedure --entrypoint NAME` prints the extract-knowledge procedure
+  with every command form (`extract`, `dedup`, `get`, `save`, inline or fenced, arguments
+  unchanged) as `NAME …`, and replaces the procedure's preflight section with one paragraph: NAME
+  was resolved by the caller from its memory policy, the policy's preflight has run, and a command
+  NAME holds is never run. NAME is one command name or one absolute path (letters, digits,
+  `. _ + -`, `/` only between path components); anything a shell would split or expand, a relative
+  path with a slash, a leading `-` or a `.`/`..` component is refused with exit 1 and one error
+  line, as is `--entrypoint` without `--procedure`. Without the option the output is unchanged:
+  the portable package artifact, bare `mem`, its own preflight. The `/mem:extract` skill prints
+  the procedure with `--entrypoint ENTRYPOINT`; its hand mapping remains only for a runtime that
+  rejects the option as unrecognized, and any other refusal is a stop.
+- **Why:** the skill made agents translate every bare `mem` in the printed text through a mapping,
+  and a plain name substitution is not enough: the procedure's only held form under a guarded
+  entrypoint is its preflight `doctor`, whose refusal the procedure treats as a stop. Leaving
+  preflight to the caller keeps policy out of the package (the CLI never learns which commands an
+  entrypoint holds) and puts the check where the policy is read.
+- **Consequences:** the skill text depends on the option, so the next runtime release and plugin
+  snapshot are frozen from the same revision; until then the laptop's frozen copies keep the
+  2026-11-17 behaviour, which the skill's fallback still covers. No version change in this
+  decision; the release step is separate.

@@ -22,8 +22,14 @@ ENTRYPOINT for the whole run:
 | the ordinary CLI for an authorized instance | `mem`, against the instance the policy names (`MEM_KB_ROOT` only when the policy names that root) | the full CLI is available where the policy allows it |
 | nothing readable, or no authorized route for this document | — | **stop and ask Brent** before any tool call or delegate; an unset instance is not permission to use a default instance, and a held instance is never a fallback |
 
-Every `mem …` command in this skill AND every `mem …` command in the printed procedure runs as
-`ENTRYPOINT …`. The complete mapping (the procedure uses exactly these forms):
+Every command in this skill runs as `ENTRYPOINT …`. The printed procedure names ENTRYPOINT itself:
+step 3 prints it with `--entrypoint ENTRYPOINT` (ENTRYPOINT exactly as you run it — one command
+name or one absolute path), so every command it shows is already `ENTRYPOINT …` and its preflight
+is step 2 of this skill.
+
+Older runtimes only: if that command is refused because the option is unrecognized (the runtime
+prints `unrecognized arguments: --entrypoint`), print the procedure without `--entrypoint` and run
+each `mem …` command it names through this mapping (the procedure uses exactly these forms):
 
 - `mem extract …` → `ENTRYPOINT extract …`
 - `mem dedup …` → `ENTRYPOINT dedup …`
@@ -32,9 +38,11 @@ Every `mem …` command in this skill AND every `mem …` command in the printed
 - `mem doctor` → only where ENTRYPOINT permits it (step 2); held under a guarded entrypoint
 - `mem init` → never from this skill; managed-block regeneration is a policy decision, not a preflight step
 
-Policy restrictions override procedure examples: if the printed procedure names a command that
-ENTRYPOINT holds, do the policy-permitted equivalent given here or stop — never fall back to bare
-`mem`, a root override, or a different instance. Name the ENTRYPOINT and instance in your report.
+Any other refusal of that command — including an ENTRYPOINT the option does not accept — is a
+stop, not a reason to drop the option. Policy restrictions override procedure examples: if the
+printed procedure names a command that ENTRYPOINT holds, do the policy-permitted equivalent given
+here or stop — never fall back to bare `mem`, a root override, or a different instance. Name the
+ENTRYPOINT and instance in your report.
 
 ## 1. Resolve the document
 
@@ -76,10 +84,12 @@ Never store knowledge elsewhere as a workaround for a failed preflight.
 
 ## 3. Run the choreography
 
-Run `ENTRYPOINT extract --procedure` and **follow the printed procedure exactly**, applying the
-step-0 mapping to every command it names — it is the single source of truth for the fan-out
-counts, fresh-eyes isolation rules, reviewer templates, and the final `ENTRYPOINT extract
---candidates` call. Non-negotiables it will hold you to, restated for emphasis:
+Run `ENTRYPOINT extract --procedure --entrypoint ENTRYPOINT` and **follow the printed procedure
+exactly**: every command it names is already `ENTRYPOINT …` (on an older runtime, the step-0
+fallback mapping applies instead), and its preflight section defers to step 2, which you have run.
+It is the single source of truth for the fan-out counts, fresh-eyes isolation rules, reviewer
+templates, and the final `ENTRYPOINT extract --candidates` call. Non-negotiables it will hold you
+to, restated for emphasis:
 
 - **Fresh eyes, twice** — extractors and reviewers are isolated subagents; only
   reviewer-approved candidates reach the CLI.
