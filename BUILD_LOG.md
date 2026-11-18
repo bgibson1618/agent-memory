@@ -571,13 +571,20 @@ pinned that one setting value; a fresh start then wrote the snapshot path (verif
 restart of the Codex desktop app loaded the corrected skill there.
 
 Closeout: a reconciliation map of the original checkout's sixteen preserved changes (six byte-identical
-at head, eight entered the candidate byte-identical at the curated import and were changed only by
+at head, seven entered the candidate byte-identical at the curated import and were changed only by
 reviewed commits, two had private endpoint values removed at import with the originals preserved and
-the delta recorded, one historical evidence record deliberately not imported); runtime release and
-plugin snapshot confirmed byte-identical to head for every archived file; this entry, D25–D27, the
+the delta recorded, one historical evidence record deliberately not imported); the runtime release's
+archived files confirmed byte-identical to head except `README.md`, which the closeout commits changed
+after the freeze (documentation only; no re-staging), and the plugin snapshot byte-identical; this entry, D25–D27, the
 README's status and "Where development happens", `RELEASE.md`'s laptop state and plugin-snapshot
 procedure, and the deferred backlog in `FEATURES.md`. Documentation-only; the focused documentation and
 consistency tests re-run; the full suite's last run (406 passed on 8207268) still covers the unchanged
 source. The fast-forward of the original checkout's `main`, the publication of the branch and any
 removal of superseded copies are prepared as proposals for the operator; nothing was pushed, published
-or deleted. Records: private operations directory (outside the repository).
+or deleted. Records: private operations directory (outside the repository). Those records also hold
+the account of the one incident of the day — an unquoted shell heredoc in the original checkout ran a
+backticked `git reset --hard` from prose and discarded the dirty tracked changes, which were restored
+within a minute from the provenance diff and independently verified (16 of 16 hashes) — and the
+lessons drawn from it (literal writes only; explicit working directory; never the served checkout).
+Publication is additionally gated: the outgoing history carries, at the import commit, lines with the
+alias that was later redacted, so a push needs an explicitly authorized treatment first (D27).

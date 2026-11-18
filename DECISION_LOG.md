@@ -983,9 +983,11 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 
 ## D27 — Closeout of the 2026-11 remediation: where development happens (2026-11-17)
 
-- **Decision:** the reviewed branch `remediation-2026-11` plus the closeout commit (branch
-  `closeout-2026-11`) is the development line; the original checkout's `main` is fast-forwarded to
-  it, after its uncommitted 2026-10-20 release tree is committed onto a local preservation branch
+- **Decision:** the reviewed branch `remediation-2026-11` plus the closeout commits (branch
+  `closeout-2026-11`, made in the isolated candidate clone) is the development line. The original
+  checkout's `main` is to be fast-forwarded to it — a prepared, separately confirmed operation; at the
+  time of this entry that checkout still sits at dc76e55 with its uncommitted tree — after that
+  uncommitted 2026-10-20 release tree is committed onto a local preservation branch
   (`preserve/dirty-tree-2026-10-20`, never pushed — it carries pre-redaction endpoint values) so that
   nothing is stashed, reset, cleaned or deleted — every one of those sixteen files is either
   byte-identical at the new head, present in git history at the curated import commit or on the
@@ -995,6 +997,11 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   committed to a publishable branch; whether to move it out is the operator's decision. The isolated
   candidate clone, superseded plugin snapshots and rehearsal scratch are retained until the operator
   closes the rollback window; nothing is deleted in the closeout, and nothing is pushed or published.
+  Publication is blocked until the operator decides how to treat the outgoing history: the import
+  commit (318e4df) carries lines with the private host alias that commit 8207268 later redacted from
+  the tree, and a push of `main` would publish those blobs; rewriting history is not authorized by
+  this decision. Until the fast-forward is confirmed, the candidate clone's `closeout-2026-11` is where
+  development happens; afterwards it is the original checkout's `main`.
 - **Why:** the checkout had been the served source for the Claude plugin and carried a hook that
   reinstalled the runtime on commit; with the frozen release and snapshots active and the hook
   replaced, it can again be the ordinary place to develop. Preserving the dirty tree in three forms

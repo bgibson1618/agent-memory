@@ -79,8 +79,10 @@ this repository activates anything on its own.
 Recorded here so that a new engineer can tell what runs without reading the operations records
 (which stay private, outside this repository).
 
-- **Runtime:** release `0.2.1+a1c3a6319b61` (frozen from this code at revision a1c3a63; its 33
-  source files are byte-identical to the current `main`), installed non-editably into the uv tool
+- **Runtime:** release `0.2.1+a1c3a6319b61` (frozen from this code at revision a1c3a63; 32 of its
+  33 archived files are byte-identical to the current head — every file under `src/`, plus
+  `pyproject.toml` and `uv.lock`; the archived `README.md` is the a1c3a63 text because the closeout
+  commits changed only documentation after the freeze), installed non-editably into the uv tool
   prefix and selected by `zz_agent_memory_release.pth`; `<releases-dir>/active.json` journals the
   previous editable receipt and the previous selector for `rollback`. `mem --version` prints the
   release path; `mem doctor` starts with `runtime: release 0.2.1+a1c3a6319b61`.
