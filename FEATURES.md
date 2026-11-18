@@ -308,19 +308,5 @@ it is deliberately not a feature.
 
 ## Deferred backlog (2026-11-17 closeout)
 
-Not part of the closeout; each is a separate, later decision. Nothing here is claimed.
-
-- **F11 third observation:** unprompted capture was not observed in two bounded synthetic attempts
-  (recall was). A third attempt under the same protocol should present a result the task states as
-  confirmed; if still unobserved, F11 flips to needs-you with findings.
-- **D18 S6:** rewire `mem extract`'s dedup decision onto `dedup.detect()` with the transactional-batch
-  specification.
-- **Procedure entrypoint:** parametrise the printed extract-knowledge procedure so its command
-  examples name the resolved entrypoint instead of bare `mem` (today the skill's mapping covers it);
-  this is a runtime change and needs a new release.
-- **Repository/CLI rename** (the "Folio" working name), **performance work**, and the **OKF format
-  migration** (D2) remain deferred.
-- **Private historical evidence** under `.kodos/evidence/` that is not committed: keep untracked or
-  move to the private records — operator's choice (D27).
-- **Obsolete candidates awaiting the operator's word** (listed under D24): retired-engagement and
-  retired-machine items; nothing deleted.
+Moved on 2026-11-18 to `BACKLOG.md`, the single list of everything not done. It also carries the
+code findings from the quality reviews and the PRD's deferred product directions.

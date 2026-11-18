@@ -608,3 +608,10 @@ alias judged harmless; no rewrite) — pushed to `origin` after the recorded pre
 branches and the preservation branch not pushed; keep every rollback copy, superseded snapshot and
 the candidate clone until the rollback window closes; close that window on 2026-11-25 if a week of
 normal use passes without issue (D27, second amendment).
+
+## 2026-11-18 — One backlog
+
+`BACKLOG.md` now lists everything not done: the deferred items from `FEATURES.md` (whose section
+points there), the deferrals in the decision log, the advisory findings of the 2026-08 and 2026-09
+quality reviews and the PRD's deferred product directions. Each code finding was re-checked against
+the source first; two had been fixed and are listed as such. Documentation only.
