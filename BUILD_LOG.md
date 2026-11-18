@@ -634,8 +634,8 @@ its PATH. It printed the procedure with `--entrypoint`, ran two extractors and t
 before any write, ran `dedup` before `extract`, routed every memory command through the
 entrypoint (the instance's usage log shows only those), ran no held command, judged one
 duplicate-skip as distinct and saved it through the documented override, and its report matched
-the synthetic KB: four added, one rejected in review, two adjudications logged. About two and a
-half minutes. The fallback trigger was checked separately: the frozen release refuses the option
+the synthetic KB: four added, one rejected in review, two adjudications logged; 139 s from
+launch to done. The fallback trigger was checked separately: the frozen release refuses the option
 with `unrecognized arguments: --entrypoint`, the message the skill names. No real instance was
 read or written; the frozen release and plugin snapshot on the laptop are unchanged. Records:
 private operations directory.
