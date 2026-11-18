@@ -641,3 +641,16 @@ with `unrecognized arguments: --entrypoint`, the message the skill names. No rea
 operations appear in the recorded handoff commands, and the recorded instance fingerprints and
 live-selection hashes were unchanged; the frozen release and plugin snapshot on the laptop are
 unchanged. Records: private operations directory.
+
+A second session, from the same fixtures in a fresh synthetic workspace and instance, ran under
+Roster's process containment (`--contain`; recorded as contained by `bwrap`: its own PID
+namespace, a private `/tmp`, the user and system buses, tmux and Docker hidden). That boundary
+leaves the filesystem unchanged and localhost reachable, so it is not a filesystem no-access
+boundary. The session behaved as the first: the procedure printed with `--entrypoint`, two
+extractors and two reviewers before any write, `dedup` before `extract`, every memory command
+through the entrypoint, no held command, one duplicate-skip judged distinct and saved through the
+override, and a report matching the synthetic KB (four added, one rejected in review, one
+adjudication logged); 161 s from launch to done. Roster's write confinement refused one scratch
+write outside the run directory, and the session wrote its scratch there instead, as its report
+says. No real-instance operations appear in its recorded commands; the recorded fingerprints and
+live-selection hashes were unchanged.

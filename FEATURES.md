@@ -245,11 +245,12 @@ available), ≥2 fresh-eyed reviewers verify, and only survivors reach `mem extr
   NAME` prints every command as `NAME …` and leaves preflight to the caller; the skill prints it
   that way, so an agent no longer translates commands by hand (the mapping remains only as the
   fallback for a runtime without the option). `tests/test_procedure_entrypoint.py` pins the CLI
-  contract. Observed once (bounded synthetic exercise, development source, inline subagents): a
-  session given the skill text and a guarded synthetic entrypoint that holds `doctor` printed the
-  procedure with `--entrypoint`, ran every memory command through that entrypoint and none it
-  holds, and its report matched the synthetic KB; this run also exercised the duplicate-skip path
-  and the documented direct-save override. Records in `BUILD_LOG.md`.
+  contract. Observed twice (bounded synthetic exercises, development source, inline subagents; the
+  second under Roster's process containment, which isolates processes, `/tmp` and buses but not
+  the filesystem): each session, given the skill text and a guarded synthetic entrypoint that
+  holds `doctor`, printed the procedure with `--entrypoint`, ran every memory command through that
+  entrypoint and none it holds, and its report matched the synthetic KB; both also exercised the
+  duplicate-skip path and the documented direct-save override. Records in `BUILD_LOG.md`.
 
 ## F11 — Ambient agent integration
 - **Proof:** `observed` (a fresh session in a different project uses mem unprompted)
