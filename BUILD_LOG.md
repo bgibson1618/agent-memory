@@ -626,8 +626,9 @@ the output is the unchanged package artifact. Full suite 435 passed (one namespa
 the new tests failed against three deliberate mutations (a dropped form, the default preflight
 kept, spaces accepted).
 
-Skill handoff, observed once in a bounded synthetic exercise on the development source: a contained
-Claude session (Roster implementer, sonnet, inline subagents) was given the skill text, a 610-word
+Skill handoff, observed once in a bounded synthetic exercise on the development source: a bounded
+synthetic Claude session (Roster implementer, sonnet, inline subagents; not run under a containment
+driver — its Roster record says uncontained) was given the skill text, a 610-word
 synthetic document and a guarded synthetic entrypoint over a three-concept synthetic instance that
 holds `doctor` and the operator commands, with neither the ordinary CLI nor the private wrapper on
 its PATH. It printed the procedure with `--entrypoint`, ran two extractors and two reviewers
@@ -636,6 +637,7 @@ entrypoint (the instance's usage log shows only those), ran no held command, jud
 duplicate-skip as distinct and saved it through the documented override, and its report matched
 the synthetic KB: four added, one rejected in review, two adjudications logged; 139 s from
 launch to done. The fallback trigger was checked separately: the frozen release refuses the option
-with `unrecognized arguments: --entrypoint`, the message the skill names. No real instance was
-read or written; the frozen release and plugin snapshot on the laptop are unchanged. Records:
-private operations directory.
+with `unrecognized arguments: --entrypoint`, the message the skill names. No real-instance
+operations appear in the recorded handoff commands, and the recorded instance fingerprints and
+live-selection hashes were unchanged; the frozen release and plugin snapshot on the laptop are
+unchanged. Records: private operations directory.

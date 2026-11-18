@@ -19,15 +19,15 @@ follows a shared delivery workflow of small reviewed slices (see "Getting orient
 earlier "all 12 features proved" snapshot is kept as dated history in `IMPLEMENTATION.md`.
 
 **Closeout, 2026-11-17 (evening).** The remediation of 2026-11-17 was activated on the development
-laptop and its source closed out: the daily `mem` runs a frozen release of this code (release id
+laptop and its source closed out: the daily `mem` runs a frozen release of revision a1c3a63 (release id
 `0.2.1+a1c3a6319b61`, selected by a release `.pth` in the uv tool prefix; `mem --version` prints
 the release path), a guarded personal wrapper is pinned to that release, and both agent harnesses
-serve the `/mem:extract` plugin from a frozen plugin snapshot of this revision rather than from a
-worktree. Two private, machine-specific holds are in force and receipted: the shared-write
+serve the `/mem:extract` plugin from a frozen plugin snapshot of revision 8be9b09 rather than from a
+worktree; later source changes (D28) reach them only through the next release. Two private, machine-specific holds are in force and receipted: the shared-write
 operator profile is set aside and an obsolete Git remote was removed from the development
 checkout. What is active, how it was selected and how to roll it back is in `RELEASE.md`
-("What is active on the development laptop"). Nothing has been pushed or published; publication is
-a separate decision (see "Where development happens").
+("What is active on the development laptop"). At closeout nothing had been pushed; `main` was
+published on 2026-11-18 (see "Where development happens").
 
 **Known limitations (2026-11-17).** Unprompted capture by an agent (saving a new lesson without
 being asked) has not been demonstrated: two bounded synthetic attempts out of three showed recall
@@ -134,8 +134,8 @@ review of each slice, and explicit, separately approved activation.
   preservation branch is never pushed. Whether the private historical evidence stays local remains
   the operator's decision.
 - **Next task candidates:** `BACKLOG.md`, whose suggested order starts with a third bounded
-  unprompted-capture observation (F11), then parametrising the printed procedure's entrypoint,
-  then D18 S6 with the dedup performance items.
+  unprompted-capture observation (F11), then releasing and activating D28 (the procedure
+  entrypoint, done in source), then D18 S6 with the dedup performance items.
 
 ## Ops
 
