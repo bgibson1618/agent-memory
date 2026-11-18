@@ -985,10 +985,12 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
 
 - **Decision:** the reviewed branch `remediation-2026-11` plus the closeout commit (branch
   `closeout-2026-11`) is the development line; the original checkout's `main` is fast-forwarded to
-  it, after its uncommitted 2026-10-20 release tree is stashed with untracked files (kept, never
-  dropped) — every one of those sixteen files is either byte-identical at the new head, present in
-  git history at the curated import commit, or preserved outside the repository with its delta
-  recorded (the reconciliation map in the private records). The one file deliberately not imported,
+  it, after its uncommitted 2026-10-20 release tree is committed onto a local preservation branch
+  (`preserve/dirty-tree-2026-10-20`, never pushed — it carries pre-redaction endpoint values) so that
+  nothing is stashed, reset, cleaned or deleted — every one of those sixteen files is either
+  byte-identical at the new head, present in git history at the curated import commit or on the
+  preservation branch, or preserved outside the repository with its delta recorded (the
+  reconciliation map in the private records). The one file deliberately not imported,
   a private historical review record under `.kodos/evidence/`, stays untracked and is not
   committed to a publishable branch; whether to move it out is the operator's decision. The isolated
   candidate clone, superseded plugin snapshots and rehearsal scratch are retained until the operator
