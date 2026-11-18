@@ -124,11 +124,11 @@ review of each slice, and explicit, separately approved activation.
   the clone or `work/agents/`, and removal is the operator's separate decision.
 - **Committing is safe:** the post-commit hook prints which package `mem` imports and never
   installs anything (D22). What runs on the laptop changes only through `scripts/release.py`.
-- **Pending publication:** nothing has been pushed, and publication is currently **blocked**: the
-  outgoing history carries, at the import commit, lines with the host alias that a later commit
-  redacted from the tree, so pushing `main` would publish those blobs. How to treat that history
-  (and whether the private historical evidence stays local) is the operator's separate decision; a
-  prepared proposal lives in the private operations records.
+- **Publication:** on 2026-11-18 the operator judged the host alias in the import commit's history
+  harmless (a nickname, not a hostname or credential) and chose to publish `main` as it is, without
+  any rewrite; `main` is pushed to `origin` from that date. Task branches are not pushed; the
+  preservation branch is never pushed. Whether the private historical evidence stays local remains
+  the operator's decision.
 - **Next task candidates:** the deferred backlog in `FEATURES.md` ("Deferred backlog"); a third
   bounded unprompted-capture observation (F11); parametrising the printed procedure's entrypoint.
 

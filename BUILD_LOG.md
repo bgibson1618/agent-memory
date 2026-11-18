@@ -602,3 +602,9 @@ unchanged, the candidate clone unchanged. Development happens in this checkout's
 Documentation only (this entry, D27's amendment, the README's "Where development happens"); the
 focused documentation and consistency tests re-run. Nothing pushed, published or deleted;
 publication remains blocked (D27).
+
+Later the same day the operator decided the three open questions: publish `main` as it is (the
+alias judged harmless; no rewrite) — pushed to `origin` after the recorded pre-push scan, task
+branches and the preservation branch not pushed; keep every rollback copy, superseded snapshot and
+the candidate clone until the rollback window closes; close that window on 2026-11-25 if a week of
+normal use passes without issue (D27, second amendment).

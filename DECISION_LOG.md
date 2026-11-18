@@ -1017,3 +1017,10 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   recorded runtime, wrapper, selector and plugin-registration hash unchanged, the candidate clone
   unchanged. Development happens in this checkout's `main` from here; nothing was pushed, published
   or deleted, and publication stays blocked as stated above.
+- **Amendment (2026-11-18, later the same day — publication):** the operator judged the alias in
+  the import commit's history harmless (a nickname, not a hostname or credential) and chose to
+  publish `main` as it is, without any rewrite; `main` is pushed to `origin` after the recorded
+  pre-push scan (alias lines only at the import commit; no home paths, private data root, e-mail
+  addresses or non-synthetic endpoints in the outgoing history). Task branches are not pushed; the
+  preservation branch is never pushed. The rollback window is to be closed on 2026-11-25 if a week
+  of normal use passes without issue; every saved copy stays until then.
