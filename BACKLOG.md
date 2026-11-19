@@ -10,20 +10,21 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 
 ## Suggested order
 
-1. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
+1. **F11 capture protocol** (Brent, 2026-11-19: establish it before the dedup work): test a
+   reworded memory instruction; if no wording produces the wanted saves, add an explicit
+   end-of-task capture step.
+2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
    decide on current files, write all-or-nothing, and share one decision.
-2. **F11 direction**: the fair baseline showed no unprompted capture or recall; choose how capture
-   should happen.
 
 ## Features and correctness
 
-- **F11, unprompted capture: decide the direction (needs Brent).** Three role-confounded attempts
-  and one fair baseline (2026-11-19, plain Claude Code session, same instruction block) produced no
-  unprompted save; the fair baseline did not search either. Options: an explicit "anything durable
-  to save?" step at task close (prompted, not ambient); a reworded save trigger that names general
-  lessons found during project work, re-observed under a new approval; or accept recall-only. Any
-  rerun must not use a Roster role whose prompt forbids writes outside its run directory.
-  Source: `FEATURES.md` F11.
+- **F11, capture protocol (direction set by Brent, 2026-11-19).** Three role-confounded attempts
+  and one fair baseline (plain Claude Code session, same instruction block) produced no unprompted
+  save; the baseline did not search either. Next: a bounded test of a reworded memory instruction
+  against the current wording; if no wording produces the wanted saves, add an explicit
+  "anything durable to save?" step at the end of a task. Any test must not use a Roster role whose
+  prompt forbids writes outside its run directory. Adopting a wording or step on the laptop also
+  needs the governing memory policy to allow it and a release. Source: `FEATURES.md` F11.
 - **D18 S6, slice A — decide on current files.** Before deciding, extraction refreshes the index
   from the concept files and drains the embedding queue; no surface ever scores a vector whose
   content hash differs from the file's current text; unparseable files are reported by name; the
@@ -47,10 +48,11 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   procedure's separate dedup step folds into extract's report. Reproduced: extract saved 10 of 10
   partial duplicates that `mem dedup` caught on a 3,300-card synthetic KB. Reserved seams exist
   (`strict_claim_leg`, `precomputed_claim_vecs`, `fakes.die_after`). Source: D29.
-- **D18 S6, slice D (optional, undecided) — rulings into extract.** Let `mem extract` accept the
-  agent's recorded DUP/DISTINCT rulings so a held candidate judged distinct lands inside the same
-  batch instead of through a separate direct `mem save`. Decide after slice C shows how often
-  candidates are held.
+- **D18 S6, slice D (optional; Brent, 2026-11-19: decide after measuring) — rulings into extract.**
+  Let `mem extract` accept the agent's recorded DUP/DISTINCT rulings so a held candidate judged
+  distinct lands inside the same batch instead of through a separate direct `mem save`. Slice C
+  must make the number of held candidates countable (report and dedup log), and the decision
+  returns once real extractions show how many are held.
 - **OKF v0.2 provenance fields, optional.** Emit `generated` and `sources[]` alongside the current
   fields, only if interoperability with a v0.2 provenance consumer is wanted. Source: D2
   (2026-11-17).

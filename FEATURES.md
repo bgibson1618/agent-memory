@@ -299,9 +299,9 @@ not claimed.
   blocking confound.
 - **Status (2026-11-19): needs-you.** The protocol's three-attempt bound is reached and the fair
   baseline shows neither unprompted recall nor capture for ordinary bug-fixing work. Recall was
-  observed only when the task needed facts that existed solely in the KB (2026-11-17). How to make
-  capture happen — an explicit capture step at task close, a reworded save trigger, or accepting
-  recall-only — is Brent's decision (`BACKLOG.md`).
+  observed only when the task needed facts that existed solely in the KB (2026-11-17). Direction
+  (Brent, 2026-11-19): test a reworded memory instruction first; if no wording works, add an
+  explicit end-of-task capture step (`BACKLOG.md`).
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
