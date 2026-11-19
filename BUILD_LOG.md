@@ -690,3 +690,25 @@ finding the new skill, other tools' selections and role links unchanged, and the
 instances' metadata fingerprints unchanged. No rollback was needed. The coordinator then
 fast-forwarded the local `main` to a6d77bf. Nothing was pushed, tagged or published. Records:
 private operations directory.
+
+## 2026-11-19 — Capture baseline and the extraction/dedup scope (D29)
+
+- **Approved scope (Brent, relayed by the coordinator):** run the bounded capture exercise, then
+  scope the extraction and deduplication improvements; existing KBs unchanged; planning only.
+- **F11 third attempt:** one bounded synthetic session in the Roster implementer lane on the active
+  release. The agent fixed the planted bug (a `str.splitlines()` split of JSON Lines records) and
+  declined to save ("project-local bug, not a durable concept"); no search. Codex's review found the
+  observation confounded: the role's prompt forbids writes outside its run directory and the
+  synthetic KB was outside it — true of all three attempts since 2026-11-17.
+- **Fair baseline (Brent's request):** one plain headless Claude Code session, same project,
+  instructions, task and model, fresh synthetic KB. Correct fix; no search, no save, no mention of
+  memory. Real KBs, runtime and plugins unchanged (read-only fingerprints before and after).
+- **Extraction/dedup diagnostics** (synthetic, fake embedder, current code): seven reproduced gaps
+  (stale or missing index for hand-edited files, stale vectors in `mem dedup`, subset duplicates
+  saved by extract, partial batches, concurrent duplicates and a lock crash, same-slug self-
+  exclusion) and a timing baseline. The scoping plan's first draft failed Codex review on three
+  points (skip keyed on the verdict instead of the recommended action, the self-exclusion, the dedup
+  log treated as a cache); corrected, not re-reviewed.
+- **Decisions (Brent):** extract adopts `mem dedup`'s detector and policy; the batch never
+  hard-resets (D29). Records: private task folder `verification/capture-dedup-2026-11-19/`.
+

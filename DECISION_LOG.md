@@ -1053,3 +1053,33 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   with the guarded wrapper's pins moved to the new release. The version stays 0.2.1; the release id
   carries the commit. Rollback returns to `0.2.1+a1c3a6319b61` / `plugin-0.2.1+8be9b0927063`
   (`RELEASE.md`).
+
+## D29 — Extraction adopts the dedup detector; the batch rollback never hard-resets (2026-11-19)
+
+- **Decision (Brent, 2026-11-19):** when D18 S6 is built, `mem extract` decides duplicates with
+  the same detector and policy as `mem dedup` (`dedup.detect()` with the command's coverage
+  overlay), acting on the detector's `recommended_action`: `skip` skips, `add` saves, anything else
+  (`review`, `update-existing`) is reported for judgment and not saved. This replaces the 2026-09-03
+  follow-up spec's assumption that extract's output stays byte-identical with the new settings
+  unset: by default some candidates that are saved today will be held for judgment instead.
+- **Decision (Brent, 2026-11-19):** the transactional batch does not roll back with
+  `git reset --hard`, which could discard uncommitted hand edits in a KB. The batch writes its
+  files, makes one path-limited commit at the end, creates new files exclusively, and on a failure
+  before that commit removes only the files it created (verified by content hash); a small journal
+  covers process death between the writes and the commit. The dedup log is history, not a cache:
+  its records are written after the commit, tagged with it, and kept in a pending file if the append
+  fails.
+- **Why:** reproduced on the active release's code (private scoping record, 2026-11-19):
+  extract saved 10 of 10 planted partial duplicates that `mem dedup` flagged on a 3,300-card
+  synthetic KB; extract misses concept files edited or added outside `mem` until another command
+  refreshes the index; a failure partway through a batch leaves earlier concepts committed and a
+  staged file behind; two concurrent extracts often both save the same concept; `mem dedup`
+  reports a same-title exact duplicate as novel because it excludes the candidate's own slug.
+- **Plan:** slices A (decide on current files: refresh and drain before deciding, never score a
+  stale vector, fix the WAL-lock crash and the slug self-exclusion), B (the all-or-nothing batch
+  above, with today's decision rule), C (the shared decision), optional D (accept recorded
+  DUP/DISTINCT rulings in extract; undecided). Each slice is reviewed on its own; nothing is
+  released without a separate activation decision. The scoping plan was reviewed by Codex (FAIL on
+  its first draft: skip keyed on the verdict, the slug self-exclusion, the dedup log treated as a
+  cache) and corrected; the corrections were not re-reviewed.
+

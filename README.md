@@ -39,10 +39,11 @@ checks passed, fresh Claude and Codex sessions found the new skill, and the exis
 bases were not touched. Nothing was pushed or published. What is active and how to roll it back:
 `RELEASE.md`.
 
-**Known limitations (2026-11-17).** Unprompted capture by an agent (saving a new lesson without
-being asked) has not been demonstrated: two bounded synthetic attempts out of three showed recall
-but no capture (F11 note); it is not claimed. Deferred, not part of the closeout: the fuller
-extraction/dedup rewiring (D18 S6), renaming the repository and CLI, performance work, the OKF
+**Known limitations (2026-11-19).** Unprompted capture by an agent (saving a new lesson without
+being asked) has not been demonstrated and is not claimed: three bounded attempts (later found
+confounded by the delegate role's write rule) and one fair baseline in a plain Claude Code session
+produced no save; the baseline did not search either (F11 note). Deferred: the extraction/dedup
+rewiring (D18 S6, now decided as slices A-C in D29), renaming the repository and CLI, performance work, the OKF
 format migration (D2); every deferred item is listed in `BACKLOG.md`. Agent sessions opened
 before the 2026-11-18 release keep the skill they loaded until they are reloaded or restarted.
 The managed agent instruction blocks on the laptop are the operator's policy
@@ -142,9 +143,9 @@ review of each slice, and explicit, separately approved activation.
   any rewrite; `main` is pushed to `origin` from that date. Task branches are not pushed; the
   preservation branch is never pushed. Whether the private historical evidence stays local remains
   the operator's decision.
-- **Next task candidates:** `BACKLOG.md`, whose suggested order starts with a third bounded
-  unprompted-capture observation (F11), then D18 S6 with the dedup performance items (D28 was
-  released on 2026-11-18).
+- **Next task candidates:** `BACKLOG.md`, whose suggested order starts with D18 S6 slice A
+  (extraction and dedup decide on current files; D29), then the operator's direction for F11
+  capture.
 
 ## Ops
 

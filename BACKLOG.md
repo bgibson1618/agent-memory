@@ -10,24 +10,47 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 
 ## Suggested order
 
-1. **F11 third observation**: it answers whether ambient capture works at all.
-2. **D18 S6 with the dedup performance items**: they touch the same engine.
+1. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
+   decide on current files, write all-or-nothing, and share one decision.
+2. **F11 direction**: the fair baseline showed no unprompted capture or recall; choose how capture
+   should happen.
 
 ## Features and correctness
 
-- **F11, third unprompted-capture observation.** Both bounded synthetic attempts on 2026-11-17
-  showed unprompted recall but no unprompted capture. A third attempt under the same protocol
-  should present a result the task states as confirmed; if capture is still not observed, F11
-  flips to needs-you with findings. Source: `FEATURES.md` F11.
-- **D18 S6, rewire `mem extract`'s duplicate decision onto `dedup.detect()`.** The ratified
-  direction is the transactional batch: phase 1 does all daemon work, phase 2 is the unchanged
-  sequential detect-then-save loop under the write lock, and any failure rolls the batch back.
-  Reserved seams already exist (`strict_claim_leg`, `precomputed_claim_vecs`, `fakes.die_after`).
-  Until then the procedure runs `mem dedup` as an explicit step. Source: D18 (2026-09-03), D24.
-- **Extraction does not see unindexed external edits.** `mem extract` drains queued embeddings and
-  checks duplicates against the index without first reconciling concept files edited outside
-  `mem`, so a hand-edited concept can be missed as a duplicate. The 2026-08-14 review called this
-  its most consequential advisory finding.
+- **F11, unprompted capture: decide the direction (needs Brent).** Three role-confounded attempts
+  and one fair baseline (2026-11-19, plain Claude Code session, same instruction block) produced no
+  unprompted save; the fair baseline did not search either. Options: an explicit "anything durable
+  to save?" step at task close (prompted, not ambient); a reworded save trigger that names general
+  lessons found during project work, re-observed under a new approval; or accept recall-only. Any
+  rerun must not use a Roster role whose prompt forbids writes outside its run directory.
+  Source: `FEATURES.md` F11.
+- **D18 S6, slice A — decide on current files.** Before deciding, extraction refreshes the index
+  from the concept files and drains the embedding queue; no surface ever scores a vector whose
+  content hash differs from the file's current text; unparseable files are reported by name; the
+  concurrent-start sqlite "database is locked" crash at the WAL pragma becomes a one-line error or
+  goes away; `mem dedup` stops excluding an existing card that shares a new candidate's slug.
+  Reproduced 2026-11-19 on the active release's code: extract misses hand-edited and hand-added
+  cards until another command refreshes the index; `mem dedup` flags against a hand-edited card's
+  stale vector; `mem dedup` calls a same-title exact duplicate novel. Source: D29.
+- **D18 S6, slice B — all-or-nothing extraction batch.** Phase 1 does all daemon work; phase 2
+  re-checks under the write lock that nothing changed, writes the batch, makes one path-limited
+  commit, creates files exclusively, and on failure removes only its own files (never
+  `git reset --hard`); a journal covers a crash between writes and commit; link remaps happen in
+  memory with re-embedding queued after the commit; dedup-log records are history, written after
+  the commit and kept in a pending file if the append fails. Today's decision rule is kept, so
+  ordinary output is unchanged. Reproduced: a failure partway through leaves earlier concepts
+  committed and a staged file behind; two concurrent extracts often both save the same concept
+  (the second under `-2`, reported as distinct). Source: D29.
+- **D18 S6, slice C — one decision.** `mem extract` decides with `dedup.detect()` and `mem dedup`'s
+  coverage policy, acting on `recommended_action` (only `skip` skips; `review` and
+  `update-existing` are held for judgment); `mem save --dedup-check` gets the same policy; the
+  procedure's separate dedup step folds into extract's report. Reproduced: extract saved 10 of 10
+  partial duplicates that `mem dedup` caught on a 3,300-card synthetic KB. Reserved seams exist
+  (`strict_claim_leg`, `precomputed_claim_vecs`, `fakes.die_after`). Source: D29.
+- **D18 S6, slice D (optional, undecided) — rulings into extract.** Let `mem extract` accept the
+  agent's recorded DUP/DISTINCT rulings so a held candidate judged distinct lands inside the same
+  batch instead of through a separate direct `mem save`. Decide after slice C shows how often
+  candidates are held.
 - **OKF v0.2 provenance fields, optional.** Emit `generated` and `sources[]` alongside the current
   fields, only if interoperability with a v0.2 provenance consumer is wanted. Source: D2
   (2026-11-17).
@@ -45,7 +68,9 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 - **Extraction embeds the whole batch in one request under the flat embed timeout**, so a large
   batch can time out. Chunk the request (2026-08-10, repeated 2026-08-14 and 2026-08-17).
 - **Extraction's nearest-match search is a Python loop over candidates times the whole KB**
-  (`_best_match`, 2026-08-17).
+  (`_best_match`, 2026-08-17). Goes away with S6 slice C, which uses the vectorized scan. Baseline
+  (2026-11-19, synthetic 3,300 cards, fake embedder): 20 candidates take 1.0 s in `mem extract`
+  and 3.3 s in `mem dedup`; no performance work is a prerequisite for S6.
 - **Append-only logs are read whole.** `mem stats` reads all of `usage.jsonl` and the dedup-log
   reader reads all of `dedup-log.jsonl`; both files grow without bound (2026-09-03).
 

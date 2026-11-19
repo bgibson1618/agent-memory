@@ -284,6 +284,24 @@ not claimed.
   capture was **not** observed in either attempt — the session judged the task's n=3 measurement
   not yet durable and deferred the save for review. Attempts 2 of 3 under this protocol; a third,
   if run, should present a result the task states as confirmed. Records in `BUILD_LOG.md`.
+- **2026-11-19 third attempt (bounded synthetic session, same lane; the task's finding was
+  confirmed by the agent's own failing-then-passing test and is a general Python behavior):**
+  capture **not observed**. The session fixed the bug correctly and wrote that no save was made
+  because it was a "project-local bug, not a durable concept"; it did not search either. An
+  independent review then showed that all three attempts were **confounded**: they ran as the
+  Roster implementer role, whose prompt forbids any write outside the delegate's run directory,
+  and the synthetic KB sat outside it, so a save would have broken the role's own instructions.
+- **2026-11-19 fair baseline (Brent's request):** one plain headless Claude Code session with the
+  same project, instruction block, task text and model, but no Roster role, on a fresh synthetic KB.
+  It fixed the bug correctly and did **not** search, save or mention the knowledge base at all.
+  One observation, not a rate, and not blind (the workspace named itself a verification exercise);
+  that the project instruction file loaded is inferred, not shown. An independent check found no
+  blocking confound.
+- **Status (2026-11-19): needs-you.** The protocol's three-attempt bound is reached and the fair
+  baseline shows neither unprompted recall nor capture for ordinary bug-fixing work. Recall was
+  observed only when the task needed facts that existed solely in the KB (2026-11-17). How to make
+  capture happen — an explicit capture step at task close, a reworded save trigger, or accepting
+  recall-only — is Brent's decision (`BACKLOG.md`).
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
