@@ -654,3 +654,39 @@ adjudication logged); 161 s from launch to done. Roster's write confinement refu
 write outside the run directory, and the session wrote its scratch there instead, as its report
 says. No real-instance operations appear in its recorded commands; the recorded fingerprints and
 live-selection hashes were unchanged.
+
+## 2026-11-18 — D28 released and activated on the development laptop
+
+Revision a6d77bf was frozen with `scripts/release.py stage` as runtime release `0.2.1+a6d77bfd71d2`
+(33 files) and, by the documented snapshot procedure, as `plugin-0.2.1+a6d77bfd71d2`; both were
+checked file by file against the revision's Git objects. The switch was rehearsed on a disposable
+uv prefix (activate, the guarded wrapper with its two pins moved, the procedure option through a
+synthetic-root copy of that wrapper, rollback) and on copies of the harness files (Claude's four
+routing fields, Codex's three-command refresh, both directions). Dependency versions were held
+by running `activate` and `rollback` with `UV_OFFLINE=1` and the prefix's numpy and PyYAML as
+`UV_CONSTRAINT`; `uv tool install --reinstall` resolves afresh rather than from `uv.lock`, and uv
+records the constraints in the tool receipt.
+
+Two facts found while preparing it shaped the live checks: every command except `init` and
+`stats` appends to the selected instance's usage log and most drain its embedding queue, so the
+real instances got only `--version` identity checks and all behaviour was checked on synthetic
+instances; and a second `activate` replaces the journal's undo data, so the first activation's
+journal was kept as a private record and `rollback` now returns to `0.2.1+a1c3a6319b61`.
+
+The independent release review (Codex verifier through the frozen Roster, read-only, process
+containment recorded, 325 s) returned FAIL: the Claude routing step could not recover from a run
+stopped part-way, the runtime rollback step could consume the earlier activation's journal if the
+new activation failed before writing its own, and one rehearsal check passed for the wrong reason.
+The verdict stands as recorded. The routing tool now accepts each file only wholly old or wholly
+new, persists its plan before the first write and checks every temporary file before renaming
+it; a read-only guard runs before each rollback step and acts only on this release's own state;
+the rehearsal check asserts the refusal it expects. Each correction was re-proved with real faults
+on disposable copies; no further model review was run.
+
+The coordinator ran the cutover on the operator's instruction after a quiet window: drift gate,
+runtime, wrapper, Claude and Codex routing, then synthetic post-switch checks (procedure printing
+and refusals, save, read-checked update, held commands refused), fresh Claude and Codex sessions
+finding the new skill, other tools' selections and role links unchanged, and the three existing
+instances' metadata fingerprints unchanged. No rollback was needed. The coordinator then
+fast-forwarded the local `main` to a6d77bf. Nothing was pushed, tagged or published. Records:
+private operations directory.

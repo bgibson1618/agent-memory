@@ -40,6 +40,12 @@ scripts/release.py activate --release <releases-dir>/<id> --releases-dir <releas
 scripts/release.py rollback --releases-dir <releases-dir> --tool-dir ... --bin-dir ...
 ```
 
+`activate` and `rollback` rebuild the venv with `uv tool install --reinstall`,
+which resolves dependencies afresh rather than from `uv.lock`; uv's own
+environment controls pass through, so pin the prefix's current versions with
+`UV_CONSTRAINT=<file>` and `UV_OFFLINE=1` on both (uv splits `UV_CONSTRAINT` on
+spaces: give a path without one, relative to the working directory if need be).
+
 `activate` and `rollback` refuse the live default prefix unless `--allow-live`
 is given. Leave that flag out during development and testing: `tests/
 test_release_tool.py` exercises every command against disposable prefixes and
@@ -51,6 +57,10 @@ asserts the live prefix is byte-identical afterwards.
 line; `mem doctor` starts with a `runtime` line naming the release id (or
 "worktree" / "installed copy"), the package path, any selector with its hash
 prefix, and the interpreter. Use these, not assumptions, to say what runs.
+On a real instance use `--version` for identity: every command except `init`
+and `stats` appends to the selected instance's usage log, and most also drain
+its embedding queue — even `mem extract --procedure` — so check behaviour on a
+synthetic instance.
 
 ## What these tools write, and retention
 
@@ -74,32 +84,37 @@ staged release id and manifest, the exact prefix, the rollback command, who
 re-pins any wrapper), approval, and a status check afterwards. Nothing in
 this repository activates anything on its own.
 
-## What is active on the development laptop (2026-11-17)
+## What is active on the development laptop (2026-11-18)
 
 Recorded here so that a new engineer can tell what runs without reading the operations records
 (which stay private, outside this repository).
 
-- **Runtime:** release `0.2.1+a1c3a6319b61` (frozen from revision a1c3a63; the source has moved on
-  since — D28's `--entrypoint` is implemented in source and absent from this active runtime),
-  installed non-editably into the uv tool
-  prefix and selected by `zz_agent_memory_release.pth`; `<releases-dir>/active.json` journals the
-  previous editable receipt and the previous selector for `rollback`. `mem --version` prints the
-  release path; `mem doctor` starts with `runtime: release 0.2.1+a1c3a6319b61`.
+- **Runtime:** release `0.2.1+a6d77bfd71d2` (frozen from revision a6d77bf, which includes D28's
+  `--entrypoint`), installed non-editably into the uv tool prefix and selected by
+  `zz_agent_memory_release.pth`. It was activated offline with the prefix's existing numpy 2.5.5 and
+  PyYAML 6.0.3 as uv constraints (uv records them in the tool receipt), on Python 3.12.13.
+  `<releases-dir>/active.json` journals the previous release, `0.2.1+a1c3a6319b61` (its receipt and
+  selector), so `rollback` returns to that release; the first activation's journal, whose previous
+  state was the editable worktree install, is kept in the private records. `mem --version` prints
+  the release path.
 - **Guarded personal wrapper:** a private launcher pins the release package and that selector's
   hash and selects one private local instance; it refuses when either pin drifts and holds
   `doctor`, `init` and the four transport commands. Its path and instance are operator policy, not
   part of this repository.
 - **Plugin:** both agent harnesses serve `.claude-plugin/` and `skills/` from a frozen plugin
-  snapshot, `<releases-dir>/plugin-0.2.1+8be9b0927063` (see "Plugin snapshots" below), not from a
-  worktree.
+  snapshot, `<releases-dir>/plugin-0.2.1+a6d77bfd71d2`, frozen from the same revision as the runtime
+  and switched with it (see "Plugin snapshots" below), not from a worktree.
 - **Holds (receipted, reversible):** the shared-write operator profile is held aside by
   `scripts/hold-shared-writes.py hold-profile` (so every marked replica fails closed), and an
   obsolete remote was removed from the development checkout by `remove-remote`. Each receipt is
   the input of the matching `restore-*` command.
-- **Rollback, in reverse order:** Codex and Claude plugin registrations back to the previous
-  snapshot (saved copies), the wrapper from its saved copy, then `scripts/release.py rollback
-  --allow-live` (restores the previous receipt specification and selector; the venv is rebuilt,
-  not byte-identical). Keep every saved copy until the rollback window is closed by the operator.
+- **Rollback, in reverse order:** Codex re-registered on `plugin-0.2.1+8be9b0927063`; Claude's four
+  `mem-local` routing fields moved back field by field (never a whole-file restore — those files also
+  carry other tools' settings); the wrapper from its saved copy; then `scripts/release.py rollback
+  --allow-live`, run once and only after checking that `active.json` is this release's journal (the
+  venv is rebuilt, not byte-identical). The guarded commands are in the private operator packet.
+  Keep every saved copy, the previous release and the previous snapshot until the operator closes
+  the rollback window.
 
 ## Plugin snapshots
 

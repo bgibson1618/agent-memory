@@ -1047,3 +1047,9 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   snapshot are frozen from the same revision; until then the laptop's frozen copies keep the
   2026-11-17 behaviour, which the skill's fallback still covers. No version change in this
   decision; the release step is separate.
+- **Amendment (2026-11-18, released):** revision a6d77bf was frozen as runtime release
+  `0.2.1+a6d77bfd71d2` and plugin snapshot `plugin-0.2.1+a6d77bfd71d2` and both were switched
+  together on the development laptop (operator: the coordinator, on the operator's instruction),
+  with the guarded wrapper's pins moved to the new release. The version stays 0.2.1; the release id
+  carries the commit. Rollback returns to `0.2.1+a1c3a6319b61` / `plugin-0.2.1+8be9b0927063`
+  (`RELEASE.md`).

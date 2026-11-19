@@ -251,6 +251,9 @@ available), ≥2 fresh-eyed reviewers verify, and only survivors reach `mem extr
   holds `doctor`, printed the procedure with `--entrypoint`, ran every memory command through that
   entrypoint and none it holds, and its report matched the synthetic KB; both also exercised the
   duplicate-skip path and the documented direct-save override. Records in `BUILD_LOG.md`.
+  Released to the development laptop the same day with a plugin snapshot from the same revision:
+  a fresh contained Claude session loaded the new skill from the new snapshot, and a fresh Codex
+  session listed it from its refreshed cache; neither ran a memory command.
 
 ## F11 — Ambient agent integration
 - **Proof:** `observed` (a fresh session in a different project uses mem unprompted)

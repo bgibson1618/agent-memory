@@ -11,9 +11,7 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 ## Suggested order
 
 1. **F11 third observation**: it answers whether ambient capture works at all.
-2. **Release the procedure entrypoint** (done in source, D28): freeze the runtime release and
-   the plugin snapshot from one revision and switch both; it exercises the release flow end to end.
-3. **D18 S6 with the dedup performance items**: they touch the same engine.
+2. **D18 S6 with the dedup performance items**: they touch the same engine.
 
 ## Features and correctness
 
@@ -26,11 +24,6 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   sequential detect-then-save loop under the write lock, and any failure rolls the batch back.
   Reserved seams already exist (`strict_claim_leg`, `precomputed_claim_vecs`, `fakes.die_after`).
   Until then the procedure runs `mem dedup` as an explicit step. Source: D18 (2026-09-03), D24.
-- **Procedure entrypoint: release and activation.** Implemented in source on 2026-11-18 (D28,
-  `mem extract --procedure --entrypoint NAME`; the skill uses it). The laptop's frozen release and
-  plugin snapshot predate it; releasing it means one runtime release and one plugin snapshot from
-  the same revision, switched together on the operator's word. The skill's fallback mapping
-  covers the older runtime meanwhile.
 - **Extraction does not see unindexed external edits.** `mem extract` drains queued embeddings and
   checks duplicates against the index without first reconciling concept files edited outside
   `mem`, so a hand-edited concept can be missed as a duplicate. The 2026-08-14 review called this
@@ -94,8 +87,10 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 
 - **Close the rollback window on 2026-11-25** if a week of normal use passes without issue.
   Archive the candidate clone's review-run transcripts first; then remove the rollback copies,
-  the superseded plugin snapshots and the rehearsal scratch. The candidate clone goes only on a
-  separate word. The prepared checklist is in the private operations records.
+  the superseded plugin snapshots and the rehearsal scratch. Since the D28 release, release
+  `0.2.1+a1c3a6319b61` and `plugin-0.2.1+8be9b0927063` are that release's rollback target and stay
+  until its own window is closed. The candidate clone goes only on a separate word. The prepared
+  checklist is in the private operations records.
 - **Private historical evidence** under `.kodos/evidence/` stays untracked: keep it there or move
   it to the private records (D27).
 - **A stale marketplace entry in the Codex configuration**, pre-existing and unrelated to this
@@ -129,5 +124,7 @@ Process items recorded in 2026-08 belong where they are tracked, not here.
 
 ## Fixed since first recorded
 
+- The procedure entrypoint (D28) released and activated on the development laptop (2026-11-18):
+  runtime `0.2.1+a6d77bfd71d2` and `plugin-0.2.1+a6d77bfd71d2`, from one revision, switched together.
 - The reproduced `NameError` in `lexical.db_path` (2026-08-10).
 - Concept slugs `index` and `log`, reserved by OKF, are refused (D5).
