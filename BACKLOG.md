@@ -12,7 +12,7 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 
 1. **F11 capture protocol** (Brent, 2026-11-19: establish it before the dedup work): the reworded
    memory instruction met the test's bar (4 of 6 captures, 0 of 3 control saves; current wording
-   0 of 6); adopting it needs a policy decision and a release.
+   0 of 6); adoption is held pending the operator's choice (no authority expansion is involved).
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
    decide on current files, write all-or-nothing, and share one decision.
 
@@ -20,14 +20,17 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 
 - **F11, adopt the reworded capture instruction (tested 2026-11-19).** In an 18-session test the
   reworded search/save paragraphs produced 4 of 6 lesson captures and no control-task saves; the
-  current wording produced none (`FEATURES.md` F11). Adoption steps: (1) the governing memory policy
-  must allow sessions to save a confirmed general lesson to the local personal KB on their own,
-  through the entrypoint it names (today it limits saves to `mem-personal` within an approved task,
-  and the laptop's sessions carry a policy-reference block, not this ambient block) — the operator's
-  decision; (2) the package's managed block and plugin text adopt the wording with that entrypoint;
-  (3) a short confirmation run under the adopted text; (4) a release. The explicit end-of-task step
-  stays the fallback (Brent, 2026-11-19) and is not needed unless adoption falls short. Any further
-  test must not use a Roster role whose prompt forbids writes outside its run directory.
+  current wording produced none (`FEATURES.md` F11). The tested behavior — recording a confirmed,
+  reusable lesson that the current approved task established — is what the governing memory policy
+  already asks for through the personal entrypoint, so no authority expansion is involved. Adoption,
+  held for the operator's choice, means: (a) a reviewed change to the guidance laptop sessions
+  actually read (they load a policy-reference block, and regenerating live guidance is a separate
+  configuration change) plus the package template, shipped by a release; (b) the wording adapted to
+  the personal entrypoint with read-version-checked updates; (c) a limit to what the task verified:
+  one of the four test saves added an unchecked claim, so the proposed (untested) addition is "save
+  only what this task verified; say how, and where it applies". The explicit end-of-task step stays
+  the fallback (Brent, 2026-11-19). Any further test must not use a Roster role whose prompt forbids
+  writes outside its run directory.
 - **D18 S6, slice A — decide on current files.** Before deciding, extraction refreshes the index
   from the concept files and drains the embedding queue; no surface ever scores a vector whose
   content hash differs from the file's current text; unparseable files are reported by name; the
