@@ -11,8 +11,9 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 ## Suggested order
 
 1. **F11 capture protocol** (Brent, 2026-11-19: establish it before the dedup work): the reworded
-   memory instruction met the test's bar (4 of 6 captures, 0 of 3 control saves; current wording
-   0 of 6); adoption is held pending the operator's choice (no authority expansion is involved).
+   instruction raises captures (test 1); an added evidence limit lowered unverified content but no
+   model met the strict readiness bar (test 2: Fable closest). Adoption is held pending the
+   operator's choice of wording, model scope and bar (no authority expansion is involved).
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
    decide on current files, write all-or-nothing, and share one decision.
 
@@ -28,8 +29,12 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   configuration change) plus the package template, shipped by a release; (b) the wording adapted to
   the personal entrypoint with read-version-checked updates; (c) a limit to what the task verified:
   one of the four test saves added an unchecked claim, so the proposed (untested) addition is "save
-  only what this task verified; say how, and where it applies". The explicit end-of-task step stays
-  the fallback (Brent, 2026-11-19). Any further test must not use a Roster role whose prompt forbids
+  only what this task verified; say how, and where it applies". Tested 2026-11-19 on Sonnet, Opus and
+  Fable (`FEATURES.md` F11): it lowered unverified claims for all three, but no model met the
+  zero-unverified readiness bar; on Opus it cut captures and caused control-task saves; Sonnet's
+  factual errors persisted. Open choices: which wording (with or without the limit), for which models,
+  and whether the zero-unverified condition is the right adoption bar. The explicit end-of-task step
+  stays the fallback (Brent, 2026-11-19). Any further test must not use a Roster role whose prompt forbids
   writes outside its run directory.
 - **D18 S6, slice A — decide on current files.** Before deciding, extraction refreshes the index
   from the concept files and drains the embedding queue; no surface ever scores a vector whose

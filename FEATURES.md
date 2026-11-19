@@ -314,6 +314,16 @@ not claimed.
   details (one saved sentence was inaccurate). All 18 runs fixed their bug. An independent check
   found the comparison valid with notes. Three runs per cell are indicative, not rates; the
   reworded wording is not yet live (`BACKLOG.md`).
+- **2026-11-19 evidence-limit test (78 sessions: Sonnet, Opus and Fable; the reworded block adapted to
+  the personal entrypoint, with and without "save only what this task verified ..."; real KBs hidden
+  read-only from every session; claims scored for truth and in-session verification against a
+  predeclared answer key; one independent review):** with the limit, no model met the readiness bar
+  fixed beforehand. Fable came closest — 10 of 10 correct, verified captures, no incorrect claims, no
+  control-task saves — and failed only the condition that every saved claim be verified or labeled.
+  The limit lowered the share of unverified claims for all three models (Sonnet 42%->31%, Opus
+  33%->22%, Fable 51%->24%) and produced explicit "unverified" labels on Opus and Fable; on Opus it
+  cost captures (10->7) and led to saves on all three control runs. Sonnet made the most factual errors
+  with or without the limit. Five runs per cell are indicative, not rates.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
