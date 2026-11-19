@@ -302,6 +302,18 @@ not claimed.
   observed only when the task needed facts that existed solely in the KB (2026-11-17). Direction
   (Brent, 2026-11-19): test a reworded memory instruction first; if no wording works, add an
   explicit end-of-task capture step (`BACKLOG.md`).
+- **2026-11-19 wording test (Brent's request; 18 plain headless sessions, design and bar fixed
+  before the runs):** current block vs a reworded block that changes only the search and save
+  paragraphs ("search at the start of non-trivial work"; "save before you finish: did this task
+  establish something that would help on a different project? ... save the general lesson, leave
+  out this project's names"). Three tasks x three runs each, fresh synthetic KB per run. Current
+  wording: 0 of 6 lesson captures, 0 of 9 searches. Reworded: 4 of 6 lesson captures (2 of 3 on
+  each lesson task), 0 of 3 saves on a control task with nothing general to learn, 7 of 9 runs
+  searched; every capture searched first, two updated the existing related concept through the
+  read-version-checked update instead of adding a duplicate, and no saved text carried project
+  details (one saved sentence was inaccurate). All 18 runs fixed their bug. An independent check
+  found the comparison valid with notes. Three runs per cell are indicative, not rates; the
+  reworded wording is not yet live (`BACKLOG.md`).
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
