@@ -57,10 +57,10 @@ asserts the live prefix is byte-identical afterwards.
 line; `mem doctor` starts with a `runtime` line naming the release id (or
 "worktree" / "installed copy"), the package path, any selector with its hash
 prefix, and the interpreter. Use these, not assumptions, to say what runs.
-On a real instance use `--version` for identity: every command except `init`
-and `stats` appends to the selected instance's usage log, and most also drain
-its embedding queue — even `mem extract --procedure` — so check behaviour on a
-synthetic instance.
+Use `--version` for a non-mutating runtime identity check. Commands that
+reach normal command dispatch, including `mem extract --procedure`, can append
+usage and drain queued embeddings; use a synthetic instance for behavioral
+checks.
 
 ## What these tools write, and retention
 
