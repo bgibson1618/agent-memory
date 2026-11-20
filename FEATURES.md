@@ -336,6 +336,20 @@ not claimed.
   stated the NOT IN/NULL rule for every value when only the non-matching case was tested. The format
   does not address that; compact can only be chosen as a brevity preference. Three runs per cell are
   indicative, not rates.
+- **2026-11-19 evidence-scoped capture and reuse pilot (18 Sonnet sessions, actual session guidance; four
+  capture sessions, two no-lesson controls, and twelve fresh readers — for each capture, the related task
+  with that memory, the same task with the original seed KB, and a changed-condition task where the
+  lesson does not apply; one independent review, valid with notes):** one candidate paragraph ("state what
+  happened, the relevant conditions and the evidence; keep the conclusion within that evidence; separate
+  hypotheses from confirmed observations; if nothing useful was established, save nothing"). Only 1 of 4
+  capture sessions saved an entry; that entry was correct, scoped to the tested case and labeled its
+  untested extension as a hypothesis. The other three established and tested a reusable finding but saved
+  nothing, citing single-case evidence. No reader searched memory before or while solving; the two readers
+  whose KB held the saved entry never retrieved it. All 12 readers solved their tasks correctly on their own,
+  including both changed-condition tasks, so neither a memory benefit nor a misuse was observed. Every saved
+  entry (four, counting reader-side saves) kept its conclusion within its evidence; the earlier
+  over-generalization did not recur. A bounded pilot was not justified under the predeclared rules.
+  Single-candidate design: observations, not causes; small cells.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
