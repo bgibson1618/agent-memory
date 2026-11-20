@@ -359,8 +359,19 @@ not claimed.
   all four readers whose task changed the condition retrieved it and correctly rejected or qualified it; all
   four readers without the memory lacked the fact and none invented it. The review confirmed those
   outcomes but failed acceptance because the isolation proof did not cover host-process aliases under
-  `/proc`; post-hoc model-free tests with the unchanged sandbox show those routes were denied, which is not
-  yet independently confirmed. Fixtures made the facts and version boundaries explicit; one run per slot.
+  `/proc`; post-hoc model-free tests with the unchanged sandbox show those routes were denied. A focused
+  independent check later confirmed this for those runs, with limits: the evidence is post-hoc, and host
+  command lines from that time were not retained. Fixtures made the facts and version boundaries explicit;
+  one run per slot.
+- **2026-11-20 comparison with the previous wording (18 more Sonnet sessions on the same fixtures and
+  sandbox; only the memory section differed; independent review VALID-WITH-NOTES):** with last night's
+  section ("before finishing, consider whether this task established a lesson"), no capture session
+  searched or saved memory. All four fixed their bug, then treated the vendor-documented fact as one
+  project-specific case; two wrote an accurate, version-scoped note to the project's own notes instead.
+  So every reader started with seed-only memory: readers that needed the fact failed (none invented it),
+  and only 3 of 12 searched memory. The candidate's group had 4 of 4 captures and 12 of 12 searches. The
+  difference is between whole instruction packages on explicit fixtures, one run per slot, run
+  sequentially; the previous wording's reuse when an entry exists was not exercised.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)

@@ -17,9 +17,11 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
    kept the one saved entry within its evidence, but three of four sessions saved nothing and no reader
    retrieved memory before working (test 4); a candidate template asking for a search at task start and
    allowing scoped single-case saves met every gate on invented vendor facts (2026-11-20, branch
-   `recall-capture-2026-11`), with acceptance blocked on independent confirmation of the sandbox's
-   process-alias isolation. Adoption is held pending the operator's choice of wording, model scope and bar
-   (no authority expansion is involved).
+   `recall-capture-2026-11`); its sandbox's process-alias isolation was later independently confirmed with
+   post-hoc limits, and on the same fixtures the previous wording produced no captures and little search
+   (0 of 4; 3 of 12). Adoption is held pending the operator's choice of wording, model scope and bar
+   (no authority expansion is involved); a bounded pilot or transfer check (Opus, Fable, or messier
+   evidence) is the suggested next step.
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
    decide on current files, write all-or-nothing, and share one decision.
 
@@ -49,9 +51,13 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   shown without it; reader tasks should need knowledge the memory holds. Transfer tests (Opus, Fable; later
   Codex models) wait until the Sonnet approach is settled. 2026-11-20: the candidate (search at task start;
   scoped single-case saves; project-only facts to notes) is on local branch `recall-capture-2026-11` with a
-  focused test; its acceptance exercise met all gates, but the review requires the sandbox to hide host
-  processes (`--unshare-pid` with a fresh `/proc`) and alias checks in the visibility probe before
-  acceptance evidence can be certified; messier evidence (no vendor statement, implicit versions) is untested. Open choices: which wording (with or without the limit), for which models,
+  focused test; its acceptance exercise met all gates. Its review asked for proof that host-process
+  aliases under `/proc` were denied. A focused independent check confirmed that for the recorded runs, with
+  post-hoc limits. A comparison run of the previous wording used the same sandbox, with alias checks added
+  to the per-run probe, and produced 0 of 4 captures, so it could not exercise reuse. Hiding host processes
+  outright (`--unshare-pid` with a fresh `/proc`) remains recommended for future runs; it would change the
+  environment between groups, so it was not applied mid-comparison. Messier evidence (no vendor statement,
+  implicit versions) is untested. Open choices: which wording (with or without the limit), for which models,
   and whether the zero-unverified condition is the right adoption bar. The explicit end-of-task step
   stays the fallback (Brent, 2026-11-19). Any further test must not use a Roster role whose prompt forbids
   writes outside its run directory.
