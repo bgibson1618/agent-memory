@@ -350,6 +350,17 @@ not claimed.
   entry (four, counting reader-side saves) kept its conclusion within its evidence; the earlier
   over-generalization did not recur. A bounded pilot was not justified under the predeclared rules.
   Single-candidate design: observations, not causes; small cells.
+- **2026-11-20 task-start recall and scoped capture (candidate template on local branch
+  `recall-capture-2026-11`, not released; 18 Sonnet sessions with invented vendor facts that only the
+  capturing agent's evidence contained; one independent review):** the candidate asks agents to search
+  memory at the start of non-trivial work and check a hit's stated conditions, and permits saving a single
+  tested observation stated as one. All four capture sessions saved a correct entry scoped to its vendor
+  version; all four readers given that memory searched first, retrieved it and produced the right result;
+  all four readers whose task changed the condition retrieved it and correctly rejected or qualified it; all
+  four readers without the memory lacked the fact and none invented it. The review confirmed those
+  outcomes but failed acceptance because the isolation proof did not cover host-process aliases under
+  `/proc`; post-hoc model-free tests with the unchanged sandbox show those routes were denied, which is not
+  yet independently confirmed. Fixtures made the facts and version boundaries explicit; one run per slot.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)

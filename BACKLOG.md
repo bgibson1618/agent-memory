@@ -15,8 +15,11 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
    model met the strict readiness bar (test 2: Fable closest); a compact entry format shortened
    Sonnet's entries without improving their support or accuracy (test 3); an evidence-scoped paragraph
    kept the one saved entry within its evidence, but three of four sessions saved nothing and no reader
-   retrieved memory before working (test 4). Adoption is held pending the operator's choice of wording,
-   model scope and bar (no authority expansion is involved).
+   retrieved memory before working (test 4); a candidate template asking for a search at task start and
+   allowing scoped single-case saves met every gate on invented vendor facts (2026-11-20, branch
+   `recall-capture-2026-11`), with acceptance blocked on independent confirmation of the sandbox's
+   process-alias isolation. Adoption is held pending the operator's choice of wording, model scope and bar
+   (no authority expansion is involved).
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
    decide on current files, write all-or-nothing, and share one decision.
 
@@ -44,7 +47,11 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   the next proposal (each needs its own approval): whether saving a scoped single-case observation should be
   stated explicitly as acceptable, and how retrieval at the start of work is prompted, since reuse cannot be
   shown without it; reader tasks should need knowledge the memory holds. Transfer tests (Opus, Fable; later
-  Codex models) wait until the Sonnet approach is settled. Open choices: which wording (with or without the limit), for which models,
+  Codex models) wait until the Sonnet approach is settled. 2026-11-20: the candidate (search at task start;
+  scoped single-case saves; project-only facts to notes) is on local branch `recall-capture-2026-11` with a
+  focused test; its acceptance exercise met all gates, but the review requires the sandbox to hide host
+  processes (`--unshare-pid` with a fresh `/proc`) and alias checks in the visibility probe before
+  acceptance evidence can be certified; messier evidence (no vendor statement, implicit versions) is untested. Open choices: which wording (with or without the limit), for which models,
   and whether the zero-unverified condition is the right adoption bar. The explicit end-of-task step
   stays the fallback (Brent, 2026-11-19). Any further test must not use a Roster role whose prompt forbids
   writes outside its run directory.
