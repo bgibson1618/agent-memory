@@ -324,6 +324,18 @@ not claimed.
   33%->22%, Fable 51%->24%) and produced explicit "unverified" labels on Opus and Fable; on Opus it
   cost captures (10->7) and led to saves on all three control runs. Sonnet made the most factual errors
   with or without the limit. Five runs per cell are indicative, not rates.
+- **2026-11-19 compact-format test (18 Sonnet sessions; both arms loaded the laptop's actual session
+  guidance — the global CLAUDE.md plus byte-identical copies of the shared AGENTS.md and WORKFLOW.md,
+  proven loaded per run — and differed only in one sentence: the previous "the lesson, why it holds,
+  how to recognize or apply it" vs a compact "observed problem, demonstrated lesson or action, where it
+  applies, supporting test, command or source; omit untested extensions"; same evidence limit in both;
+  one independent review, valid with notes):** neither wording met the readiness bar. Compact entries
+  were about a fifth shorter (median 120 vs 149 words added) with a similar share of unverified claims
+  (27% vs 27.5%) and one more incorrect claim (4 vs 3); 2 vs 3 of 6 correct, verified captures; no
+  unwanted control-task saves in either arm. The dominant error was shared: five of six SQL entries
+  stated the NOT IN/NULL rule for every value when only the non-matching case was tested. The format
+  does not address that; compact can only be chosen as a brevity preference. Three runs per cell are
+  indicative, not rates.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
