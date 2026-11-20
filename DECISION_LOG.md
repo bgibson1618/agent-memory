@@ -1083,3 +1083,17 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   its first draft: skip keyed on the verdict, the slug self-exclusion, the dedup log treated as a
   cache) and corrected; the corrections were not re-reviewed.
 
+
+## D30 — The candidate capture/recall wording is chosen (2026-11-20)
+
+- **Decision (Brent, 2026-11-20):** move forward with the candidate memory wording on local branch
+  `recall-capture-2026-11` (fbbc111): search memory at the start of non-trivial work and check a hit's
+  stated conditions; save a single tested observation stated as one, kept within its evidence. The
+  other variants tested on 2026-11-19 (evidence limit, compact format, evidence-scoped paragraph) are
+  not pursued.
+- **Not decided by this entry:** merging the branch, a release, activation, and the change to the
+  guidance laptop sessions actually read. Each still needs the operator's word.
+- **Follow-up evidence (same day):** a model pilot on Opus 5.5 and Fable 5.2 (FEATURES F11) showed
+  recall and reuse carrying over to both models and Fable meeting every gate; 2 of 4 Opus entries cited
+  evidence by absolute local path, outside the integrity bar. How to handle that (a wording sentence
+  with an Opus re-check, a save-time check in `mem`, or adoption as is) is the operator's next choice.

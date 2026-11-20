@@ -19,9 +19,13 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
    allowing scoped single-case saves met every gate on invented vendor facts (2026-11-20, branch
    `recall-capture-2026-11`); its sandbox's process-alias isolation was later independently confirmed with
    post-hoc limits, and on the same fixtures the previous wording produced no captures and little search
-   (0 of 4; 3 of 12). Adoption is held pending the operator's choice of wording, model scope and bar
-   (no authority expansion is involved); a bounded pilot or transfer check (Opus, Fable, or messier
-   evidence) is the suggested next step.
+   (0 of 4; 3 of 12). On 2026-11-20 the operator chose the candidate wording; a model pilot (the same
+   design on Opus 5.5 and Fable 5.2) found that recall and reuse carry over to both and that Fable met
+   every gate, while 2 of 4 Opus entries cited evidence by absolute local path (outside the integrity
+   bar) and the Opus readers that updated those entries each added their own. Next, the operator's
+   choice: a one-sentence evidence-reference rule with a small Opus re-check, a save-time path check in
+   `mem`, or adoption as is; merge, release and activation then each follow on the operator's word (no
+   authority expansion is involved).
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
    decide on current files, write all-or-nothing, and share one decision.
 
@@ -55,10 +59,12 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   aliases under `/proc` were denied. A focused independent check confirmed that for the recorded runs, with
   post-hoc limits. A comparison run of the previous wording used the same sandbox, with alias checks added
   to the per-run probe, and produced 0 of 4 captures, so it could not exercise reuse. Hiding host processes
-  outright (`--unshare-pid` with a fresh `/proc`) remains recommended for future runs; it would change the
-  environment between groups, so it was not applied mid-comparison. Messier evidence (no vendor statement,
-  implicit versions) is untested. Open choices: which wording (with or without the limit), for which models,
-  and whether the zero-unverified condition is the right adoption bar. The explicit end-of-task step
+  outright (`--unshare-pid` with a fresh `/proc`) was applied from the 2026-11-20 model pilot on, with a
+  per-run check and failure-path controls; it was not applied mid-comparison because it would change the
+  environment between groups. Messier evidence (no vendor statement,
+  implicit versions) is untested. The wording is chosen (operator, 2026-11-20: the `recall-capture-2026-11`
+  candidate); open choices: how to handle absolute local paths in entries (seen with Opus), and whether the
+  zero-unverified condition is the right adoption bar. The explicit end-of-task step
   stays the fallback (Brent, 2026-11-19). Any further test must not use a Roster role whose prompt forbids
   writes outside its run directory.
 - **D18 S6, slice A — decide on current files.** Before deciding, extraction refreshes the index

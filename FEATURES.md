@@ -372,6 +372,17 @@ not claimed.
   and only 3 of 12 searched memory. The candidate's group had 4 of 4 captures and 12 of 12 searches. The
   difference is between whole instruction packages on explicit fixtures, one run per slot, run
   sequentially; the previous wording's reuse when an entry exists was not exercised.
+- **2026-11-20 model pilot of the chosen wording (the operator chose the candidate wording; 36 sessions:
+  the same 18-session design on Opus 5.5 and on Fable 5.2, same fixtures, a sandbox that now also hides
+  host processes; independent review VALID-WITH-NOTES):** every reader in both groups searched memory
+  before editing; with the entry, 4 of 4 per model used it and got the right result; when the version or
+  API differed, 4 of 4 per model rejected or qualified it; without it, 0 of 4 passed and none invented
+  the fact. Fable met all five gates, as Sonnet had. Opus saved four correct, scoped entries, but two
+  cited their evidence by an absolute local path, which the agreed integrity bar excludes, and the three
+  Opus readers that updated those entries each added their own (readers updating the clean entries did
+  not); one Opus control did not search. Opus read the workspace before searching (first memory call at
+  tool call 4-13; Sonnet and Fable 1-3). One run per slot, explicit fixtures, sequential runs; the
+  wording is not merged, released or active.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)
