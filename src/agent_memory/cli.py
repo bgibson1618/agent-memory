@@ -5,7 +5,7 @@ import subprocess
 import sys
 import time
 
-from agent_memory import __version__, config, dedupcmd, doctor, extract, graph, initcmd, reindex, search, shared, store, usage, vector
+from agent_memory import __version__, config, dedupcmd, doctor, extract, graph, indexdb, initcmd, reindex, search, shared, store, usage, vector
 
 
 class _Version(argparse.Action):
@@ -268,6 +268,11 @@ def main(argv=None) -> int:
         return 1
     except OSError as e:
         print(f"error: {e}", file=sys.stderr)
+        return 1
+    except indexdb.IndexBusyError as e:
+        # S6 slice A: the index stayed locked by another process past the WAL
+        # switch budget - one actionable line, not a traceback.
+        print(f"error: {e} - another mem process is holding the index; retry shortly", file=sys.stderr)
         return 1
 
     if args.command not in ("init", "stats"):

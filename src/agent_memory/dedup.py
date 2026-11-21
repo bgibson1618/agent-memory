@@ -501,6 +501,7 @@ class Corpus:
     embed_digest: Optional[str] = None  # completes - identity for top_k_doc/chunk scans (gate finding 3)
     current_hashes: Optional[dict] = None  # S6 slice A: current embed-text hashes, one snapshot per batch
     _concept_cache: dict = field(default_factory=dict)
+    _chunks_current: dict = field(default_factory=dict)  # S6 slice A: slug -> stored chunks match the file
 
     def concept(self, slug: str):
         """Lazily-loaded, memoized `okf.Concept` for a hit slug - None if the
@@ -511,6 +512,18 @@ class Corpus:
             except store.StoreError:
                 self._concept_cache[slug] = None
         return self._concept_cache[slug]
+
+    def chunks_current(self, slug: str) -> bool:
+        """S6 slice A: whether `slug`'s stored chunk rows match its current
+        file under this batch's model/digest (memoized per batch; the chunk
+        leg's seed refresh records its own results). A vanished or
+        unparseable card has no current chunks."""
+        if slug not in self._chunks_current:
+            concept = self.concept(slug)
+            self._chunks_current[slug] = concept is not None and chunks_mod.is_current(
+                self.chunk_con, concept, self.embed_model or config.embed_model(), self.embed_digest,
+            )
+        return self._chunks_current[slug]
 
     def close(self) -> None:
         self.lex_conn.close()
@@ -576,6 +589,11 @@ def _claims_source(corpus: Corpus, slug: str, concept, snippet_by_slug: dict) ->
         return body, None
     text = snippet_by_slug.get(slug) or body[: corpus.cfg.chunk_skip_chars]
     return text, "oversize"
+
+
+def _stale_note(leg: str, what: str, why: str, slugs: list) -> str:
+    shown = ", ".join(slugs[:10]) + (f" (+{len(slugs) - 10} more)" if len(slugs) > 10 else "")
+    return f"{leg}: {len(slugs)} card(s) with {what} excluded ({why}): {shown}"
 
 
 def _dedup_seed(seen: list, extra: list) -> list:
@@ -674,11 +692,8 @@ def detect(
         vec_slugs = [slug for slug, _ in ranked if slug != self_slug][: cfg.deep_k]
         stale = sorted(s for s in stale if s != self_slug)
         if stale:
-            shown = ", ".join(stale[:10]) + (f" (+{len(stale) - 10} more)" if len(stale) > 10 else "")
-            notes.append(
-                f"vector_document leg: {len(stale)} card(s) with a stale vector excluded "
-                f"(edited since embedded; re-embedding pending): {shown}"
-            )
+            notes.append(_stale_note(
+                "vector_document leg", "a stale vector", "edited since embedded; re-embedding pending", stale))
     elif corpus.vector_available and precomputed_vec is None:
         notes.append("vector_document leg skipped: no embedding available this run")
 
@@ -707,16 +722,36 @@ def detect(
                     corpus.legs_run.remove("vector_chunk")
                 notes.append("vector_chunk leg disabled mid-run: embed daemon unavailable")
                 break
+            corpus._chunks_current[slug] = status != "skipped-oversize"   # S6 slice A
             if status == "skipped-oversize":
                 oversize_seen += 1
         if oversize_seen:
             notes.append(f"chunk_index: skipped-oversize for {oversize_seen} hit(s)")
         if corpus.chunk_leg_active:
-            chunk_best = chunks_mod.best_per_card(
-                corpus.chunk_con, precomputed_vec, k=cfg.deep_k,
+            scored = chunks_mod.best_per_card(
+                corpus.chunk_con, precomputed_vec, k=None,
                 model=corpus.embed_model, digest=corpus.embed_digest,
             )
+            # S6 slice A: the seed refresh above covers only the seeds, but the
+            # scan reads every stored chunk set, so a card edited since it was
+            # chunked could score on its old text. Take the best-scoring sets
+            # in order, keeping those that match the card's current text, until
+            # deep-K cards are kept (identical to the plain top deep-K when
+            # nothing is stale).
+            stale_chunks = []
+            for slug, best in sorted(scored.items(), key=lambda kv: (-kv[1][0], kv[0])):
+                if len(chunk_best) >= cfg.deep_k:
+                    break
+                if corpus.chunks_current(slug):
+                    chunk_best[slug] = best
+                else:
+                    stale_chunks.append(slug)
             chunk_best.pop(self_slug, None)
+            stale_chunks = sorted(s for s in stale_chunks if s != self_slug)
+            if stale_chunks:
+                notes.append(_stale_note(
+                    "vector_chunk leg", "stale chunks",
+                    "edited since chunked; refreshed when next a lexical or vector hit", stale_chunks))
     elif cfg.chunks and precomputed_vec is None:
         notes.append("vector_chunk leg skipped: no embedding available this run")
 

@@ -9,6 +9,8 @@ import json
 import multiprocessing as mp
 import re
 import sqlite3
+import subprocess
+import sys
 import threading
 
 import pytest
@@ -69,6 +71,14 @@ def rewrite_body(path, body):
     path.write_text(front + "\n---\n\n" + body + "\n", encoding="utf-8")
 
 
+def rewrite_card(path, title, body):
+    """Hand-edit title, description and body (shares no vocabulary with the old card)."""
+    front, _old = path.read_text(encoding="utf-8").split("\n---\n", 1)
+    front = re.sub(r"(?m)^title: .*$", f"title: {title}", front)
+    front = re.sub(r"(?m)^description: .*$", f"description: {title}", front)
+    path.write_text(front + "\n---\n\n" + body + "\n", encoding="utf-8")
+
+
 def add_external(kb, template_slug, slug, title, body):
     front, _ = concept_file(kb, template_slug).read_text(encoding="utf-8").split("\n---\n", 1)
     front = re.sub(r"(?m)^title: .*$", f"title: {title}", front)
@@ -120,6 +130,26 @@ def test_E9_dedup_ignores_a_stale_vector_and_says_so(mem, kb, ollama):
     assert not any(f["signal"] == "cosine_document_max" and f["against"] == a for f in c["flag_reasons"]), c["flag_reasons"]
     assert c["verdict"] == "novel", c["verdict"]
     assert any("stale" in n and a in n for n in c["notes"]), c["notes"]
+
+
+def test_E9_chunk_leg_ignores_stale_chunks_of_a_card_outside_the_refresh_seeds(mem, kb, ollama):
+    # Review s6a-review-1 finding 1: the opt-in chunk leg refreshed only its seeds (lexical and fresh-vector hits),
+    # then scored every stored chunk row. After a hand edit sharing no words with the candidate, the edited card is
+    # neither a lexical hit nor a fresh-vector hit: an intervening search with the embedding daemon down consumes the
+    # lexical change-set and leaves its vector stale (mem dedup does not drain before deciding).
+    env = {**setup(mem, ollama), "MEM_DEDUP_CHUNKS": "1"}
+    a = save(mem, env, "Cache layer ordering", OLD)
+    save(mem, env, "Docker layers", "Docker layers rebuild slowly when instructions change.")
+    warm = run_dedup(mem, env, kb, [{"title": "Docker cache", "body": OLD}], "warm")      # a is a seed: chunks stored
+    assert any(h["slug"] == a and h["cosine_best_chunk"] is not None for h in warm["hits"]), warm["hits"]
+    unrelated = NEW.replace(", so splitting", "; splitting")    # no token in common with OLD, so not a lexical hit
+    assert not words(unrelated) & words(OLD) and "so" not in re.findall(r"\w+", unrelated.lower())
+    rewrite_card(concept_file(kb, a), "splitlines and JSON Lines", unrelated)
+    assert mem("search", "anything at all", "--json").returncode == 0                      # daemon down (fixture default)
+    c = run_dedup(mem, env, kb, [{"title": "Docker cache", "body": OLD}], "after")
+    assert a not in [h["slug"] for h in c["hits"]], [(h["slug"], h["legs"], h["cosine_best_chunk"]) for h in c["hits"]]
+    assert not any(f.get("against") == a for f in c["flag_reasons"]), c["flag_reasons"]
+    assert any("vector_chunk" in n and "stale" in n and a in n for n in c["notes"]), c["notes"]
 
 
 def test_E10_extract_reports_an_unparseable_card_by_name_and_continues(mem, kb, ollama):
@@ -201,6 +231,22 @@ def test_current_embed_hashes_equal_embed_text_hashes(tmp_path):
     assert got == want
 
 
+def test_current_embed_hashes_propagates_errors_other_than_a_missing_table(tmp_path):
+    # Review s6a-review-1 finding 3: only "no lexical table" may mean "freshness unknown"; a lock or query failure
+    # must not silently turn freshness checking off.
+    con = sqlite3.connect(tmp_path / "empty.db")
+    try:
+        assert vector.current_embed_hashes(con) is None
+    finally:
+        con.close()
+
+    class Locked:
+        def execute(self, *_a):
+            raise sqlite3.OperationalError("database is locked")
+    with pytest.raises(sqlite3.OperationalError, match="locked"):
+        vector.current_embed_hashes(Locked())
+
+
 # --- concurrent start (E12's no-traceback half) ----------------------------------------------------------------------
 
 def _connect_worker(root, barrier, q):
@@ -243,3 +289,34 @@ def test_E12_two_concurrent_extracts_produce_no_traceback(mem, kb):
             assert "Traceback" not in out[t].stderr and "database is locked" not in out[t].stderr, out[t].stderr
     finally:
         srv.stop()
+
+
+# Review s6a-review-1 finding 2: when the WAL switch stays impossible (another process holds the database exclusively),
+# the command ends with one actionable line, no traceback and no save. The driver shortens the waits so the test is fast.
+_SHORT_WAITS = ("import sys; from agent_memory import indexdb, cli; "
+                "indexdb.BUSY_TIMEOUT_S = 0.05; indexdb.WAL_SWITCH_BUDGET = 0.3; "
+                "sys.exit(cli.main(sys.argv[1:]))")
+
+
+@pytest.mark.parametrize("command", ["extract", "dedup"])
+def test_E12_wal_switch_exhaustion_is_a_one_line_error_and_saves_nothing(mem, kb, ollama, command):
+    env = setup(mem, ollama)
+    save(mem, env, "Retrieval practice", "Self-testing beats restudying for delayed retention.")
+    f = kb.home / "c.json"
+    f.write_text(json.dumps([{"title": "Golf hotel india", "body": "Juliet kilo lima mike november oscar."}]),
+                 encoding="utf-8")
+    argv = (["extract", "--candidates", str(f), "--json"] if command == "extract"
+            else ["dedup", str(f), "--json", "--no-log"])
+    before = sorted(p.name for p in (kb.kb / "concepts").glob("*.md"))
+    holder = sqlite3.connect(indexdb.db_path(kb.kb), isolation_level=None)
+    try:
+        assert holder.execute("PRAGMA journal_mode=DELETE").fetchone()[0] == "delete"
+        holder.execute("BEGIN EXCLUSIVE")
+        r = subprocess.run([sys.executable, "-c", _SHORT_WAITS, *argv], env={**kb.env, **env},
+                           capture_output=True, text=True, timeout=60)
+    finally:
+        holder.close()
+    lines = r.stderr.strip().splitlines()
+    assert r.returncode == 1, (r.returncode, r.stderr)
+    assert len(lines) == 1 and lines[0].startswith("error: ") and "WAL" in lines[0], r.stderr
+    assert sorted(p.name for p in (kb.kb / "concepts").glob("*.md")) == before

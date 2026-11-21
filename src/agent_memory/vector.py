@@ -93,17 +93,21 @@ def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def current_embed_hashes(con: sqlite3.Connection) -> dict:
+def current_embed_hashes(con: sqlite3.Connection) -> dict | None:
     """{slug: content_hash of embed_text(current card)} for every card in the
     lexical index (S6 slice A: no surface scores a stale vector). Callers sync
     the lexical index first, so its rows are the files' current text. Topics
     are kebab-case slugs (okf.normalize_topics), so the index's space-joined
-    column splits back exactly. Returns None when the database has no lexical
-    table at all (never synced): freshness cannot be checked there. Every
-    production caller (search, dedup's build_corpus, extract) syncs first."""
+    column splits back exactly. Returns None only when the database has no
+    lexical table at all (never synced): freshness cannot be checked there.
+    Every production caller (search, dedup's build_corpus, extract) syncs
+    first. Any other error (a lock, a damaged table) propagates rather than
+    turning freshness checking off."""
     try:
         rows = con.execute("SELECT slug, title, description, body, topics FROM lexical").fetchall()
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as e:
+        if "no such table" not in str(e):
+            raise
         return None
     out = {}
     for slug, title, description, body, topics in rows:
