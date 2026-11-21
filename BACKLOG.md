@@ -117,6 +117,14 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   ordinary output is unchanged. Reproduced: a failure partway through leaves earlier concepts
   committed and a staged file behind; two concurrent extracts often both save the same concept
   (the second under `-2`, reported as distinct). Source: D29.
+  **Build plan drafted 2026-11-21 (operator's request; private records), not build-ready:** five independent reviews, each
+  narrower. Accepted so far: commit first and write the files afterwards inside git's index lock (no concept file exists
+  before its commit, so no failure deletes one), branch re-checks before files and index, roll-forward-only recovery. Open:
+  crash-safe recovery of files that could not be written, and closing the window in which a ref-only git command (reset
+  --soft, update-ref) can move the branch mid-publication - a prepared `git update-ref --stdin` transaction holds the branch's
+  ref lock and could cover it. Open owner decisions: retry on a changed KB (B1), dedup-log durability moved to slice C (B2),
+  doctor's role in recovery (B3). Re-probed on the live code: a refused second commit still leaves a partial batch, and two
+  concurrent extracts saved one concept twice in 6 of 10 overlapping runs.
 - **D18 S6, slice C — one decision.** `mem extract` decides with `dedup.detect()` and `mem dedup`'s
   coverage policy, acting on `recommended_action` (only `skip` skips; `review` and
   `update-existing` are held for judgment); `mem save --dedup-check` gets the same policy; the
