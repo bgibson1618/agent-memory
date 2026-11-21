@@ -13,6 +13,7 @@ import fcntl
 import json
 import os
 import re
+import sqlite3
 import sys
 from contextlib import contextmanager
 from pathlib import Path
@@ -153,6 +154,9 @@ def _dedup_check(root: Path, concept: okf.Concept) -> None:
     except vector.VectorError as e:
         print(f"dedup-check: skipped ({e})", file=sys.stderr)
         return
+    except sqlite3.Error as e:   # S6 slice A: a locked or damaged index is a skip, not a failed save
+        print(f"dedup-check: skipped (index: {e})", file=sys.stderr)
+        return
     try:
         corpus.embed_model = config.embed_model()
         vec = None
@@ -177,7 +181,7 @@ def _dedup_check(root: Path, concept: okf.Concept) -> None:
         report = dedup.detect(corpus, concept, vec, exclude_slug=concept.slug)
         print(f"dedup-check: verdict={report['verdict']} flagged={report['flagged']}", file=sys.stderr)
         print(json.dumps(report, indent=2, ensure_ascii=False), file=sys.stderr)
-    except (vector.VectorError, dedup.DedupError, StoreError, ollama.OllamaError) as e:
+    except (vector.VectorError, dedup.DedupError, StoreError, ollama.OllamaError, sqlite3.Error) as e:
         print(f"dedup-check: skipped ({e})", file=sys.stderr)
     finally:
         corpus.close()

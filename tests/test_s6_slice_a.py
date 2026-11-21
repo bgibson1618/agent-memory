@@ -247,6 +247,51 @@ def test_current_embed_hashes_propagates_errors_other_than_a_missing_table(tmp_p
         vector.current_embed_hashes(Locked())
 
 
+def damage_lexical_index(kb):
+    """Drop the FTS5 table's backing content table: `lexical` still exists, but reading it fails."""
+    con = sqlite3.connect(indexdb.db_path(kb.kb))
+    try:
+        con.execute("DROP TABLE lexical_content")
+        con.commit()
+    finally:
+        con.close()
+
+
+def test_current_embed_hashes_propagates_a_damaged_lexical_index(tmp_path):
+    # Review s6a-review-2: "no such table" alone is not "never synced" - a damaged FTS5 index reports it too.
+    root = tmp_path / "kb"
+    (root / "concepts").mkdir(parents=True)
+    con = lexical.connect(root)
+    try:
+        con.execute("DROP TABLE lexical_content")
+        with pytest.raises(sqlite3.OperationalError, match="no such table"):
+            vector.current_embed_hashes(con)
+    finally:
+        con.close()
+
+
+def test_extract_refuses_on_a_damaged_lexical_index_and_saves_nothing(mem, kb, ollama):
+    env = setup(mem, ollama)
+    save(mem, env, "Retrieval practice", "Self-testing beats restudying for delayed retention.")
+    damage_lexical_index(kb)
+    before = sorted(p.name for p in (kb.kb / "concepts").glob("*.md"))
+    r = run_extract(mem, env, kb, [{"title": "Golf hotel india", "body": "Juliet kilo lima mike november oscar."}])
+    assert r.returncode != 0 and "lexical_content" in r.stderr, (r.returncode, r.stderr[-400:])
+    assert sorted(p.name for p in (kb.kb / "concepts").glob("*.md")) == before
+
+
+def test_save_dedup_check_skips_on_a_damaged_lexical_index_without_failing_the_save(mem, kb, ollama):
+    # Review s6a-review-2 should-fix: the advisory runs after the save committed, so index trouble is a skip note.
+    env = setup(mem, ollama)
+    save(mem, env, "Retrieval practice", "Self-testing beats restudying for delayed retention.")
+    damage_lexical_index(kb)
+    r = mem("save", "--title", "Golf hotel india", "--body", "Juliet kilo lima mike november oscar.", "--dedup-check",
+            env_extra=env)
+    assert r.returncode == 0, r.stderr[-600:]
+    assert "dedup-check: skipped" in r.stderr and "Traceback" not in r.stderr, r.stderr[-600:]
+    assert concept_file(kb, "golf-hotel-india").is_file()
+
+
 # --- concurrent start (E12's no-traceback half) ----------------------------------------------------------------------
 
 def _connect_worker(root, barrier, q):

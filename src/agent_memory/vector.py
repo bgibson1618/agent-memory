@@ -101,12 +101,15 @@ def current_embed_hashes(con: sqlite3.Connection) -> dict | None:
     column splits back exactly. Returns None only when the database has no
     lexical table at all (never synced): freshness cannot be checked there.
     Every production caller (search, dedup's build_corpus, extract) syncs
-    first. Any other error (a lock, a damaged table) propagates rather than
-    turning freshness checking off."""
+    first. Any other error propagates rather than turning freshness checking
+    off - a lock, or a damaged FTS5 index whose backing table is missing
+    (that also says "no such table", so `lexical`'s own absence is checked)."""
     try:
         rows = con.execute("SELECT slug, title, description, body, topics FROM lexical").fetchall()
     except sqlite3.OperationalError as e:
-        if "no such table" not in str(e):
+        if "no such table" not in str(e) or con.execute(
+            "SELECT 1 FROM sqlite_master WHERE name = 'lexical'"
+        ).fetchone():
             raise
         return None
     out = {}
