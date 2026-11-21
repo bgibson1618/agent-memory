@@ -21,7 +21,8 @@ relying on it; when they differ, treat it as a lead to verify, not an answer.
 use: a confirmed behaviour of a tool, library, format or external service, a technique
 that worked, or the general cause of a bug. A single tested observation is worth saving
 when you state it as one: what happened, the conditions (versions, inputs, environment)
-and the evidence (the test, command or source). Keep the conclusion within that
+and the evidence (the test, command or source). Cite evidence by project name and
+project-relative path, never by an absolute local path. Keep the conclusion within that
 evidence; generalize only when a checked source or broader test supports it, and label
 anything else as a hypothesis. Facts that matter only to this project belong in the
 project's own notes. Search before saving and update an existing concept rather than

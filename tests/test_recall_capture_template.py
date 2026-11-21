@@ -2,7 +2,8 @@
 
 Both shipped blocks must ask for a search at the start of non-trivial work and a check of a hit's stated
 conditions; must allow a single tested observation to be saved when stated as one; must keep conclusions within
-the evidence and route project-only facts to project notes; and must keep the versioned-update rule."""
+the evidence and route project-only facts to project notes; must ask that evidence be cited by project name and
+project-relative path, never an absolute local path (added after the Opus pilot); and must keep the versioned-update rule."""
 from agent_memory.blocks import AGENTS_BLOCK, CLAUDE_BLOCK, render_block
 
 REQUIRED = [
@@ -15,6 +16,7 @@ REQUIRED = [
     "label anything else as a hypothesis",
     "project's own notes",
     "Search before saving",
+    "Cite evidence by project name and project-relative path, never by an absolute local path.",
 ]
 
 
