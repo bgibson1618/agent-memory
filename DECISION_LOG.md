@@ -1083,7 +1083,7 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   its first draft: skip keyed on the verdict, the slug self-exclusion, the dedup log treated as a
   cache) and corrected; the corrections were not re-reviewed.
 - **Slice A built (2026-11-20, the operator's "proceed when ready" on the slice plan):** local
-  branch `s6-slice-a-2026-11` (1092398, review fixes 9484dab). The rule "no surface scores a stale
+  branch `s6-slice-a-2026-11` (1092398, review fixes 9484dab and df2c097). The rule "no surface scores a stale
   vector" is implemented as a content-hash check against the card's current text, rebuilt from the
   lexical index. Search and dedup leave a stale vector out and re-queue the card, and leave a stale
   chunk set out until the card is next retrieved and re-chunked; neither refuses. `mem extract`

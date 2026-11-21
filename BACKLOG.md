@@ -94,12 +94,14 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   Reproduced 2026-11-19 on the active release's code: extract misses hand-edited and hand-added
   cards until another command refreshes the index; `mem dedup` flags against a hand-edited card's
   stale vector; `mem dedup` calls a same-title exact duplicate novel. Source: D29.
-  **Built 2026-11-20 on local branch `s6-slice-a-2026-11` (1092398 plus review fixes 9484dab), not
+  **Built 2026-11-20 on local branch `s6-slice-a-2026-11` (1092398 plus review fixes 9484dab and df2c097), not
   merged, released or active** (`FEATURES.md` F8, F9). Each defect was first written as a test that
   failed on the code before the fix. The independent review (contained Codex, static) failed the
   first version: the opt-in chunk leg could still score stale chunks, and an exhausted WAL switch
   still reached extract and dedup as a traceback. Both are fixed with tests, along with a too-broad
-  fallback in the freshness check. Expected after release: the first extract re-embeds any card
+  fallback in the freshness check; a second review found that fallback still accepted a damaged
+  full-text index, and that `mem save --dedup-check` could fail a committed save on an index error
+  (both fixed with tests). Expected after release: the first extract re-embeds any card
   whose vector no longer matches its file (cards edited outside `mem` and not yet re-embedded; by
   the code history, otherwise only vectors written before 2026-07-23 and never refreshed).
 - **D18 S6, slice B — all-or-nothing extraction batch.** Phase 1 does all daemon work; phase 2
@@ -154,6 +156,9 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 - `chunks.py` and `claims.py` hand-mirror the same identity-stamp and rebuild engine; extract a
   shared helper (2026-09-03).
 - The wikilink pattern is defined separately in `okf.py`, `graph.py` and `extract.py` (2026-08-10).
+- A damaged index (for example a missing FTS5 backing table) reaches `mem extract` and `mem dedup`
+  as a Python traceback; nothing is saved, and `mem search` already reports it in one line. A
+  one-line `error:` naming `mem reindex` would match (2026-11-20, S6 slice A review 2).
 - `lexical.db_path()` raises `NameError`: it still refers to `DB_NAME`, which moved to `indexdb` on
   2026-08-05. Nothing calls it, so it is dead code; delete it or point it at `indexdb.db_path`.
   (Listed as fixed on 2026-11-18 in error; re-checked against the source on 2026-11-20.)

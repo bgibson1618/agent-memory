@@ -191,7 +191,8 @@ is always one command.
 - **2026-11-20 amendment (D18 S6 slice A; local branch `s6-slice-a-2026-11`, not merged, released or
   active):** no surface scores a vector that no longer matches its card's current text. `mem search`
   and `mem dedup` leave such a vector out (their text legs still run, and dedup's notes name the
-  cards), `mem extract` refuses, and each re-queues the card so the next drain replaces the vector.
+  cards) and re-queue the card so the next drain replaces the vector; `mem extract` re-embeds such
+  cards first and refuses the batch only if one still has no matching vector.
   The same holds for the opt-in chunk leg (`MEM_DEDUP_CHUNKS`): a stored chunk set that does not match
   the card's current text is left out and named. Several processes opening a fresh index at once no
   longer fail with "database is locked" (reproduced 88 of 160 opens; 160 of 160 after the fix): the
@@ -231,8 +232,8 @@ happened — so the calling agent can tell Brent what entered his KB.
   first extract after edits outside `mem` re-embeds the edited cards, which is slower (synthetic
   3,300-card KB, fake embedder, 5 candidates after 50 cards were edited: 0.48 s before, 0.67 and
   0.73 s in two runs after); search, dedup and a plain extract stayed within run-to-run variation
-  (measured before the review fixes, which leave those default paths unchanged). Proof: `tests/test_s6_slice_a.py` (15 tests: each
-  defect test fails on the code before its fix); full suite 452 passed, 1 skipped.
+  (measured before the review fixes, which leave those default paths unchanged). Proof: `tests/test_s6_slice_a.py` (18 tests: each
+  defect test fails on the code before its fix); full suite 455 passed, 1 skipped.
 
 ## F10 — Extraction procedure
 - **Proof:** `observed` (a real document run end-to-end in a real agent session)
