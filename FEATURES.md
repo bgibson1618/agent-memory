@@ -188,6 +188,15 @@ is always one command.
   deleted file stops appearing — no ghost hits pointing at missing paths.
 - `mem reindex` rebuilds the entire index from markdown alone; results for unchanged content are
   equivalent before and after.
+- **2026-11-20 amendment (D18 S6 slice A; local branch `s6-slice-a-2026-11`, not merged, released or
+  active):** no surface scores a vector that no longer matches its card's current text. `mem search`
+  and `mem dedup` leave such a vector out (their text legs still run, and dedup's notes name the
+  cards), `mem extract` refuses, and each re-queues the card so the next drain replaces the vector.
+  The same holds for the opt-in chunk leg (`MEM_DEDUP_CHUNKS`): a stored chunk set that does not match
+  the card's current text is left out and named. Several processes opening a fresh index at once no
+  longer fail with "database is locked" (reproduced 88 of 160 opens; 160 of 160 after the fix): the
+  switch to WAL mode is retried within 5 s, and if another process keeps the index locked past that,
+  the command ends with one `error:` line. Proof: `tests/test_s6_slice_a.py`.
 
 ## F9 — Extract-knowledge CLI
 - **Proof:** `test` (candidate fixtures: novel saved, near-dups skipped, dispositions reported; threshold matches the committed calibration artifact)
@@ -210,6 +219,20 @@ happened — so the calling agent can tell Brent what entered his KB.
   requires embeddings); nothing is partially saved.
 - Invalid candidates are rejected item-wise with reasons; valid siblings in the same batch still
   land.
+- **2026-11-20 amendment (D18 S6 slice A; local branch `s6-slice-a-2026-11`, not merged, released or
+  active):** before deciding, `mem extract` refreshes the index from the concept files and embeds
+  every new or changed card, so a card edited or added outside `mem` is compared on its current
+  text. If a changed card cannot be embedded, the batch is refused with one `error:` line before
+  anything is saved. Unparseable concept files are named on stderr and in `--json` (`unparseable`,
+  present only when there are any, so default output is unchanged), and the batch continues without
+  them. `mem dedup` no longer hides an existing card that has a new candidate's slug (a same-title
+  exact duplicate was reported as novel); re-checking an existing card (`mem save --dedup-check`, or
+  an existing card's file given to `mem dedup`) still leaves that card out of its own check. The
+  first extract after edits outside `mem` re-embeds the edited cards, which is slower (synthetic
+  3,300-card KB, fake embedder, 5 candidates after 50 cards were edited: 0.48 s before, 0.67 and
+  0.73 s in two runs after); search, dedup and a plain extract stayed within run-to-run variation
+  (measured before the review fixes, which leave those default paths unchanged). Proof: `tests/test_s6_slice_a.py` (15 tests: each
+  defect test fails on the code before its fix); full suite 452 passed, 1 skipped.
 
 ## F10 — Extraction procedure
 - **Proof:** `observed` (a real document run end-to-end in a real agent session)
