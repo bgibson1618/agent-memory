@@ -1103,3 +1103,12 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   The re-check (6 sessions, the pilot's capture slots) met the capture gates: 4 of 4 entries correct and
   scoped with no absolute or private path; both controls saved nothing. A save-time path check in `mem`
   is backlogged as a separate slice. Merge, release and activation still each need the operator's word.
+- **Released and activated for Claude only (Brent, 2026-11-20 evening):** "Merge the branch, release,
+  switch the wording live"; asked whether to test Codex first, he agreed to release for Claude now and
+  add Codex after a Codex test ("Claude only for now. Proceed in your proposed order"). Main merged the
+  branch (732b914); release `0.2.1+732b914bc791` was activated with the entrypoint re-pinned, and the
+  wording, adapted to `mem-personal`, was appended to the user-level Claude instruction file (outside
+  the managed policy-reference block; the shared-write `pending`/`retry` sentence left out because the
+  laptop instance holds those commands). Folio operated under the operator's direct word; the
+  coordinator reviewed the package and arranged a quiet window with the other local agents. Codex
+  guidance and the shared policy are unchanged.

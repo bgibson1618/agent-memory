@@ -391,6 +391,12 @@ not claimed.
   met; both controls saved nothing, and neither searched memory at the start of its task. One run per
   slot, sequential runs; reader updates and other models with the sentence are untested; not merged,
   released or active.
+- **2026-11-20 released and active for Claude sessions (the operator's word; independent release reviews
+  FAIL then FAIL, both closed, the second on deterministic fault tests and the coordinator's package
+  check):** the branch is merged into main (732b914); release `0.2.1+732b914bc791` is active (program code
+  unchanged; only the templates differ); the personal entrypoint is re-pinned; and the user-level Claude
+  instruction file carries the wording adapted to `mem-personal`. A fresh, model-free Claude session
+  loads it; running sessions keep what they loaded. Codex guidance is unchanged until a Codex test.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)

@@ -84,35 +84,45 @@ staged release id and manifest, the exact prefix, the rollback command, who
 re-pins any wrapper), approval, and a status check afterwards. Nothing in
 this repository activates anything on its own.
 
-## What is active on the development laptop (2026-11-18)
+## What is active on the development laptop (2026-11-20)
 
 Recorded here so that a new engineer can tell what runs without reading the operations records
 (which stay private, outside this repository).
 
-- **Runtime:** release `0.2.1+a6d77bfd71d2` (frozen from revision a6d77bf, which includes D28's
-  `--entrypoint`), installed non-editably into the uv tool prefix and selected by
-  `zz_agent_memory_release.pth`. It was activated offline with the prefix's existing numpy 2.5.5 and
-  PyYAML 6.0.3 as uv constraints (uv records them in the tool receipt), on Python 3.12.13.
-  `<releases-dir>/active.json` journals the previous release, `0.2.1+a1c3a6319b61` (its receipt and
-  selector), so `rollback` returns to that release; the first activation's journal, whose previous
-  state was the editable worktree install, is kept in the private records. `mem --version` prints
-  the release path.
+- **Runtime:** release `0.2.1+732b914bc791` (frozen from revision 732b914, main after the D30 merge:
+  D28's `--entrypoint` plus the D30 memory templates; the program code equals `0.2.1+a6d77bfd71d2`),
+  installed non-editably into the uv tool prefix and selected by `zz_agent_memory_release.pth`. It was
+  activated offline with the prefix's numpy 2.5.5 and PyYAML 6.0.3 as uv constraints, on Python
+  3.12.13. `<releases-dir>/active.json` journals the previous release, `0.2.1+a6d77bfd71d2` (its
+  receipt and selector), so `rollback` returns to that release; earlier journals (to `0.2.1+a1c3a6319b61`
+  and to the editable worktree install) are kept in the private records. `mem --version` prints the
+  release path.
 - **Guarded personal wrapper:** a private launcher pins the release package and that selector's
   hash and selects one private local instance; it refuses when either pin drifts and holds
   `doctor`, `init` and the four transport commands. Its path and instance are operator policy, not
   part of this repository.
 - **Plugin:** both agent harnesses serve `.claude-plugin/` and `skills/` from a frozen plugin
-  snapshot, `<releases-dir>/plugin-0.2.1+a6d77bfd71d2`, frozen from the same revision as the runtime
-  and switched with it (see "Plugin snapshots" below), not from a worktree.
+  snapshot, `<releases-dir>/plugin-0.2.1+a6d77bfd71d2`, frozen from revision a6d77bf (see "Plugin
+  snapshots" below), not from a worktree. The plugin files are unchanged at 732b914, so the D30
+  release kept this snapshot.
+- **Claude guidance (D30, Claude only):** the user-level Claude instruction file carries an appended
+  section, "Agent Memory use (`mem-personal`)": the D30 wording (search at the start of non-trivial
+  work; save a scoped single tested observation; cite evidence by project name and project-relative
+  path; read-version-checked updates), adapted to the personal entrypoint, after the unchanged
+  policy-reference block. Running sessions keep what they loaded; new sessions read it. Codex
+  guidance is unchanged until a Codex test (BACKLOG).
 - **Holds (receipted, reversible):** the shared-write operator profile is held aside by
   `scripts/hold-shared-writes.py hold-profile` (so every marked replica fails closed), and an
   obsolete remote was removed from the development checkout by `remove-remote`. Each receipt is
   the input of the matching `restore-*` command.
-- **Rollback, in reverse order:** Codex re-registered on `plugin-0.2.1+8be9b0927063`; Claude's four
-  `mem-local` routing fields moved back field by field (never a whole-file restore — those files also
-  carry other tools' settings); the wrapper from its saved copy; then `scripts/release.py rollback
-  --allow-live`, run once and only after checking that `active.json` is this release's journal (the
-  venv is rebuilt, not byte-identical). The guarded commands are in the private operator packet.
+- **Rollback of the D30 release, in reverse order:** the Claude instruction file back to its saved
+  bytes through the guarded tool (it refuses unless the file is exactly the D30 version); the wrapper
+  from its saved copy; then `scripts/release.py rollback --allow-live`, run once and only after
+  checking that `active.json` is this release's journal (the venv is rebuilt, not byte-identical).
+  Rolling back further, to the D28 state's predecessor, follows the D28 packet: Codex re-registered on
+  `plugin-0.2.1+8be9b0927063`, Claude's four `mem-local` routing fields moved back field by field
+  (never a whole-file restore — those files also carry other tools' settings), the wrapper, then a
+  rollback. The guarded commands are in the private operator packets.
   Keep every saved copy, the previous release and the previous snapshot until the operator closes
   the rollback window.
 
