@@ -30,12 +30,12 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
    instruction file carries the wording). The Codex test is postponed (operator, 2026-11-20): no
    contained route can run it yet (see "Contained Codex test route" below); Codex guidance stays unchanged.
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
-   decide on current files, write all-or-nothing, and share one decision. Slice A is built and merged
-   into main (1d89173, 2026-11-20, the operator's word), and release `0.2.1+1d89173c57a4` is staged
-   and rehearsed; switching it live waits for the operator's explicit word and a coordinated window.
-   Then slice B.
-3. **Close the D30 release's rollback window** on the operator's word, with the D27/D28 window (on or
-   after 2026-11-25): keep `0.2.1+a6d77bfd71d2` and the saved copies until then.
+   decide on current files, write all-or-nothing, and share one decision. Slice A is built, merged
+   into main (1d89173, 2026-11-20) and active on the development laptop as release
+   `0.2.1+1d89173c57a4` (2026-11-21, the operator's word, in a coordinated quiet window). Next: slice B.
+3. **Close the D30 and slice A releases' rollback windows** on the operator's word, with the D27/D28
+   window (on or after 2026-11-25): keep `0.2.1+a6d77bfd71d2`, `0.2.1+732b914bc791` and the saved
+   copies until then.
 
 ## Features and correctness
 
@@ -96,7 +96,10 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   cards until another command refreshes the index; `mem dedup` flags against a hand-edited card's
   stale vector; `mem dedup` calls a same-title exact duplicate novel. Source: D29.
   **Built 2026-11-20 on branch `s6-slice-a-2026-11` (1092398 plus review fixes 9484dab and df2c097) and merged
-  into main as 1d89173 the same day; release `0.2.1+1d89173c57a4` staged, not active** (`FEATURES.md` F8, F9). Each defect was first written as a test that
+  into main as 1d89173 the same day; released as `0.2.1+1d89173c57a4` and activated on 2026-11-21**
+  (`FEATURES.md` F8, F9; `RELEASE.md`). The activation package took four independent reviews (three
+  found gaps in its pre-switch gate, inherited from the D30 package, all fixed) and a rehearsal on a
+  disposable prefix in which the previous release missed a hand-edited duplicate and the new one caught it. Each defect was first written as a test that
   failed on the code before the fix. The independent review (contained Codex, static) failed the
   first version: the opt-in chunk leg could still score stale chunks, and an exhausted WAL switch
   still reached extract and dedup as a traceback. Both are fixed with tests, along with a too-broad

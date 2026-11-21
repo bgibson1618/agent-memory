@@ -1088,7 +1088,10 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   lexical index. Search and dedup leave a stale vector out and re-queue the card, and leave a stale
   chunk set out until the card is next retrieved and re-chunked; neither refuses. `mem extract`
   re-embeds first and refuses the batch only when a card still cannot be embedded.
-  Not merged, released or active; each needs the operator's word.
+  Merged into main as 1d89173 (operator, 2026-11-20: "Go ahead and merge the branch then arrange a
+  release window with Hub"); released as `0.2.1+1d89173c57a4` and switched live on 2026-11-21 in a
+  coordinated quiet window (operator: "Switch the live runtime when you get a quiet window"), runtime
+  and wrapper only; rollback returns to `0.2.1+732b914bc791`.
 
 
 ## D30 — The candidate capture/recall wording is chosen (2026-11-20)
