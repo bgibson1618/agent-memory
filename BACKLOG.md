@@ -30,9 +30,10 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
    instruction file carries the wording). The Codex test is postponed (operator, 2026-11-20): no
    contained route can run it yet (see "Contained Codex test route" below); Codex guidance stays unchanged.
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
-   decide on current files, write all-or-nothing, and share one decision. Slice A is built on local
-   branch `s6-slice-a-2026-11` (2026-11-20, the operator's go-ahead; see its item below); merging,
-   releasing and activating it each need the operator's word. Then slice B.
+   decide on current files, write all-or-nothing, and share one decision. Slice A is built and merged
+   into main (1d89173, 2026-11-20, the operator's word), and release `0.2.1+1d89173c57a4` is staged
+   and rehearsed; switching it live waits for the operator's explicit word and a coordinated window.
+   Then slice B.
 3. **Close the D30 release's rollback window** on the operator's word, with the D27/D28 window (on or
    after 2026-11-25): keep `0.2.1+a6d77bfd71d2` and the saved copies until then.
 
@@ -94,8 +95,8 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   Reproduced 2026-11-19 on the active release's code: extract misses hand-edited and hand-added
   cards until another command refreshes the index; `mem dedup` flags against a hand-edited card's
   stale vector; `mem dedup` calls a same-title exact duplicate novel. Source: D29.
-  **Built 2026-11-20 on local branch `s6-slice-a-2026-11` (1092398 plus review fixes 9484dab and df2c097), not
-  merged, released or active** (`FEATURES.md` F8, F9). Each defect was first written as a test that
+  **Built 2026-11-20 on branch `s6-slice-a-2026-11` (1092398 plus review fixes 9484dab and df2c097) and merged
+  into main as 1d89173 the same day; release `0.2.1+1d89173c57a4` staged, not active** (`FEATURES.md` F8, F9). Each defect was first written as a test that
   failed on the code before the fix. The independent review (contained Codex, static) failed the
   first version: the opt-in chunk leg could still score stale chunks, and an exhausted WAL switch
   still reached extract and dedup as a traceback. Both are fixed with tests, along with a too-broad

@@ -188,8 +188,8 @@ is always one command.
   deleted file stops appearing — no ghost hits pointing at missing paths.
 - `mem reindex` rebuilds the entire index from markdown alone; results for unchanged content are
   equivalent before and after.
-- **2026-11-20 amendment (D18 S6 slice A; local branch `s6-slice-a-2026-11`, not merged, released or
-  active):** no surface scores a vector that no longer matches its card's current text. `mem search`
+- **2026-11-20 amendment (D18 S6 slice A; merged into main 1d89173, release `0.2.1+1d89173c57a4`
+  staged, not active):** no surface scores a vector that no longer matches its card's current text. `mem search`
   and `mem dedup` leave such a vector out (their text legs still run, and dedup's notes name the
   cards) and re-queue the card so the next drain replaces the vector; `mem extract` re-embeds such
   cards first and refuses the batch only if one still has no matching vector.
@@ -220,8 +220,8 @@ happened — so the calling agent can tell Brent what entered his KB.
   requires embeddings); nothing is partially saved.
 - Invalid candidates are rejected item-wise with reasons; valid siblings in the same batch still
   land.
-- **2026-11-20 amendment (D18 S6 slice A; local branch `s6-slice-a-2026-11`, not merged, released or
-  active):** before deciding, `mem extract` refreshes the index from the concept files and embeds
+- **2026-11-20 amendment (D18 S6 slice A; merged into main 1d89173, release `0.2.1+1d89173c57a4`
+  staged, not active):** before deciding, `mem extract` refreshes the index from the concept files and embeds
   every new or changed card, so a card edited or added outside `mem` is compared on its current
   text. If a changed card cannot be embedded, the batch is refused with one `error:` line before
   anything is saved. Unparseable concept files are named on stderr and in `--json` (`unparseable`,
