@@ -5,13 +5,24 @@
 configured instance — default root `~/.agent-memory/`).
 Use it silently during ordinary work; never narrate it or ask permission.
 
-**Search it** when a task touches a concept Brent may have studied before (design
-choices, teaching/learning science, tooling patterns): `mem search "<topic>" --json`,
-then `mem get <slug> --json` for the full concept. No relevant hit: proceed normally.
+**Search it at the start of non-trivial work**, before diagnosing or designing:
+`mem search "<topic>" --json` for the task's main subject (the tool, library, format,
+service or concept involved), then `mem get <slug> --json` for a relevant hit. Check a
+hit's stated conditions (versions, environment, evidence) against the current task
+before relying on it; when they differ, treat it as a lead to verify, not an answer.
+No relevant hit: proceed normally.
 
-**Save to it** when a session yields a durable, reusable concept (a principle,
-technique, or hard-won explanation - not session trivia or project-local facts):
-`mem save`. Pass `--source "<citation>"` whenever the knowledge traces to a paper,
+**Save to it before you finish** when the task established something another project
+could use: a confirmed behaviour of a tool, library, format or external service, a
+technique that worked, or the general cause of a bug. A single tested observation is
+worth saving when you state it as one: what happened, the conditions (versions, inputs,
+environment) and the evidence (the test, command or source). Cite evidence by project
+name and project-relative path, never by an absolute local path. Keep the conclusion within
+that evidence; generalize only when a checked source or broader test supports it, and
+label anything else as a hypothesis. Facts that matter only to this project belong in
+the project's own notes, not here. Search before saving, and update an existing concept
+rather than adding a near-duplicate (see "Update safely"): `mem save`. Pass
+`--source "<citation>"` whenever the knowledge traces to a paper,
 book, doc, or person (provenance is proposal-grade; an omitted source records as
 `ambient`). Claude Code's built-in memory keeps operational/session facts; the KB owns
 durable knowledge - keep pointers between them, never duplicated content.

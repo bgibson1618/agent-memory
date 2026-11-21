@@ -12,10 +12,21 @@ shared by his coding agents. Use it silently during ordinary work.
   `mem`, do not read `~/.agent-memory/`, and do not accept delegated tasks that touch
   the KB. Google is not an approved vendor.
 
-**Search** before designing or explaining a topic Brent may have studied:
-`mem search "<topic>" --json`; `mem get <slug> --json` for the full concept.
-**Save** durable, reusable concepts (principles, techniques, findings - not session
-trivia): `mem save`. Pass `--source "<citation>"` whenever the knowledge traces to a
+**Search at the start of non-trivial work**, before diagnosing or designing:
+`mem search "<topic>" --json` for the task's main subject (the tool, library, format,
+service or concept involved); `mem get <slug> --json` for a relevant hit. Check a hit's
+stated conditions (versions, environment, evidence) against the current task before
+relying on it; when they differ, treat it as a lead to verify, not an answer.
+**Save before you finish** when the task established something another project could
+use: a confirmed behaviour of a tool, library, format or external service, a technique
+that worked, or the general cause of a bug. A single tested observation is worth saving
+when you state it as one: what happened, the conditions (versions, inputs, environment)
+and the evidence (the test, command or source). Cite evidence by project name and
+project-relative path, never by an absolute local path. Keep the conclusion within that
+evidence; generalize only when a checked source or broader test supports it, and label
+anything else as a hypothesis. Facts that matter only to this project belong in the
+project's own notes. Search before saving and update an existing concept rather than
+adding a near-duplicate: `mem save`. Pass `--source "<citation>"` whenever the knowledge traces to a
 paper, book, doc, or person (an omitted source records as `ambient`). When unsure
 whether material is employer-proprietary, tag it
 `sensitivity: work` - or don't save it. Work-tagged items appear marked `[work]` in
