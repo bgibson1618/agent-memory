@@ -397,6 +397,12 @@ not claimed.
   unchanged; only the templates differ); the personal entrypoint is re-pinned; and the user-level Claude
   instruction file carries the wording adapted to `mem-personal`. A fresh, model-free Claude session
   loads it; running sessions keep what they loaded. Codex guidance is unchanged until a Codex test.
+- **2026-11-20 Codex check: no contained test route exists yet; the Codex test is postponed (operator's
+  decision).** Model-free probes found that Codex's own command sandbox cannot start inside the bubblewrap
+  test sandbox on this laptop (nested user namespaces are refused; on the host it works), and that the
+  verified contained Codex route can add neither the test's masks nor a stand-in memory command without a
+  reviewed change to its root launcher. No Codex model session ran. Codex guidance stays unchanged; the
+  Claude results do not establish Codex behaviour.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)

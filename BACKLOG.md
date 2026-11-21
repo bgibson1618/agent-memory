@@ -27,11 +27,11 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
    local path.", branch @ 7319d73); a 6-session Opus re-check of the capture slots met the capture gates
    (4 of 4 correct, scoped entries without such paths; controls saved nothing). Merged, released and
    active for Claude sessions on 2026-11-20 (release `0.2.1+732b914bc791`; the user-level Claude
-   instruction file carries the wording). Next (operator's agreed order): a contained Codex feasibility
-   probe, then the capture/reuse test on one Codex model with Codex-adapted wording; if it passes, the
-   section goes into Codex's guidance file. Then S6.
+   instruction file carries the wording). The Codex test is postponed (operator, 2026-11-20): no
+   contained route can run it yet (see "Contained Codex test route" below); Codex guidance stays unchanged.
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
-   decide on current files, write all-or-nothing, and share one decision (after the Codex step of item 1).
+   decide on current files, write all-or-nothing, and share one decision. Next: slice A's plan for the
+   operator's go-ahead.
 3. **Close the D30 release's rollback window** on the operator's word, with the D27/D28 window (on or
    after 2026-11-25): keep `0.2.1+a6d77bfd71d2` and the saved copies until then.
 
@@ -74,6 +74,13 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   zero-unverified condition is the right adoption bar. The explicit end-of-task step
   stays the fallback (Brent, 2026-11-19). Any further test must not use a Roster role whose prompt forbids
   writes outside its run directory.
+- **Contained Codex test route (postponed test, 2026-11-20).** A Codex capture/reuse test needs a
+  boundary the laptop does not offer today: Codex's command sandbox cannot run inside the bubblewrap test
+  sandbox (nested user namespaces are refused), and the verified contained Codex route cannot hide the
+  test's answer files, earlier runs, transcripts or the real memory commands without a change to its root
+  launcher. The way forward is a separately scoped, reviewed launcher test mode (system-level approval),
+  then the same design on one Codex model with Codex-adapted wording; until then Codex guidance stays
+  unchanged. A weaker smoke test on the unchanged route would be a different, fully disclosed design.
 - **Save-time path check in `mem` (backlogged 2026-11-20 with the operator's agreement).** `mem save`
   would warn on or refuse absolute paths under the home directory or the private research roots in an
   entry's body and source. It would cover reader updates and every model; the wording sentence was

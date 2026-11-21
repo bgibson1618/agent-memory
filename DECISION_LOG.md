@@ -1112,3 +1112,8 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   laptop instance holds those commands). Folio operated under the operator's direct word; the
   coordinator reviewed the package and arranged a quiet window with the other local agents. Codex
   guidance and the shared policy are unchanged.
+- **Codex test postponed (Brent, 2026-11-20):** the contained Codex check found no route that can isolate
+  the test (the command sandbox cannot nest inside the test sandbox; the verified route cannot take the
+  test's masks or a stand-in memory command without a root-launcher change). Of postponing, building a
+  launcher test mode first, or a weaker disclosed smoke test, the operator chose to postpone. Codex keeps
+  its current guidance; a launcher test mode is backlogged.
