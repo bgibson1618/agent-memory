@@ -212,7 +212,9 @@ def _dedup(args) -> int:
             raise DedupCliError(f"--top-m must be >= 1, got {args.top_m}")
         cfg = replace(cfg, union_m=args.top_m)
 
-    items = _sniff(_read_input(args.file), args.title)
+    text = _read_input(args.file)
+    items = _sniff(text, args.title)
+    okf_card_input = text.lstrip().startswith("---")
     valid, invalid_results = _to_concepts(items)
 
     corpus = dedup.build_corpus(root, cfg)
@@ -246,7 +248,11 @@ def _dedup(args) -> int:
 
         reports = []
         for i, concept in valid:
-            report = dedup.detect(corpus, concept, precomputed.get(i))
+            # S6 slice A: re-checking an EXISTING card (an OKF card input whose
+            # slug is already in the KB) leaves that card out of its own hits;
+            # a new candidate is never excluded by its intended slug.
+            exclude = concept.slug if okf_card_input and concept.slug in corpus.title_by_slug else None
+            report = dedup.detect(corpus, concept, precomputed.get(i), exclude_slug=exclude)
             report["index"] = i
             reports.append(report)
         legs_run = list(corpus.legs_run)

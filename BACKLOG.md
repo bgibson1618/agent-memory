@@ -30,8 +30,9 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
    instruction file carries the wording). The Codex test is postponed (operator, 2026-11-20): no
    contained route can run it yet (see "Contained Codex test route" below); Codex guidance stays unchanged.
 2. **D18 S6, slices A then B then C** (decided 2026-11-19, D29): extraction and duplicate detection
-   decide on current files, write all-or-nothing, and share one decision. Next: slice A's plan for the
-   operator's go-ahead.
+   decide on current files, write all-or-nothing, and share one decision. Slice A is built on local
+   branch `s6-slice-a-2026-11` (2026-11-20, the operator's go-ahead; see its item below); merging,
+   releasing and activating it each need the operator's word. Then slice B.
 3. **Close the D30 release's rollback window** on the operator's word, with the D27/D28 window (on or
    after 2026-11-25): keep `0.2.1+a6d77bfd71d2` and the saved copies until then.
 
@@ -93,6 +94,16 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
   Reproduced 2026-11-19 on the active release's code: extract misses hand-edited and hand-added
   cards until another command refreshes the index; `mem dedup` flags against a hand-edited card's
   stale vector; `mem dedup` calls a same-title exact duplicate novel. Source: D29.
+  **Built 2026-11-20 on local branch `s6-slice-a-2026-11` (1092398 plus review fixes 9484dab and df2c097), not
+  merged, released or active** (`FEATURES.md` F8, F9). Each defect was first written as a test that
+  failed on the code before the fix. The independent review (contained Codex, static) failed the
+  first version: the opt-in chunk leg could still score stale chunks, and an exhausted WAL switch
+  still reached extract and dedup as a traceback. Both are fixed with tests, along with a too-broad
+  fallback in the freshness check; a second review found that fallback still accepted a damaged
+  full-text index, and that `mem save --dedup-check` could fail a committed save on an index error
+  (both fixed with tests); a third review passed the slice (one pre-existing cleanup item, below). Expected after release: the first extract re-embeds any card
+  whose vector no longer matches its file (cards edited outside `mem` and not yet re-embedded; by
+  the code history, otherwise only vectors written before 2026-07-23 and never refreshed).
 - **D18 S6, slice B — all-or-nothing extraction batch.** Phase 1 does all daemon work; phase 2
   re-checks under the write lock that nothing changed, writes the batch, makes one path-limited
   commit, creates files exclusively, and on failure removes only its own files (never
@@ -145,6 +156,15 @@ word, and anything that changes what runs on the laptop needs a new release (`RE
 - `chunks.py` and `claims.py` hand-mirror the same identity-stamp and rebuild engine; extract a
   shared helper (2026-09-03).
 - The wikilink pattern is defined separately in `okf.py`, `graph.py` and `extract.py` (2026-08-10).
+- A damaged index (for example a missing FTS5 backing table) reaches `mem extract` and `mem dedup`
+  as a Python traceback; nothing is saved, and `mem search` already reports it in one line. A
+  one-line `error:` naming `mem reindex` would match (2026-11-20, S6 slice A review 2).
+- `dedup.build_corpus` leaves its lexical connection (and the optional chunk and claim connections)
+  open if construction raises before the `Corpus` is returned; close them on that path. The
+  connection lives only until the process exits (2026-11-20, S6 slice A review 3; pre-existing).
+- `lexical.db_path()` raises `NameError`: it still refers to `DB_NAME`, which moved to `indexdb` on
+  2026-08-05. Nothing calls it, so it is dead code; delete it or point it at `indexdb.db_path`.
+  (Listed as fixed on 2026-11-18 in error; re-checked against the source on 2026-11-20.)
 - `scripts/kb-obsidianize.py` hardcodes the default instance's concept directory, bypassing
   `MEM_KB_ROOT` (D15), and carries its own slug function that differs from `okf.slugify`.
 - No linter is configured.
@@ -213,5 +233,4 @@ Process items recorded in 2026-08 belong where they are tracked, not here.
 
 - The procedure entrypoint (D28) released and activated on the development laptop (2026-11-18):
   runtime `0.2.1+a6d77bfd71d2` and `plugin-0.2.1+a6d77bfd71d2`, from one revision, switched together.
-- The reproduced `NameError` in `lexical.db_path` (2026-08-10).
 - Concept slugs `index` and `log`, reserved by OKF, are refused (D5).

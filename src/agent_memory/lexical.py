@@ -80,10 +80,13 @@ def record_save(root: Path, concept: okf.Concept, path: Path) -> None:
         )
 
 
-def sync(conn: sqlite3.Connection, root: Path) -> tuple:
+def sync(conn: sqlite3.Connection, root: Path, unparseable: list | None = None) -> tuple:
     """Reconcile the index with concepts/*.md by mtime+size: index new/changed
     files, drop rows for deleted ones. Slugs are file stems - the same key
-    `mem get` resolves. Unparseable files are skipped with a warning, like list.
+    `mem get` resolves. Unparseable files are skipped with a warning, like list;
+    pass a list as `unparseable` to collect their file names (S6 slice A: extract
+    reports them by name). An unparseable file has no index row, so every sync
+    retries - and reports - it until it is fixed.
 
     Returns the change-set as (changed, removed): changed is [(slug, Concept)]
     for files (re-)indexed this sync, removed is [slug] for rows dropped
@@ -113,6 +116,8 @@ def sync(conn: sqlite3.Connection, root: Path) -> tuple:
                 print(f"warning: skipping {path}: {e}", file=sys.stderr)
                 _remove(conn, slug)
                 removed.append(slug)
+                if unparseable is not None:
+                    unparseable.append(path.name)
                 continue
             _upsert(conn, slug, concept, stat)
             changed.append((slug, concept))
