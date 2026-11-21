@@ -383,6 +383,14 @@ not claimed.
   not); one Opus control did not search. Opus read the workspace before searching (first memory call at
   tool call 4-13; Sonnet and Fable 1-3). One run per slot, explicit fixtures, sequential runs; the
   wording is not merged, released or active.
+- **2026-11-20 Opus re-check with one added sentence (the operator's choice after the pilot; 6 sessions on
+  the pilot's capture slots, Opus 5.5 only; independent review VALID-WITH-NOTES):** both shipped blocks now
+  say "Cite evidence by project name and project-relative path, never by an absolute local path."
+  (branch `recall-capture-2026-11` @ 7319d73, focused test, full suite passing). Opus saved four correct,
+  scoped entries, none with an absolute or private path (pilot: two of four), so the capture gates are
+  met; both controls saved nothing, and neither searched memory at the start of its task. One run per
+  slot, sequential runs; reader updates and other models with the sentence are untested; not merged,
+  released or active.
 
 ## F12 — Zero-egress guarantee
 - **Proof:** `test` (loopback-only namespace guard proves no non-localhost traffic across the full command surface)

@@ -1097,3 +1097,9 @@ specs; this log carries the *reasoning* worth keeping when those specs change.
   recall and reuse carrying over to both models and Fable meeting every gate; 2 of 4 Opus entries cited
   evidence by absolute local path, outside the integrity bar. How to handle that (a wording sentence
   with an Opus re-check, a save-time check in `mem`, or adoption as is) is the operator's next choice.
+- **Amendment (Brent, 2026-11-20 evening, agreeing with Folio's recommendation):** add one sentence to
+  the chosen wording, "Cite evidence by project name and project-relative path, never by an absolute
+  local path." (both shipped blocks, focused test; branch @ 7319d73), and re-check the Opus captures.
+  The re-check (6 sessions, the pilot's capture slots) met the capture gates: 4 of 4 entries correct and
+  scoped with no absolute or private path; both controls saved nothing. A save-time path check in `mem`
+  is backlogged as a separate slice. Merge, release and activation still each need the operator's word.
