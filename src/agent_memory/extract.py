@@ -13,7 +13,11 @@ lexical index) and their already-computed embeddings are stored directly.
 Dedup requires embeddings: with Ollama unreachable the whole batch is refused
 with a one-line error before anything is saved. All embedding happens up
 front (queue drain + one batched embed call), so a daemon failure can never
-leave the batch partially saved.
+leave the batch partially saved. Decisions use the files' current text (D18
+S6 slice A): the batch first refreshes the lexical index from the concept files,
+queues every card whose stored vector is missing or stale, drains fully, and
+refuses before any save if a card still cannot be embedded; unparseable card
+files are reported by name (`unparseable` in --json) and left out.
 
 The agent-side half - the extract-knowledge choreography (fresh-eyed extractor
 fan-out, fresh-eyed review, disposition review) - ships as package data and is
@@ -137,12 +141,42 @@ def _to_concept(item) -> okf.Concept:
     ).validate()
 
 
+def _enqueue_incomplete(root: Path) -> int:
+    """Queue every current card whose stored vector is missing or does not
+    match its current text (S6 slice A), so the full drain that follows makes
+    the index complete before any decision. Returns how many were queued."""
+    con = vector.connect(root)
+    try:
+        current = vector.current_embed_hashes(con) or {}
+        stored = dict(con.execute("SELECT slug, content_hash FROM vectors"))
+        todo = [slug for slug, h in current.items() if stored.get(slug) != h]
+        for slug in todo:
+            vector.enqueue(con, slug)
+        con.commit()
+        return len(todo)
+    finally:
+        con.close()
+
+
 def _kb_vectors(con, dims: int) -> list:
-    """[(slug, unit vector)] for every stored embedding of matching dims."""
+    """[(slug, unit vector)] for every current card, each embedding matching
+    the card's current text (S6 slice A). Called after the full drain; if any
+    current card still has no matching embedding, the batch is refused before
+    any save rather than decided against an incomplete index."""
     import numpy as np  # deferred, like vector.top_k
 
+    stale: list = []
+    rows = vector.fresh_vector_rows(con, dims, stale)
+    current = vector.current_embed_hashes(con)
+    unscored = sorted(set(current or ()) - {slug for slug, _ in rows})
+    if stale or unscored:
+        shown = ", ".join(unscored[:5]) + (" ..." if len(unscored) > 5 else "")
+        raise ExtractError(
+            f"{len(unscored)} card(s) have no embedding matching their current text after the"
+            f" refresh ({shown}); refusing the batch before any save - run: mem reindex"
+        )
     entries = []
-    for slug, blob in con.execute("SELECT slug, vec FROM vectors WHERE dims = ?", (dims,)):
+    for slug, blob in rows:
         v = np.frombuffer(blob, dtype=np.float32)
         norm = float(np.linalg.norm(v))
         if norm > 0.0:
@@ -298,13 +332,31 @@ def _extract(args) -> int:
                 "reason": str(e),
             }
 
+    # S6 slice A - decide on current files: refresh the lexical index from the
+    # concept files and reconcile vectors from that change-set (as `mem dedup`
+    # does), so cards edited or added outside mem are seen; unparseable files
+    # are collected and reported by name.
+    unparseable: list = []
+    lex_conn = lexical.connect(root)
+    try:
+        changed, removed = lexical.sync(lex_conn, root, unparseable=unparseable)
+    finally:
+        lex_conn.close()
+    vector.reconcile(root, changed, removed)
+
     if valid:
-        # Dedup requires a complete vector index: drain any queued embeds
-        # first, then embed the whole batch in one call - any daemon trouble
-        # refuses the batch here, before a single save.
-        _, _, error = vector.drain_fully(root)
-        if error is not None:
-            raise error
+        # Dedup requires a complete, current vector index: every card whose
+        # stored vector is missing or no longer matches its text is queued,
+        # the queue is drained fully, then the whole batch is embedded in one
+        # call - any daemon trouble refuses the batch here, before a single save.
+        _enqueue_incomplete(root)
+        _, remaining, error = vector.drain_fully(root)
+        if error is not None or remaining:
+            raise ExtractError(
+                f"{remaining} changed or new card(s) could not be embedded"
+                f" ({error if error is not None else 'drain incomplete'});"
+                " refusing the batch before any save"
+            )
         texts = [vector.embed_text(c) for _, c in valid]
         vecs = ollama.embed(
             config.ollama_base_url(), config.embed_model(), texts,
@@ -444,6 +496,11 @@ def _extract(args) -> int:
             "links_remapped": links_remapped,
             "results": results,
         }
+        if unparseable:
+            # S6 slice A, additive-only (absent when empty, so default output
+            # stays byte-identical): card files the refresh could not parse;
+            # the batch was decided without them.
+            payload["unparseable"] = unparseable
         if shared_result is not None:
             payload["shared_write"] = shared_result
         if dedup_high is not None:

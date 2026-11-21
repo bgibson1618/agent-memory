@@ -173,7 +173,8 @@ def _dedup_check(root: Path, concept: okf.Concept) -> None:
         except ollama.OllamaError as e:
             vec = None
             print(f"dedup-check: semantic legs skipped ({e})", file=sys.stderr)
-        report = dedup.detect(corpus, concept, vec)
+        # The card has already been saved: leave IT out of its own check.
+        report = dedup.detect(corpus, concept, vec, exclude_slug=concept.slug)
         print(f"dedup-check: verdict={report['verdict']} flagged={report['flagged']}", file=sys.stderr)
         print(json.dumps(report, indent=2, ensure_ascii=False), file=sys.stderr)
     except (vector.VectorError, dedup.DedupError, StoreError, ollama.OllamaError) as e:

@@ -499,6 +499,7 @@ class Corpus:
     claim_leg_active: bool = False  # cfg.claim_sem is not None AND the daemon hasn't failed mid-run
     embed_model: Optional[str] = None  # set by the CLI once the batch embed
     embed_digest: Optional[str] = None  # completes - identity for top_k_doc/chunk scans (gate finding 3)
+    current_hashes: Optional[dict] = None  # S6 slice A: current embed-text hashes, one snapshot per batch
     _concept_cache: dict = field(default_factory=dict)
 
     def concept(self, slug: str):
@@ -531,6 +532,7 @@ def build_corpus(root: Path, cfg: DedupConfig) -> Corpus:
     body_by_slug = {slug: body for slug, _title, body in rows}
     title_by_slug = {slug: title for slug, title, _body in rows}
     idf = idf_from_corpus(claims.tokenize(body) for _slug, _title, body in rows)
+    current_hashes = vector.current_embed_hashes(lex_conn)   # S6 slice A: once per batch
 
     vec_con = vector.connect(root)
     try:
@@ -554,6 +556,7 @@ def build_corpus(root: Path, cfg: DedupConfig) -> Corpus:
         title_by_slug=title_by_slug, vector_available=vector_available,
         chunk_leg_active=cfg.chunks, legs_run=legs_run,
         claim_con=claim_con, claim_leg_active=cfg.claim_sem is not None,
+        current_hashes=current_hashes,
     )
 
 
@@ -602,6 +605,7 @@ _RELATION_LABEL_FALLBACK_HIGH = 0.85
 def detect(
     corpus: Corpus, candidate, precomputed_vec: Optional[list] = None,
     precomputed_claim_vecs: Optional[list] = None, strict_claim_leg: bool = False,
+    exclude_slug: Optional[str] = None,
 ) -> dict:
     """The fused-retrieval + coverage + routing pipeline for ONE candidate
     against `corpus`'s KB snapshot (S4.1/S4.2/S4.4). Returns the per-
@@ -619,10 +623,15 @@ def detect(
     candidate's own claims itself with one live call when the semantic claim
     leg is active (degrading the leg off on daemon trouble, exactly like the
     chunk leg).
+
+    `exclude_slug` (S6 slice A) names an EXISTING card to leave out of every
+    leg - the card being re-checked, e.g. `mem save --dedup-check` checking the
+    card it has just saved. A new candidate is never excluded by its intended
+    slug: an existing card with that slug is exactly the duplicate to find.
     """
     cfg = corpus.cfg
     notes: list = []
-    self_slug = candidate.slug
+    self_slug = exclude_slug
 
     # Ruling A (D18 W2 fix cycle, gate finding 2): a hit's `relation` label
     # is CALIBRATED (and so may drive the confident-duplicate superset
@@ -655,12 +664,21 @@ def detect(
     doc_cosines: dict = {}
     vec_slugs: list = []
     if corpus.vector_available and precomputed_vec is not None:
+        stale: list = []
         ranked = vector.top_k_doc(
             corpus.root, vec=precomputed_vec, k=None,
-            model=corpus.embed_model, digest=corpus.embed_digest,
+            model=corpus.embed_model, digest=corpus.embed_digest, stale_out=stale,
+            current=corpus.current_hashes,
         )
         doc_cosines = {slug: score for slug, score in ranked if slug != self_slug}
         vec_slugs = [slug for slug, _ in ranked if slug != self_slug][: cfg.deep_k]
+        stale = sorted(s for s in stale if s != self_slug)
+        if stale:
+            shown = ", ".join(stale[:10]) + (f" (+{len(stale) - 10} more)" if len(stale) > 10 else "")
+            notes.append(
+                f"vector_document leg: {len(stale)} card(s) with a stale vector excluded "
+                f"(edited since embedded; re-embedding pending): {shown}"
+            )
     elif corpus.vector_available and precomputed_vec is None:
         notes.append("vector_document leg skipped: no embedding available this run")
 

@@ -74,7 +74,13 @@ def document_text(concept: okf.Concept) -> str:
     build from - factored out so a card's ONE chunk (S3: no headings, <=1,000
     chars) can be byte-identical to what `embed_text` embeds, making
     cosine_best_chunk == cosine_document exactly rather than approximately."""
-    parts = [concept.title, concept.description, ", ".join(concept.topics), concept.body]
+    return _document_text_from(concept.title, concept.description, concept.topics, concept.body)
+
+
+def _document_text_from(title: str, description: str, topics: list, body: str) -> str:
+    """The one place the document text is assembled, from a concept's fields or
+    from its lexical-index row (S6 slice A), so the two can never diverge."""
+    parts = [title, description, ", ".join(topics), body]
     return "\n\n".join(p.strip() for p in parts if p and p.strip())
 
 
@@ -85,6 +91,58 @@ def embed_text(concept: okf.Concept) -> str:
 
 def content_hash(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def current_embed_hashes(con: sqlite3.Connection) -> dict:
+    """{slug: content_hash of embed_text(current card)} for every card in the
+    lexical index (S6 slice A: no surface scores a stale vector). Callers sync
+    the lexical index first, so its rows are the files' current text. Topics
+    are kebab-case slugs (okf.normalize_topics), so the index's space-joined
+    column splits back exactly. Returns None when the database has no lexical
+    table at all (never synced): freshness cannot be checked there. Every
+    production caller (search, dedup's build_corpus, extract) syncs first."""
+    try:
+        rows = con.execute("SELECT slug, title, description, body, topics FROM lexical").fetchall()
+    except sqlite3.OperationalError:
+        return None
+    out = {}
+    for slug, title, description, body, topics in rows:
+        text = _document_text_from(title or "", description or "", (topics or "").split(), body or "")
+        out[slug] = content_hash(("search_document: " + text)[:EMBED_MAX_CHARS])
+    return out
+
+
+def fresh_vector_rows(con: sqlite3.Connection, dims: int, stale_out: list | None = None,
+                      current: dict | None = None) -> list:
+    """[(slug, vec_blob)] ordered by slug, keeping only vectors whose stored
+    content hash equals the card's current one. A card whose vector is stale
+    (edited since it was embedded) is left out, appended to `stale_out`, and
+    (re-)enqueued so the next drain heals it - the change-set reconcile only
+    sees files changed since the last sync, so a vector left stale earlier
+    would otherwise stay out of every leg. A vector with no current card is
+    left out. Pass `current` (from current_embed_hashes) to reuse one
+    snapshot across a batch."""
+    if current is None:
+        current = current_embed_hashes(con)
+    rows = con.execute(
+        "SELECT slug, content_hash, vec FROM vectors WHERE dims = ? ORDER BY slug", (dims,)
+    ).fetchall()
+    if current is None:  # never-synced database: nothing to check against
+        return [(slug, blob) for slug, _h, blob in rows]
+    fresh, stale = [], []
+    for slug, stored_hash, blob in rows:
+        now = current.get(slug)
+        if now is not None and now == stored_hash:
+            fresh.append((slug, blob))
+        elif now is not None:
+            stale.append(slug)
+    if stale:
+        for slug in stale:
+            enqueue(con, slug)
+        con.commit()
+        if stale_out is not None:
+            stale_out.extend(stale)
+    return fresh
 
 
 def get_meta(con: sqlite3.Connection) -> dict | None:
@@ -354,7 +412,8 @@ def require_built(root: Path, con: sqlite3.Connection | None) -> dict | None:
     return meta
 
 
-def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> list:
+def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None,
+          stale_out: list | None = None) -> list:
     """The vector leg: brute-force cosine over stored vectors, best first.
     Returns [(slug, score), ...]; raises ollama.OllamaError when the daemon
     cannot embed the query and VectorError when the index is structurally
@@ -372,16 +431,16 @@ def top_k(root: Path, query: str, k: int = 5, timeout: float | None = None) -> l
         meta = require_built(root, con)
         if meta is None:
             return []
+        assert con is not None  # require_built returns None when there is no index
         if len(qvec) != int(meta.get("dims", 0)):
             raise VectorError(
                 f"query embedding dims {len(qvec)} != index dims {meta.get('dims')} - run: mem reindex"
             )
         # ORDER BY slug + stable argsort below: leg ranking (and thus RRF rank
         # credit) must be rebuild-invariant - exact-tie order can't depend on
-        # insertion order (the wave-5 byte-equivalence catch).
-        rows = con.execute(
-            "SELECT slug, vec FROM vectors WHERE dims = ? ORDER BY slug", (len(qvec),)
-        ).fetchall()
+        # insertion order (the wave-5 byte-equivalence catch). Stale vectors
+        # (card edited since it was embedded) are never scored (S6 slice A).
+        rows = fresh_vector_rows(con, len(qvec), stale_out)
     finally:
         if con is not None:
             con.close()
@@ -392,6 +451,7 @@ def top_k_doc(
     root: Path, text: str | None = None, *, vec: list | None = None,
     k: int | None = None, timeout: float | None = None,
     model: str | None = None, digest: str | None = None,
+    stale_out: list | None = None, current: dict | None = None,
 ) -> list:
     """D18 S4.2 - the document-prefixed twin of `top_k`: `search_document:`
     on BOTH sides (`top_k` prefixes the query side with `search_query:`),
@@ -428,10 +488,9 @@ def top_k_doc(
         meta = require_built(root, con)
         if meta is None:
             return []
+        assert con is not None  # require_built returns None when there is no index
         check_meta(meta, query_model, len(qvec), "document-cosine scan refused", digest=digest)
-        rows = con.execute(
-            "SELECT slug, vec FROM vectors WHERE dims = ? ORDER BY slug", (len(qvec),)
-        ).fetchall()
+        rows = fresh_vector_rows(con, len(qvec), stale_out, current)   # stale vectors never scored (S6 slice A)
     finally:
         if con is not None:
             con.close()
